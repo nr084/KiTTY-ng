@@ -6,13 +6,13 @@ SSH, Telnet and serial terminal for Windows, based on PuTTY 0.85, with English a
 
 <img src="icons/kitty-ng.png" width="192" alt="Two connected terminals">
 
-**Test version: 0.85-test.** Migration of KiTTY extensions is ongoing. This release uses a modern PuTTY codebase with selected KiTTY features; it does not yet include every feature of the original KiTTY. The [migration report](docs/migration.md) describes the current scope in Russian.
+**Test version: 0.85-test-2.** Migration of KiTTY extensions is ongoing. This release uses a modern PuTTY codebase with selected KiTTY features; it does not yet include every feature of the original KiTTY. The [migration report](docs/migration.md) describes the current scope in Russian.
 
 ## Download and run
 
 Download the appropriate archive from [Releases](https://github.com/nr084/kitty-ng/releases): **x64**, **x86** or **ARM64**. Extract it and run `kitty-ng-x64.exe`, `kitty-ng-x86.exe` or `kitty-ng-arm64.exe`. No installation is required.
 
-Each release contains three archives: `kitty-ng-0.85-test-x64.zip`, `kitty-ng-0.85-test-x86.zip` and `kitty-ng-0.85-test-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
+Each release contains three archives: `kitty-ng-0.85-test-2-x64.zip`, `kitty-ng-0.85-test-2-x86.zip` and `kitty-ng-0.85-test-2-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
 
 ```text
 kitty-ng-x64.exe
@@ -61,6 +61,8 @@ The screenshots below show the English interface:
 ![Interface language dropdown](docs/screenshots/language-en.png)
 
 ![Session configuration](docs/screenshots/session-en.png)
+
+![About KiTTY-NG](docs/screenshots/about-en.png)
 
 ## Migrating from portable KiTTY
 

@@ -6,7 +6,7 @@ set(commit "${DEFAULT_COMMIT}")
 set(TOPLEVEL_SOURCE_DIR ${CMAKE_SOURCE_DIR})
 
 execute_process(
-  COMMAND ${GIT_EXECUTABLE} rev-parse --show-cdup
+  COMMAND ${GIT_EXECUTABLE} -c "safe.directory=${CMAKE_SOURCE_DIR}" rev-parse --show-cdup
   OUTPUT_VARIABLE path_to_top
   ERROR_VARIABLE stderr
   RESULT_VARIABLE status)
@@ -18,7 +18,7 @@ string(REGEX REPLACE "\n$" "" path_to_top "${path_to_top}")
 # top; if we're higher up it will fail with an error.
 if(status EQUAL 0 AND path_to_top STREQUAL "")
   execute_process(
-    COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+    COMMAND ${GIT_EXECUTABLE} -c "safe.directory=${CMAKE_SOURCE_DIR}" rev-parse HEAD
     OUTPUT_VARIABLE git_commit
     ERROR_VARIABLE stderr
     RESULT_VARIABLE status)

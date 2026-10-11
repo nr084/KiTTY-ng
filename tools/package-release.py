@@ -20,7 +20,7 @@ for name in names:
     offset = struct.unpack_from("<I", data, 0x3c)[0]
     assert data[:2] == b"MZ" and data[offset:offset+4] == b"PE\0\0"
     assert struct.unpack_from("<H", data, offset+4)[0] == machine, name
-    assert ("kitty-ng " + version).encode("utf-16le") in data, (name, "stale version resource")
+    assert ("KiTTY-NG " + version).encode("utf-16le") in data, (name, "stale version resource")
 args.output.mkdir(parents=True, exist_ok=True)
 archive = args.output / f"kitty-ng-{version}-{args.arch}.zip"
 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
@@ -34,7 +34,7 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
     bundle.write(root / "docs/screenshots/session-ru.png", "docs/screenshots/session-ru.png")
     bundle.write(root / "docs/screenshots/language-ru.png", "docs/screenshots/language-ru.png")
     bundle.write(root / "docs/screenshots/transfer-ru.png", "docs/screenshots/transfer-ru.png")
-    for name in ("session-en.png", "language-en.png", "transfer-en.png"):
+    for name in ("session-en.png", "language-en.png", "transfer-en.png", "about-ru.png", "about-en.png"):
         bundle.write(root / "docs/screenshots" / name, "docs/screenshots/" + name)
     if (args.build / "compiler.json").exists():
         bundle.write(args.build / "compiler.json", "BUILD-INFO.json")

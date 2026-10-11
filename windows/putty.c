@@ -11,6 +11,7 @@
 extern bool sesslist_demo_mode;
 extern Filename *dialog_box_demo_screenshot_filename;
 extern const char *kr_demo_panel;
+extern void kr_demo_about(Filename *filename);
 static strbuf *demo_terminal_data = NULL;
 static Filename *terminal_demo_screenshot_filename;
 
@@ -150,6 +151,9 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                 /* Keep failures scriptable; do not replace a missing helper
                  * with a PATH search or another architecture. */
                 cleanup_exit(success ? status : error);
+            } else if (!strcmp(p, "-demo-about")) {
+                if (!nextarg) cmdline_error("%s expects an output filename", p);
+                kr_demo_about(cmdline_arg_to_filename(nextarg));
             } else if (!strcmp(p, "-demo-config-box")) {
                 if (!arglist->args[arglistpos]) {
                     cmdline_error("%s expects an output filename", p);

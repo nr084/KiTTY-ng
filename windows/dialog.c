@@ -413,6 +413,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+static Filename *about_demo_filename;
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                                   WPARAM wParam, LPARAM lParam)
 {
@@ -424,16 +425,48 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         str = dupprintf("About %s", appname);
         SetWindowText(hwnd, str);
         sfree(str);
+        SetDlgItemText(hwnd, IDA_BRAND, appname);
+        SetDlgItemText(hwnd, IDA_VERSION, ver);
+        LOGFONTW font = {0};
+        HFONT original = (HFONT)SendDlgItemMessage(hwnd, IDA_BRAND, WM_GETFONT, 0, 0);
+        if (GetObjectW(original, sizeof(font), &font)) {
+            font.lfHeight = font.lfHeight * 3 / 2;
+            font.lfWeight = FW_SEMIBOLD;
+            HFONT title_font = CreateFontIndirectW(&font);
+            if (title_font) {
+                SetPropW(hwnd, L"KiTTY-NG About Font", title_font);
+                SendDlgItemMessage(hwnd, IDA_BRAND, WM_SETFONT, (WPARAM)title_font, true);
+            }
+        }
         char *buildinfo_text = buildinfo("\r\n");
         char *text = dupprintf(
-            "%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-            appname, ver, buildinfo_text,
-            "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+            "%s\r\n\r\nPuTTY\r\n\302\251 " SHORT_COPYRIGHT_DETAILS
+            "\r\n\r\nKiTTY\r\n\302\251 2007-2013 Cyril Dupont"
+            "\r\n\r\nKiTTY-NG\r\n\302\251 %s nr084",
+            buildinfo_text, __DATE__ + 7);
         sfree(buildinfo_text);
-        SetDlgItemText(hwnd, IDA_TEXT, text);
+        wchar_t *wide = dup_mb_to_wc(CP_UTF8, text);
+        SetDlgItemTextW(hwnd, IDA_TEXT, wide);
+        sfree(wide);
         MakeDlgItemBorderless(hwnd, IDA_TEXT);
         sfree(text);
-        return 1;
+        if (about_demo_filename) SetTimer(hwnd, 1, 750, NULL);
+        SetFocus(GetDlgItem(hwnd, IDOK));
+        return 0;
+      }
+      case WM_TIMER:
+        if (about_demo_filename && wParam == 1) {
+            KillTimer(hwnd, 1);
+            char *error = save_screenshot(hwnd, about_demo_filename);
+            if (error) { sfree(error); EndDialog(hwnd, 1); }
+            else EndDialog(hwnd, 0);
+            return true;
+        }
+        break;
+      case WM_DESTROY: {
+        HFONT font = (HFONT)RemovePropW(hwnd, L"KiTTY-NG About Font");
+        if (font) DeleteObject(font);
+        return true;
       }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
@@ -462,6 +495,15 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         return 0;
     }
     return 0;
+}
+
+void kr_demo_about(Filename *filename)
+{
+    about_demo_filename = filename;
+    INT_PTR result = DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), NULL, AboutProc);
+    about_demo_filename = NULL;
+    filename_free(filename);
+    cleanup_exit(result == 0 ? 0 : 1);
 }
 
 /*

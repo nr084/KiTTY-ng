@@ -3,6 +3,6 @@
 #define APPNAME "Plink"
 #define APPDESC "Command-line SSH, Telnet, and Rlogin client"
 
-200 ICON "putty.ico"
+200 ICON "klink.ico"
 
 #include "version.rc2"

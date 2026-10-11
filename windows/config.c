@@ -127,7 +127,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     dlgcontrol *c;
     char *str;
 
-    s = ctrl_getset(b, "Connection/Data", "kittyng", "kitty-ng");
+    s = ctrl_getset(b, "Connection/Data", "kittyng", "KiTTY-NG");
     c = ctrl_editbox(s, "Saved password", NO_SHORTCUT, 100,
                      HELPCTX(no_help), password_handler, P(NULL), P(NULL));
     c->editbox.password = true;
@@ -146,13 +146,13 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     ctrl_editbox(s, "Alternate destination (user@host:port, optional)", NO_SHORTCUT, 100,
                  HELPCTX(no_help), transfer_string_handler, I(CONF_sftpconnect), P(NULL));
 
-    s = ctrl_getset(b, "Window/Appearance", "kittyng", "kitty-ng");
+    s = ctrl_getset(b, "Window/Appearance", "kittyng", "KiTTY-NG");
     ctrl_droplist(s, "Interface language", NO_SHORTCUT, 50,
                   HELPCTX(no_help), language_handler, P(NULL));
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_transparencynumber), ED_INT);
-    s = ctrl_getset(b, "Connection", "kittyng", "kitty-ng");
+    s = ctrl_getset(b, "Connection", "kittyng", "KiTTY-NG");
     ctrl_editbox(s, "Reconnect delay in seconds (0 disables)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_kr_reconnect_delay), ED_INT);

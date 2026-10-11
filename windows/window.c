@@ -75,7 +75,7 @@ static bool kr_tray_icon(HWND hwnd, bool add)
     icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     icon.uCallbackMessage = WM_KR_TRAY;
     icon.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(IDI_MAINICON));
-    wcscpy(icon.szTip, L"kitty-ng");
+    wcscpy(icon.szTip, L"KiTTY-NG");
     return Shell_NotifyIconW(add ? NIM_ADD : NIM_DELETE, &icon) != FALSE;
 }
 #define IDM_SPECIALSEP 0x0200

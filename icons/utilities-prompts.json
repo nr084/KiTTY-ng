@@ -1,0 +1,11 @@
+{
+  "base": "Use case: logo-brand. Asset type: Windows desktop application icon. Create one polished modern app icon for the kitty-ng utility family. Style: clean restrained semi-3D, softly rounded silver metal bezels, dark charcoal surfaces, crisp electric-blue and emerald-green accents, similar to a modern dark terminal monitor icon. Bold silhouette and large simple symbols readable at 16, 24 and 32 pixels; no tiny detail, no text label, no letters except an optional green >_ terminal prompt. Centered composition with 10% clear padding on every side. True transparent alpha background, no square background tile, no cast shadow outside the icon.",
+  "subjects": {
+    "klink": "Subject: one dark terminal screen in a silver frame, with a large bright blue linked-chain connector symbol in front. Communicate command-line SSH connection. Keep the chain to exactly two chunky interlocking links and the terminal simple.",
+    "kscp": "Subject: two overlapping silver document sheets with a single large bright-blue right-pointing copy arrow. A small dark terminal corner may appear behind them. Communicate secure one-way file copy. Clear visual separation from a folder transfer icon.",
+    "ksftp": "Subject: a modern blue folder with two broad opposing transfer arrows, one emerald green and one bright blue, and a tiny silver closed padlock integrated into the folder corner. Communicate secure interactive file transfer. Prioritize folder and opposing arrows over details.",
+    "kittygen": "Subject: one large polished golden-yellow key, with a dark terminal screen in a silver frame behind it and one small blue sparkle accent. Communicate SSH key generation. The key has a bold simple circular bow and two clear teeth.",
+    "kageant": "Subject: a substantial emerald and blue security shield with a silver keyhole centered on it, and a subtle dark terminal edge behind it. Communicate an SSH authentication agent guarding keys. One shield, no warning badge, strong clear silhouette."
+  },
+  "tool": "built-in image_gen"
+}

@@ -153,3 +153,10 @@ Makefile
 /windows/*.msi
 /windows/*.wixobj
 /windows/*.wixpdb
+
+# Source images for companion utility icons
+!/icons/kageant.png
+!/icons/kittygen.png
+!/icons/klink.png
+!/icons/kscp.png
+!/icons/ksftp.png

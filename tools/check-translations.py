@@ -41,7 +41,7 @@ for filename in ["config.c", "windows/config.c", "ssh/ca-config.c"]:
             if index < len(args): labels.update(strings(args[index]))
 
 # Technical names and literal control sequences are intentionally retained.
-technical = {"kitty-ng", "SSH", "Telnet", "Rlogin", "SUPDUP", "SSH-1", "SSH-2",
+technical = {"KiTTY-NG", "SSH", "Telnet", "Rlogin", "SUPDUP", "SSH-1", "SSH-2",
              "VT100+", "VT400", "Xterm R6", "Xterm 216+", "SCO", "Linux",
              "ESC[n~", "Control-H", "Control-? (127)", "Control-C", "IPv4", "IPv6",
              "ANSI", "OEM", "ClearType", "MIT-Magic-Cookie-1", "XDM-Authorization-1"}
