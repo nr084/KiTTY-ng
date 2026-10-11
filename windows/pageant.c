@@ -12,7 +12,7 @@
 #include "putty.h"
 #include "kittyng.h"
 #define MessageBox kr_messagebox
-#define AppendMenu kr_append_menu
+#define AppendMenu kr_utility_append_menu
 #define SetDlgItemText kr_utility_set_item_text
 #define dupprintf kr_printf
 #include "ssh.h"
@@ -35,6 +35,7 @@
 
 #define WM_SYSTRAY   (WM_APP + 6)
 #define WM_SYSTRAY2  (WM_APP + 7)
+#define WM_KAGEANT_LANGUAGE (WM_APP + 111)
 
 #define APPNAME "Pageant"
 
@@ -50,7 +51,7 @@
 static HWND traywindow;
 static HWND keylist;
 static HWND aboutbox;
-static HMENU systray_menu, session_menu;
+static HMENU systray_menu, session_menu, language_menu;
 static bool already_running;
 static FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
@@ -74,6 +75,9 @@ static filereq_saved_dir *keypath = NULL;
 #define IDM_HELP               0x0070
 #define IDM_ABOUT              0x0080
 #define IDM_PUTTY              0x0090
+#define IDM_LANGUAGE_EN        0x00A0
+#define IDM_LANGUAGE_RU        0x00B0
+#define IDM_NO_SESSIONS        0x00C0
 #define IDM_SESSIONS_BASE      0x1000
 #define IDM_SESSIONS_MAX       0x2000
 #define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
@@ -587,6 +591,23 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
     };
 
     switch (msg) {
+      case WM_KAGEANT_LANGUAGE: {
+        kr_utility_localize(hwnd);
+        int selection = SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE, CB_GETCURSEL, 0, 0);
+        SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE, CB_RESETCONTENT, 0, 0);
+        for (size_t i = 0; i < lenof(fptypes); i++)
+            kr_utility_combo_add(hwnd, IDC_KEYLIST_FPTYPE, fptypes[i].name);
+        SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE, CB_SETCURSEL, selection, 0);
+        int count = SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETCOUNT, 0, 0);
+        for (int i = 0; i < count; i++) {
+            struct keylist_display_data *disp = (struct keylist_display_data *)
+                SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETITEMDATA, i, 0);
+            char *info = dupstr(kr_translate(kr_untranslate(disp->info->s)));
+            strbuf_clear(disp->info); put_dataz(disp->info, info); sfree(info);
+        }
+        InvalidateRect(GetDlgItem(hwnd, IDC_KEYLIST_LISTBOX), NULL, TRUE);
+        return 0;
+      }
       case WM_INITDIALOG: {
         /*
          * Centre the window.
@@ -923,12 +944,13 @@ static void update_sessions(void)
     RegCloseKey(hkey);
 
     if (index_menu == 0) {
-        mii.cbSize = sizeof(mii);
-        mii.fMask = MIIM_TYPE | MIIM_STATE;
-        mii.fType = MFT_STRING;
-        mii.fState = MFS_GRAYED;
-        mii.dwTypeData = _T("(No sessions)");
-        InsertMenuItem(session_menu, index_menu, true, &mii);
+        wchar_t *label = dup_mb_to_wc(CP_UTF8, kr_translate("(No sessions)"));
+        MENUITEMINFOW empty = {0}; empty.cbSize = sizeof(empty);
+        empty.fMask = MIIM_STRING | MIIM_STATE | MIIM_ID;
+        empty.fState = MFS_GRAYED; empty.wID = IDM_NO_SESSIONS;
+        empty.dwTypeData = label;
+        InsertMenuItemW(session_menu, index_menu, true, &empty);
+        sfree(label);
     }
 }
 
@@ -1237,6 +1259,47 @@ static void create_keylist_window(void)
     ShowWindow(keylist, SW_SHOWNORMAL);
 }
 
+static void create_tray_menu(void)
+{
+    /* Accelerators used: nsvkxa */
+    systray_menu = CreatePopupMenu();
+    if (putty_path) {
+        session_menu = CreateMenu();
+        AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
+        AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
+                   (UINT_PTR) session_menu, "&Saved Sessions");
+        AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    }
+    AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
+               "&View Keys");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
+               "Add key (encrypted)");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    AppendMenu(systray_menu, MF_ENABLED, IDM_REMOVE_ALL,
+               "Remove All Keys");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_REENCRYPT_ALL,
+               "Re-encrypt All Keys");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    language_menu = CreatePopupMenu();
+    AppendMenuW(language_menu, MF_STRING, IDM_LANGUAGE_EN, L"English");
+    AppendMenuW(language_menu, MF_STRING, IDM_LANGUAGE_RU, L"\x0420\x0443\x0441\x0441\x043a\x0438\x0439");
+    AppendMenu(systray_menu, MF_POPUP, (UINT_PTR)language_menu, "Language");
+    CheckMenuRadioItem(language_menu, IDM_LANGUAGE_EN, IDM_LANGUAGE_RU,
+                      kr_language() ? IDM_LANGUAGE_RU : IDM_LANGUAGE_EN, MF_BYCOMMAND);
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    if (has_help())
+        AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+    initial_menuitems_count = GetMenuItemCount(session_menu);
+
+    /* Set the default menu item. */
+    SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, false);
+
+}
+
 static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                                     WPARAM wParam, LPARAM lParam)
 {
@@ -1285,6 +1348,39 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
       case WM_SYSCOMMAND: {
         unsigned command = wParam & ~0xF; /* low 4 bits reserved to Windows */
         switch (command) {
+          case IDM_LANGUAGE_EN:
+          case IDM_LANGUAGE_RU: {
+            if (!kr_set_language(command == IDM_LANGUAGE_RU)) {
+                MessageBox(hwnd, "Unable to save the interface language.", "Error", MB_OK | MB_ICONERROR);
+                break;
+            }
+            /* Only fixed tray labels have saved English strings. Never
+             * translate user session names, even if they match a UI label. */
+            for (int i = 0; i < GetMenuItemCount(systray_menu); i++) {
+                MENUITEMINFOW item = {0};
+                item.cbSize = sizeof(item); item.fMask = MIIM_DATA;
+                if (!GetMenuItemInfoW(systray_menu, i, TRUE, &item) || !item.dwItemData) continue;
+                wchar_t *label = dup_mb_to_wc(CP_UTF8, kr_translate((const char *)item.dwItemData));
+                item.fMask = MIIM_STRING; item.dwTypeData = label;
+                SetMenuItemInfoW(systray_menu, i, TRUE, &item); sfree(label);
+            }
+            CheckMenuRadioItem(language_menu, IDM_LANGUAGE_EN, IDM_LANGUAGE_RU, command, MF_BYCOMMAND);
+            if (session_menu && GetMenuState(session_menu, IDM_NO_SESSIONS, MF_BYCOMMAND) != (UINT)-1) {
+                MENUITEMINFOW empty = {0}; empty.cbSize = sizeof(empty); empty.fMask = MIIM_STRING;
+                wchar_t *label = dup_mb_to_wc(CP_UTF8, kr_translate("(No sessions)"));
+                empty.dwTypeData = label;
+                SetMenuItemInfoW(session_menu, IDM_NO_SESSIONS, FALSE, &empty); sfree(label);
+            }
+            if (keylist) SendMessage(keylist, WM_KAGEANT_LANGUAGE, 0, 0);
+            if (aboutbox) kr_utility_localize(aboutbox);
+            if (modal_passphrase_hwnd) kr_utility_localize(modal_passphrase_hwnd);
+            NOTIFYICONDATAW tip = {0}; tip.cbSize = sizeof(tip);
+            tip.hWnd = hwnd; tip.uID = 1; tip.uFlags = NIF_TIP;
+            wchar_t *text = dup_mb_to_wc(CP_UTF8, kr_translate("Kageant (KiTTY-NG authentication agent)"));
+            wcsncpy(tip.szTip, text, lenof(tip.szTip) - 1); sfree(text);
+            Shell_NotifyIconW(NIM_MODIFY, &tip);
+            break;
+          }
           case IDM_PUTTY: {
             TCHAR cmdline[10];
             cmdline[0] = '\0';
@@ -1394,6 +1490,73 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
     }
 
     return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+/* Isolated native regression: no IPC endpoint, real keys or tray icon. */
+static LRESULT CALLBACK language_test_window(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+{
+    return msg == WM_KAGEANT_LANGUAGE ? KeyListProc(hwnd, msg, wp, lp) : DefWindowProcW(hwnd, msg, wp, lp);
+}
+
+static int test_tray_language(void)
+{
+#define LANGUAGE_CHECK(condition) do { if (!(condition)) return 1; } while (0)
+    LANGUAGE_CHECK(GetEnvironmentVariableW(L"KITTY_NG_PORTABLE_DIR", NULL, 0));
+    LANGUAGE_CHECK(kr_set_language(0));
+    create_tray_menu();
+    if (!session_menu) {
+        session_menu = CreatePopupMenu();
+        AppendMenu(systray_menu, MF_POPUP, (UINT_PTR)session_menu, "Saved Sessions");
+    }
+    AppendMenuW(session_menu, MF_STRING, IDM_SESSIONS_BASE, L"Language");
+    AppendMenuW(session_menu, MF_STRING | MF_GRAYED, IDM_NO_SESSIONS, L"(No sessions)");
+    HWND owner = CreateWindowW(L"STATIC", L"Test", WS_OVERLAPPED, 0, 0, 100, 100, NULL, NULL, hinst, NULL);
+    keylist = CreateWindowW(L"STATIC", L"Pageant Key List", WS_OVERLAPPED, 0, 0, 100, 100, NULL, NULL, hinst, NULL);
+    LANGUAGE_CHECK(owner && keylist);
+    SetWindowLongPtrW(keylist, GWLP_WNDPROC, (LONG_PTR)language_test_window);
+    HWND combo = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | CBS_DROPDOWNLIST, 0, 0, 80, 80,
+                              keylist, (HMENU)IDC_KEYLIST_FPTYPE, hinst, NULL);
+    HWND list = CreateWindowW(L"LISTBOX", L"", WS_CHILD | LBS_OWNERDRAWFIXED, 0, 0, 80, 80,
+                             keylist, (HMENU)IDC_KEYLIST_LISTBOX, hinst, NULL);
+    LANGUAGE_CHECK(combo && list);
+    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)L"SHA256");
+    SendMessageW(combo, CB_ADDSTRING, 0, (LPARAM)L"MD5");
+    SendMessageW(combo, CB_SETCURSEL, 1, 0);
+    struct keylist_display_data display = {0};
+    display.info = strbuf_new(); put_dataz(display.info, "(encrypted)");
+    display.comment = strbuf_new(); put_dataz(display.comment, "Language %s synthetic key comment");
+    SendMessageW(list, LB_ADDSTRING, 0, (LPARAM)&display);
+    SendMessageW(list, LB_SETCURSEL, 0, 0);
+    wchar_t text[128];
+    for (int language = 1; language >= 0; language--) {
+        int command = language ? IDM_LANGUAGE_RU : IDM_LANGUAGE_EN;
+        TrayWndProc(owner, WM_COMMAND, command, 0);
+        LANGUAGE_CHECK(kr_language() == language);
+        LANGUAGE_CHECK(GetMenuState(language_menu, command, MF_BYCOMMAND) & MF_CHECKED);
+        LANGUAGE_CHECK(!(GetMenuState(language_menu, language ? IDM_LANGUAGE_EN : IDM_LANGUAGE_RU, MF_BYCOMMAND) & MF_CHECKED));
+        GetMenuStringW(systray_menu, IDM_VIEWKEYS, text, lenof(text), MF_BYCOMMAND);
+        wchar_t *expected = dup_mb_to_wc(CP_UTF8, kr_translate("View Keys"));
+        /* English retains its accelerator marker. */
+        LANGUAGE_CHECK(!wcscmp(text, language ? expected : L"&View Keys")); sfree(expected);
+        GetMenuStringW(session_menu, IDM_SESSIONS_BASE, text, lenof(text), MF_BYCOMMAND);
+        LANGUAGE_CHECK(!wcscmp(text, L"Language"));
+        GetMenuStringW(session_menu, IDM_NO_SESSIONS, text, lenof(text), MF_BYCOMMAND);
+        expected = dup_mb_to_wc(CP_UTF8, kr_translate("(No sessions)"));
+        LANGUAGE_CHECK(!wcscmp(text, expected)); sfree(expected);
+        LANGUAGE_CHECK(GetMenuState(session_menu, IDM_NO_SESSIONS, MF_BYCOMMAND) & MF_GRAYED);
+        LANGUAGE_CHECK(SendMessageW(combo, CB_GETCURSEL, 0, 0) == 1);
+        LANGUAGE_CHECK(SendMessageW(list, LB_GETCOUNT, 0, 0) == 1);
+        LANGUAGE_CHECK(SendMessageW(list, LB_GETCURSEL, 0, 0) == 0);
+        LANGUAGE_CHECK(SendMessageW(list, LB_GETITEMDATA, 0, 0) == (LRESULT)&display);
+        LANGUAGE_CHECK(!strcmp(display.comment->s, "Language %s synthetic key comment"));
+        LANGUAGE_CHECK(!strcmp(display.info->s, kr_translate("(encrypted)")));
+        LANGUAGE_CHECK(GetMenuDefaultItem(systray_menu, FALSE, 0) == IDM_VIEWKEYS);
+    }
+    strbuf_free(display.info); strbuf_free(display.comment);
+    DestroyWindow(keylist); keylist = NULL; DestroyWindow(owner);
+    kr_utility_free_menu(systray_menu); DestroyMenu(systray_menu);
+    return 0;
+#undef LANGUAGE_CHECK
 }
 
 static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
@@ -1524,6 +1687,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     const char *command = NULL;
     const char *unixsocket = NULL;
     bool show_keylist_on_startup = false;
+    bool test_language_menu = false;
     Filename *openssh_config_file = NULL;
 
     typedef struct CommandLineKey {
@@ -1607,6 +1771,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             add_keys_encrypted = true;
         } else if (match_opt("-keylist")) {
             show_keylist_on_startup = true;
+        } else if (match_opt("-test-language-menu")) {
+            test_language_menu = true;
         } else if (match_optval("-openssh-config", "-openssh_config")) {
             openssh_config_file = cmdline_arg_to_filename(valarg);
         } else if (match_optval("-unix")) {
@@ -1641,6 +1807,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * able to agree on which one becomes the server without a race
      * condition.
      */
+    if (test_language_menu) return test_tray_language();
     HANDLE mutex;
     {
         char *err;
@@ -1852,35 +2019,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /* Set up a system tray icon */
     AddTrayIcon(traywindow);
 
-    /* Accelerators used: nsvkxa */
-    systray_menu = CreatePopupMenu();
-    if (putty_path) {
-        session_menu = CreateMenu();
-        AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
-        AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
-                   (UINT_PTR) session_menu, "&Saved Sessions");
-        AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    }
-    AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-               "&View Keys");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
-               "Add key (encrypted)");
-    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    AppendMenu(systray_menu, MF_ENABLED, IDM_REMOVE_ALL,
-               "Remove All Keys");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_REENCRYPT_ALL,
-               "Re-encrypt All Keys");
-    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    if (has_help())
-        AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
-    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
-    initial_menuitems_count = GetMenuItemCount(session_menu);
-
-    /* Set the default menu item. */
-    SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, false);
+    create_tray_menu();
 
     ShowWindow(traywindow, SW_HIDE);
 
@@ -1934,6 +2073,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
         Shell_NotifyIcon(NIM_DELETE, &tnid);
 
+        kr_utility_free_menu(systray_menu);
         DestroyMenu(systray_menu);
     }
 

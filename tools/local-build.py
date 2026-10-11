@@ -302,6 +302,10 @@ def main():
                     files.update({"test/utility_languages.py"})
                     check(arch + "/utility-languages", files,
                           [([PYTHON, "test/utility_languages.py", directory, arch], None)], compiler=compiler)
+                    files = source_dependencies(ninja, directory, [utility_executable("pageant", arch), "test_utility_ui.exe"])
+                    files.add("test/kageant_language.py")
+                    check(arch + "/kageant-language", files,
+                          [([PYTHON, "test/kageant_language.py", directory, arch], None)], compiler=compiler)
                     # Session-dialog painting has no bearing on SSH authentication.
                     files = source_dependencies(ninja, directory, [executable, cli_executable])
                     files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}

@@ -54,6 +54,8 @@ Transfers inherit the current session's SSH port, proxy, keys and saved root pas
 
 On first launch, the client and utilities follow the Windows display language: Russian for Russian Windows, English otherwise. A saved selection takes precedence. **KiTTYgen** has a separate **Language → Русский / English** menu; switching saves the preference and preserves the open key. Console utilities accept `--language ru` and `--language en` for local help, messages and confirmation prompts.
 
+In Kageant, right-click the tray icon and select Language → English / Русский. The selection is saved; menus and the open key-list window update immediately, without restarting or unloading keys.
+
 Open **Window → Appearance → Interface language** and select **English** or **Русский** from the dropdown. Click **Apply** beside the dropdown to save the language and immediately update the interface, keeping the current panel open. You can also run `kitty-ng-x64.exe --language en` or `--language ru`.
 
 Configuration panels, menus, standard dialogs and client messages are translated. Session names, host keys, protocol identifiers and remote terminal output retain their original content. License texts remain in their original language.
@@ -85,6 +87,7 @@ Entire profiles encrypted with a master password are not yet supported. If a leg
 When a portable session is saved, SSH keys and detached SSH certificates inside the portable directory are stored as relative paths, such as `SSH-Keys\client.ppk`. Loading resolves them against the portable directory, independent of the working directory. Move the directory together with its keys: the client, Klink, Kscp and Ksftp continue using the saved references. External keys retain absolute paths. The root defaults to the executable directory; `--portable-dir` or `KITTY_NG_PORTABLE_DIR` selects another portable root. KiTTY file syntax and `%XX` encoding are retained. KiTTYgen and Kageant do not persist key references in sessions; their normal file-opening and file-saving operations keep standard behavior.
 
 The “Update profiles to latest version” button below Delete processes all saved portable sessions, including nested folders. It converts internal absolute key and certificate paths to relative references, preserves all other profile lines, and reports updates and errors. Existing relative references and external keys remain unchanged.
+
 
 ## Versions
 
