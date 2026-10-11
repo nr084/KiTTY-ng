@@ -42,11 +42,13 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
         bundle.write(root / name, name)
     bundle.write(root / "docs/migration.md", "docs/migration.md")
     bundle.write(root / "docs/kitty-feature-audit.json", "docs/kitty-feature-audit.json")
+    bundle.write(root / "docs/kitty-migration-decisions.json", "docs/kitty-migration-decisions.json")
     bundle.write(root / "docs/putty-utilities-audit.json", "docs/putty-utilities-audit.json")
     bundle.write(root / "docs/screenshots/session-ru.png", "docs/screenshots/session-ru.png")
     bundle.write(root / "docs/screenshots/language-ru.png", "docs/screenshots/language-ru.png")
     bundle.write(root / "docs/screenshots/transfer-ru.png", "docs/screenshots/transfer-ru.png")
-    for name in ("session-en.png", "language-en.png", "transfer-en.png", "about-ru.png", "about-en.png", "kittygen-ru.png", "kittygen-en.png"):
+    for name in ("session-en.png", "language-en.png", "transfer-en.png", "about-ru.png", "about-en.png", "kittygen-ru.png", "kittygen-en.png",
+                 "automation-ru.png", "automation-en.png", "extensions-ru.png", "extensions-en.png", "proxies-ru.png", "proxies-en.png"):
         bundle.write(root / "docs/screenshots" / name, "docs/screenshots/" + name)
     if (args.build / "compiler.json").exists():
         bundle.write(args.build / "compiler.json", "BUILD-INFO.json")

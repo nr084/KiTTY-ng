@@ -6,13 +6,13 @@ SSH, Telnet and serial terminal for Windows, based on PuTTY 0.85, with English a
 
 <img src="icons/kitty-ng.png" width="192" alt="Two connected terminals">
 
-**Published release: 0.85-1.** KiTTY extension migration is complete in the current source: useful features were ported and the remaining extensions have explicit replacement or retirement decisions. The latest changes have not been published as a separate release. See the [migration report](docs/migration.md) (Russian) and [decision matrix](docs/kitty-migration-decisions.json) for compatibility limits.
+**Release: 0.85-2.** KiTTY extension migration is complete in the current source: useful features were ported and the remaining extensions have explicit replacement or retirement decisions. See the [migration report](docs/migration.md) (Russian) and [decision matrix](docs/kitty-migration-decisions.json) for compatibility limits.
 
 ## Download and run
 
 Download the appropriate archive from [Releases](https://github.com/nr084/kitty-ng/releases): **x64**, **x86** or **ARM64**. Extract it and run `kitty-ng-x64.exe`, `kitty-ng-x86.exe` or `kitty-ng-arm64.exe`. No installation is required.
 
-Each release contains three archives: `kitty-ng-0.85-1-x64.zip`, `kitty-ng-0.85-1-x86.zip` and `kitty-ng-0.85-1-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
+Each release contains three archives: `kitty-ng-0.85-2-x64.zip`, `kitty-ng-0.85-2-x86.zip` and `kitty-ng-0.85-2-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
 
 ```text
 kitty-ng-x64.exe
@@ -89,7 +89,7 @@ When a portable session is saved, SSH keys and detached SSH certificates inside 
 The “Update profiles to latest version” button below Delete processes all saved portable sessions, including nested folders. It converts internal absolute key and certificate paths to relative references, preserves all other profile lines, and reports updates and errors. Existing relative references and external keys remain unchanged.
 
 
-## Additions in the current source
+## New in 0.85-2
 
 - Startup commands and UTF-8 scripts after SSH authentication, with configurable delays: **Connection → Automation**.
 - Shared profiles from `Proxies`: **Connection → Proxy profiles**. A missing or invalid selected proxy blocks the connection.
