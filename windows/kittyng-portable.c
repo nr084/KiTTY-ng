@@ -87,10 +87,6 @@ bool kr_portable(void)
         flag = sresize(flag, dirlen + 32, wchar_t);
         wcscat(flag, L"\\kitty-ng.portable");
         bool enabled = GetFileAttributesW(flag) != INVALID_FILE_ATTRIBUTES;
-        /* Accept the previous product's marker when upgrading in place. */
-        wcscpy(flag, executable);
-        wcscat(flag, L"\\kitty-rus.portable");
-        enabled |= GetFileAttributesW(flag) != INVALID_FILE_ATTRIBUTES;
         sfree(flag);
         wchar_t *ini = snewn(dirlen + 32, wchar_t);
         wcscpy(ini, executable); wcscat(ini, L"\\kitty.ini");
@@ -104,8 +100,6 @@ bool kr_portable(void)
         const wchar_t *chosen = NULL;
         wchar_t inherited[32768];
         DWORD inherited_len = GetEnvironmentVariableW(L"KITTY_NG_PORTABLE_DIR", inherited, lenof(inherited));
-        if (!inherited_len)
-            inherited_len = GetEnvironmentVariableW(L"KITTY_RUS_PORTABLE_DIR", inherited, lenof(inherited));
         if (inherited_len && inherited_len < lenof(inherited)) {
             chosen = inherited; enabled = true;
         }

@@ -187,9 +187,9 @@ void centre_window(HWND hwnd);
     (p_##name = module ?                                \
      (t_##name) GetProcAddress(module, #name) : NULL)
 
-#define PUTTY_REG_POS "Software\\KiTTY-RUS"
+#define PUTTY_REG_POS "Software\\KiTTY-NG"
 #define PUTTY_REG_PARENT "Software"
-#define PUTTY_REG_PARENT_CHILD "KiTTY-RUS"
+#define PUTTY_REG_PARENT_CHILD "KiTTY-NG"
 #define PUTTY_REG_GPARENT "Software"
 #define PUTTY_REG_GPARENT_CHILD "SimonTatham"
 

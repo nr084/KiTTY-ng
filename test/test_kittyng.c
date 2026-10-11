@@ -12,8 +12,44 @@ void add_session_to_jumplist(const char *s) {}
 void remove_session_from_jumplist(const char *s) {}
 void clear_jumplist(void) {}
 
-int main(void)
+static int test_registry(const char *root)
 {
+    /* The Python runner owns this unique temporary key. Never redirect
+     * tests into the user's real application settings. */
+    assert(!strncmp(root, "Software\\kitty-ng-registry-test-", 31));
+    assert(!kr_portable());
+    HKEY isolated, key;
+    assert(RegOpenKeyExA(HKEY_CURRENT_USER, root, 0, KEY_ALL_ACCESS, &isolated) == ERROR_SUCCESS);
+    assert(RegOverridePredefKey(HKEY_CURRENT_USER, isolated) == ERROR_SUCCESS);
+    char *error = NULL;
+    settings_w *w = open_settings_w("Registry test", &error);
+    assert(w && !error);
+    write_setting_s(w, "HostName", "synthetic.example.com");
+    close_settings_w(w);
+    assert(RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\KiTTY-NG\\Sessions\\Registry%20test",
+                         0, KEY_READ, &key) == ERROR_SUCCESS);
+    RegCloseKey(key);
+    settings_r *r = open_settings_r("Registry test");
+    assert(r);
+    char *host = read_setting_s(r, "HostName");
+    assert(host && !strcmp(host, "synthetic.example.com"));
+    sfree(host); close_settings_r(r);
+    store_host_key(NULL, "synthetic.example.com", 22, "rsa", "0x10001,0xabcdef");
+    assert(check_stored_host_key("synthetic.example.com", 22, "rsa", "0x10001,0xabcdef") == 0);
+    assert(RegOpenKeyExA(HKEY_CURRENT_USER, "Software\\KiTTY-NG\\SshHostKeys",
+                         0, KEY_READ, &key) == ERROR_SUCCESS);
+    RegCloseKey(key);
+    del_settings("Registry test");
+    assert(!open_settings_r("Registry test"));
+    assert(RegOverridePredefKey(HKEY_CURRENT_USER, NULL) == ERROR_SUCCESS);
+    RegCloseKey(isolated);
+    puts("PASS: isolated KiTTY-NG registry sessions and host keys");
+    return 0;
+}
+
+int main(int argc, char **argv)
+{
+    if (argc == 3 && !strcmp(argv[1], "--registry-test")) return test_registry(argv[2]);
     assert(kr_portable());
     Conf *conf = conf_new();
     conf_set_str(conf, CONF_host, "demo.example.com");

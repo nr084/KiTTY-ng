@@ -9,8 +9,7 @@ from pathlib import Path
 binary = Path(sys.argv[1]).resolve()
 for suffix, custom, mode in [("", False, "argument"), (".ktx", False, "argument"),
                             (".session", True, "argument"), ("", False, "new-marker"),
-                            ("", False, "old-marker"), ("", False, "new-env"),
-                            ("", False, "old-env")]:
+                            ("", False, "new-env")]:
   with tempfile.TemporaryDirectory(prefix="kitty-ng-test-") as directory:
     root = Path(directory)
     session_base = "my sessions" if custom else "Sessions"
@@ -30,16 +29,16 @@ for suffix, custom, mode in [("", False, "argument"), (".ktx", False, "argument"
     hostkeys.mkdir()
     (hostkeys / "rsa@2222%3Alegacy.example.com.khk").write_bytes(b"0x10001,0xabcdef")
     environment = os.environ.copy()
-    for key in ["KITTY_NG_PORTABLE_DIR", "KITTY_RUS_PORTABLE_DIR"]:
+    for key in ["KITTY_NG_PORTABLE_DIR"]:
         environment.pop(key, None)
     command = [str(binary), "--portable-dir", str(root)]
     if mode.endswith("marker"):
         executable = root / binary.name
         shutil.copy2(binary, executable)
-        (root / ("kitty-ng.portable" if mode == "new-marker" else "kitty-rus.portable")).touch()
+        (root / "kitty-ng.portable").touch()
         command = [str(executable)]
     elif mode.endswith("env"):
-        key = "KITTY_NG_PORTABLE_DIR" if mode == "new-env" else "KITTY_RUS_PORTABLE_DIR"
+        key = "KITTY_NG_PORTABLE_DIR"
         environment[key] = str(root)
         command = [str(binary)]
     subprocess.run(command, check=True, env=environment)

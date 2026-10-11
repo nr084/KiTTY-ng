@@ -21,6 +21,15 @@ def ensure_local_toolchain(root, run=None):
         raise RuntimeError("Official toolchain SHA-256 is missing")
     installed = root / "_tools" / "llvm-mingw" / release["tag_name"]
     toolchain = installed / "toolchain"
+    if toolchain.exists():
+        try:
+            # A checkout reused by another Windows account can contain an
+            # unreadable installation. Preserve it and install this release
+            # in a separate permanent directory with current permissions.
+            list((toolchain / "bin").iterdir())
+        except PermissionError:
+            installed = root / "_tools" / "llvm-mingw" / (release["tag_name"] + "-local")
+            toolchain = installed / "toolchain"
     metadata = installed / "toolchain-info.json"
     if toolchain.exists():
         if not metadata.is_file():

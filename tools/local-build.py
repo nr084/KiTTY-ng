@@ -276,6 +276,11 @@ def main():
                             environment["PUTTY_TESTCRYPT"] = '"' + str(directory / "testcrypt.exe") + '"'
                         check(arch + "/" + suite, files, [(test_command, environment)],
                               compiler=compiler, baseline_allowed=True)
+                    files = source_dependencies(ninja, directory, ["test_kittyng.exe"])
+                    files.update({"test/registry_storage.py"})
+                    check(arch + "/registry", files,
+                          [([PYTHON, "test/registry_storage.py", directory / "test_kittyng.exe"], None)],
+                          compiler=compiler)
                     # Session-dialog painting has no bearing on SSH authentication.
                     files = source_dependencies(ninja, directory, [executable, cli_executable])
                     files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}

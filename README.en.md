@@ -25,7 +25,7 @@ kageant-x64.exe
 
 The other archives use `-x86` or `-arm64`. Executable filenames do not include a release number; embedded version information is retained. Archive checksums are listed in the release description. The utilities are based on Plink, PSCP, PSFTP, PuTTYgen and Pageant from PuTTY 0.85.
 
-Archives enable portable mode through the `kitty-ng.portable` marker. To use registry storage, remove the marker and ensure that `kitty.ini` does not set `savemode=dir`. Registry mode retains the existing `HKCU\Software\KiTTY-RUS` location so that renaming the project does not lose saved sessions. The older `kitty-rus.portable` marker is also recognized.
+Archives enable portable mode through the `kitty-ng.portable` marker. To use registry storage, remove the marker and ensure that `kitty.ini` does not set `savemode=dir`. Registry mode uses `HKCU\Software\KiTTY-NG`.
 
 ## Companion utilities
 

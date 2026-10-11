@@ -3,7 +3,7 @@
 Generated with the built-in image_gen tool, then converted to a multi-size ICO.
 
 Final prompt:
-Edit this KiTTY-RUS icon. Preserve exactly two terminal monitors, their modern
+Edit this KiTTY-ng icon. Preserve exactly two terminal monitors, their modern
 silver bezels, dark screens with green >_ prompts and transparent background.
 Add an unmistakable visible connection BETWEEN the two monitors: a single bold
 clean network cable or connector line, routed visibly around the right/bottom
