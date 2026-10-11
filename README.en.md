@@ -39,7 +39,7 @@ To transfer a file using the matching kscp:
 
 `-launch-utility` also accepts `klink`, `ksftp`, `kittygen` and `kageant`. Remaining arguments are passed to the utility, and its exit code is returned. In an open SSH session, drop files or folders onto the terminal window, or use **Send files...** in the window system menu. **Receive file...** downloads a remote file.
 
-![File transfer settings (Russian interface)](docs/screenshots/transfer-ru.png)
+![File transfer settings](docs/screenshots/transfer-en.png)
 
 **Connection → File transfer** selects SFTP/SCP, the remote directory, kscp options and an optional alternate destination. Legacy KiTTY settings `PSCPRemoteDir`, `PSCPOptions`, `WinSCPProtocol`, `SFTPConnect`, `SCPAutoPwd`, plus `kitty.ini` options `pscpport` and `uploaddir`, are supported. The current-directory option queries `pwd` through an interactive POSIX shell and requires remote window-title changes to be enabled. Upload is cancelled if the directory cannot be obtained within five seconds.
 
@@ -56,11 +56,11 @@ Open **Window → Appearance → Interface language** and select **English** or 
 
 Configuration panels, menus, standard dialogs and client messages are translated. Session names, host keys, protocol identifiers and remote terminal output retain their original content. License texts remain in their original language.
 
-The screenshots below show the Russian interface:
+The screenshots below show the English interface:
 
-![Interface language dropdown](docs/screenshots/language-ru.png)
+![Interface language dropdown](docs/screenshots/language-en.png)
 
-![Session configuration](docs/screenshots/session-ru.png)
+![Session configuration](docs/screenshots/session-en.png)
 
 ## Migrating from portable KiTTY
 
