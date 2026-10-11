@@ -432,7 +432,7 @@ bool kr_file_put(HKEY key, const char *name, const char *value)
 }
 
 static void collect(const wchar_t *directory, const char *prefix,
-                    bool recursive, char **result, int *index)
+                    bool recursive, bool folders, char **result, int *index)
 {
     wchar_t *pattern = join(directory, recursive ? L"*" : L"_*");
     WIN32_FIND_DATAW data;
@@ -457,11 +457,11 @@ static void collect(const wchar_t *directory, const char *prefix,
         }
         bool istemp = wcslen(data.cFileName) >= 4 &&
             !wcscmp(data.cFileName + wcslen(data.cFileName) - 4, L".tmp");
-        if (!recursive || (!isdir && !istemp && suffixmatch)) {
+        if (folders ? isdir : (!recursive || (!isdir && !istemp && suffixmatch))) {
             if ((*index)-- == 0) *result = dupstr(name);
         }
         if (recursive && isdir && !*result)
-            collect(subdir, name, true, result, index);
+            collect(subdir, name, true, folders, result, index);
         sfree(encoded); sfree(name); sfree(subdir);
     } while (!*result && FindNextFileW(search, &data));
     FindClose(search);
@@ -472,8 +472,21 @@ char *kr_file_enum(HKEY key, int index)
     FileKey *k = findkey(key);
     char *result = NULL;
     bool recursive = k->sessions;
-    collect(k->path, "", recursive, &result, &index);
+    collect(k->path, "", recursive, false, &result, &index);
     return result;
+}
+
+/* Include empty directories without treating them as stored sessions. */
+char *kr_session_folder_enum(int index)
+{
+    if (!kr_portable()) return NULL;
+    char *encoded = NULL;
+    collect(sessions_directory, "", true, true, &encoded, &index);
+    if (!encoded) return NULL;
+    strbuf *decoded = strbuf_new();
+    unescape_registry_key(encoded, decoded);
+    sfree(encoded);
+    return strbuf_to_str(decoded);
 }
 
 void kr_file_delete(HKEY key, const char *name)

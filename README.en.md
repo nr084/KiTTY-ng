@@ -72,7 +72,7 @@ First make a backup of your old KiTTY directory. Place kitty-ng in the copy alon
 .\kitty-ng-x64.exe --portable-dir "D:\Terminal\KiTTY"
 ```
 
-The client supports legacy `Key\value\` session files, `%XX` encoding, nested directories, configured filename extensions, and paths from `putty.conf`. Unknown KiTTY fields are retained when a session is saved. The session window provides a folder selector and a name filter.
+The client supports legacy `Key\value\` session files, `%XX` encoding, nested directories, configured filename extensions, and paths from `putty.conf`. Unknown KiTTY fields are retained when a session is saved. The session window opens the main folder. Subfolders appear as `<name>`; double-click to enter, and use `..` to go up. **Quick search** matches names in the current folder without regard to case.
 
 Saved passwords are read from the legacy `Password` field using `cryptsalt`. This includes root login, SSH password authentication and keyboard-interactive password prompts. The format remains compatible with KiTTY and is reversible: **it is not a secure secrets vault**. Someone with access to a session file can recover its password. Do not publish personal `Sessions`, `kitty.ini` files or private keys.
 

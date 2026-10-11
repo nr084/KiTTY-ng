@@ -9,6 +9,7 @@
 #include "putty.h"
 #ifdef _WIN32
 #include "kittyng.h"
+#include "kittyng-portable.h"
 #define dupprintf kr_printf
 #define ui_listbox_add kr_listbox_add_label
 #define session_list_add kr_listbox_addwithid_raw
@@ -18,6 +19,7 @@
 #endif
 #include "dialog.h"
 #include "storage.h"
+#include "session-browser.h"
 #include "tree234.h"
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
@@ -827,11 +829,26 @@ static void select_session_id(struct sessionsaver_data *ssd, dlgparam *dlg, int 
     dlg_listbox_select(ssd->listbox, dlg, row < ssd->nvisible ? row : -1);
 }
 
-static bool session_visible(struct sessionsaver_data *ssd, const char *name)
+static bool navigate_session_folder(struct sessionsaver_data *ssd, dlgparam *dlg)
 {
-    size_t n = strlen(ssd->folder);
-    if (n && (strncmp(name, ssd->folder, n) || name[n] != '/')) return false;
-    return !*ssd->filter || strstr(name, ssd->filter) != NULL;
+    int row = dlg_listbox_index(ssd->listbox, dlg);
+    if (row < 0) return false;
+    int id = dlg_listbox_getid(ssd->listbox, dlg, row);
+    if (id >= 0) return false;
+    char *folder;
+    if (id == -1) {
+        folder = session_browser_parent(ssd->folder);
+    } else {
+        int index = -id - 2;
+        if (index < 1 || index >= ssd->nfolders) return false;
+        folder = dupstr(ssd->folders[index]);
+    }
+    sfree(ssd->folder); ssd->folder = folder;
+    sfree(ssd->filter); ssd->filter = dupstr("");
+    dlg_refresh(ssd->filterbox, dlg);
+    dlg_refresh(ssd->folderbox, dlg);
+    dlg_refresh(ssd->listbox, dlg);
+    return true;
 }
 
 /*
@@ -879,6 +896,14 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
             sfree(ssd->folders);
             ssd->folders = snewn(1, char *);
             ssd->folders[0] = dupstr(""); ssd->nfolders = 1;
+#ifdef _WIN32
+            for (int i = 0; ; i++) {
+                char *folder = kr_session_folder_enum(i);
+                if (!folder) break;
+                ssd->folders = sresize(ssd->folders, ++ssd->nfolders, char *);
+                ssd->folders[ssd->nfolders - 1] = folder;
+            }
+#endif
             for (int i = 0; i < ssd->sesslist.nsessions; i++) {
                 const char *name = ssd->sesslist.sessions[i];
                 for (const char *slash = strchr(name, '/'); slash;
@@ -895,7 +920,7 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
             }
             dlg_update_start(ctrl, dlg);
             dlg_listbox_clear(ctrl, dlg);
-            dlg_listbox_addwithid(ctrl, dlg, "All folders", 0);
+            dlg_listbox_addwithid(ctrl, dlg, "Main folder", 0);
             int selected = 0;
             for (int i = 1; i < ssd->nfolders; i++) {
                 session_list_add(ctrl, dlg, ssd->folders[i], i);
@@ -911,17 +936,31 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
             dlg_update_start(ctrl, dlg);
             dlg_listbox_clear(ctrl, dlg);
             ssd->nvisible = 0;
+            if (*ssd->folder) {
+                session_list_add(ctrl, dlg, "..", -1);
+                ssd->nvisible++;
+            }
+            for (i = 1; i < ssd->nfolders; i++) {
+                const char *name = session_browser_relative(ssd->folder, ssd->folders[i]);
+                if (!name || !*name || strchr(name, '/') ||
+                    !session_browser_match(name, ssd->filter)) continue;
+                char *label = dupprintf("<%s>", name);
+                session_list_add(ctrl, dlg, label, -i - 2);
+                sfree(label);
+                ssd->nvisible++;
+            }
             for (i = 0; i < ssd->sesslist.nsessions; i++) {
-                if (!session_visible(ssd, ssd->sesslist.sessions[i])) continue;
+                const char *name = session_browser_relative(ssd->folder, ssd->sesslist.sessions[i]);
+                if (!name || strchr(name, '/') || !session_browser_match(name, ssd->filter)) continue;
                 if (!strcmp(ssd->sesslist.sessions[i], "Default Settings"))
                     dlg_listbox_addwithid(ctrl, dlg, ssd->sesslist.sessions[i], i);
                 else
-                    session_list_add(ctrl, dlg, ssd->sesslist.sessions[i], i);
+                    session_list_add(ctrl, dlg, name, i);
                 ssd->nvisible++;
             }
             dlg_update_done(ctrl, dlg);
         }
-    } else if (event == EVENT_VALCHANGE) {
+    } else if (event == EVENT_VALCHANGE || event == EVENT_SELCHANGE) {
         int top, bottom, halfway, i;
         if (ctrl == ssd->filterbox) {
             sfree(ssd->filter); ssd->filter = dlg_editbox_get(ctrl, dlg);
@@ -956,6 +995,8 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
         }
     } else if (event == EVENT_ACTION) {
         bool mbl = false;
+        if ((ctrl == ssd->listbox || ctrl == ssd->loadbutton) &&
+            navigate_session_folder(ssd, dlg)) return;
         if (!ssd->midsession &&
             (ctrl == ssd->listbox ||
              (ssd->loadbutton && ctrl == ssd->loadbutton))) {
@@ -998,8 +1039,8 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
             get_sesslist(&ssd->sesslist, false);
             get_sesslist(&ssd->sesslist, true);
             dlg_refresh(ssd->editbox, dlg);
-            dlg_refresh(ssd->listbox, dlg);
             dlg_refresh(ssd->folderbox, dlg);
+            dlg_refresh(ssd->listbox, dlg);
         } else if (!ssd->midsession &&
                    ssd->delbutton && ctrl == ssd->delbutton) {
             int i = selected_session_id(ssd, dlg);
@@ -1009,10 +1050,12 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
                 del_settings(ssd->sesslist.sessions[i]);
                 get_sesslist(&ssd->sesslist, false);
                 get_sesslist(&ssd->sesslist, true);
-                dlg_refresh(ssd->listbox, dlg);
                 dlg_refresh(ssd->folderbox, dlg);
+                dlg_refresh(ssd->listbox, dlg);
             }
         } else if (ctrl == ssd->okbutton) {
+            if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
+                navigate_session_folder(ssd, dlg)) return;
             if (ssd->midsession) {
                 /* In a mid-session Change Settings, Apply is always OK. */
                 dlg_end(dlg, 1);
@@ -2006,7 +2049,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                     "Load, save or delete a stored session");
     ssd->folderbox = ctrl_droplist(s, "Session folder", NO_SHORTCUT, 70,
                                   HELPCTX(session_saved), sessionsaver_handler, P(ssd));
-    ssd->filterbox = ctrl_editbox(s, "Filter sessions", NO_SHORTCUT, 70,
+    ssd->filterbox = ctrl_editbox(s, "Quick search", NO_SHORTCUT, 70,
                                  HELPCTX(session_saved), sessionsaver_handler, P(ssd), P(NULL));
     ctrl_columns(s, 2, 75, 25);
     get_sesslist(&ssd->sesslist, true);

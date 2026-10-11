@@ -49,6 +49,8 @@ target_link_libraries(utils PUBLIC bcrypt)
 
 add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
+add_executable(test_session_browser ${CMAKE_SOURCE_DIR}/test/test_session_browser.c)
+target_link_libraries(test_session_browser utils ${platform_libraries})
 add_executable(test_language_controls ${CMAKE_SOURCE_DIR}/test/test_language_controls.c
   kittyng-language.c ${CMAKE_SOURCE_DIR}/dialog.c)
 target_link_libraries(test_language_controls utils ${platform_libraries})

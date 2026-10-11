@@ -256,6 +256,8 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
+                        ("session-browser", "test_session_browser", ["test/session_browser.py"],
+                         [PYTHON, "test/session_browser.py", directory / "test_session_browser.exe"]),
                         ("portable", "test_kittyng", ["test/run_kittyng.py"],
                          [PYTHON, "test/run_kittyng.py", directory / "test_kittyng.exe"]),
                         ("legacy", "test_kittyng_legacy", ["test/run_kittyng_legacy.py", "test/kittyng-legacy-vectors.json"],
@@ -290,7 +292,7 @@ def main():
                     files = source_dependencies(ninja, directory, [executable, cli_executable])
                     files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}
                     files -= {"windows/config.c", "windows/controls.c", "windows/dialog.c",
-                              "windows/kittyng-translations.h", "windows/kittyng-language.c", "config.c"}
+                              "windows/kittyng-translations.h", "windows/kittyng-language.c", "config.c", "session-browser.h"}
                     files = {f for f in files if not f.endswith((".rc", ".rc2", ".ico"))}
                     files.update({"test/ssh_saved_password.py", "test/kittyng-password-vector.json"})
                     key = arch + "/ssh"
