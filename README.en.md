@@ -84,7 +84,7 @@ Entire profiles encrypted with a master password are not yet supported. If a leg
 
 ## Versions
 
-Release versions combine the base PuTTY version and the KiTTY-NG revision: `0.85-1`, `0.85-2`, and so on. The base remains equal to the imported PuTTY version. Ordinary releases are not marked as prereleases. Git tags start with `v`. Utilities and the main client share the same embedded release version. See the [upstream utilities audit](docs/putty-utilities-audit.json).
+Release versions combine the base PuTTY version and the KiTTY-NG revision: `0.85-1`, `0.85-2`, and so on. `0.85` is the base PuTTY version; the number after the hyphen is our release number. `0.85-1` is the first ordinary, non-test KiTTY-NG release; subsequent releases on this base are `0.85-2`, `0.85-3`, and so on. The base remains equal to the imported PuTTY version. Ordinary releases are not marked as prereleases. Git tags start with `v`. Utilities and the main client share the same embedded release version. See the [upstream utilities audit](docs/putty-utilities-audit.json).
 
 ## Local build
 
