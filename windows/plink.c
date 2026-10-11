@@ -8,6 +8,12 @@
 #include <stdarg.h>
 
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyng.h"
+#define printf kr_console_printf
+#define fprintf kr_console_fprintf
+#define dupprintf kr_printf
+#endif
 #include "ssh.h"
 #include "storage.h"
 #include "tree234.h"
@@ -132,6 +138,9 @@ static void usage(void)
     printf("Usage: plink [options] [user@]host [command]\n");
     printf("       (\"host\" can also be a PuTTY saved session name)\n");
     printf("Options:\n");
+#ifdef _WIN32
+    printf("  --language en|ru  select interface language\n");
+#endif
     printf("  -V        print version information and exit\n");
     printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -v        show verbose messages\n");
@@ -345,6 +354,8 @@ int main(int argc, char **argv)
             arglistpos++;
         } else if (ret == 1) {
             continue;
+        } else if (kr_language_arg(p, nextarg ? cmdline_arg_to_str(nextarg) : NULL)) {
+            arglistpos++;
         } else if (!strcmp(p, "-s")) {
             /* Save status to write to conf later. */
             use_subsystem = true;

@@ -46,7 +46,7 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
     bundle.write(root / "docs/screenshots/session-ru.png", "docs/screenshots/session-ru.png")
     bundle.write(root / "docs/screenshots/language-ru.png", "docs/screenshots/language-ru.png")
     bundle.write(root / "docs/screenshots/transfer-ru.png", "docs/screenshots/transfer-ru.png")
-    for name in ("session-en.png", "language-en.png", "transfer-en.png", "about-ru.png", "about-en.png"):
+    for name in ("session-en.png", "language-en.png", "transfer-en.png", "about-ru.png", "about-en.png", "kittygen-ru.png", "kittygen-en.png"):
         bundle.write(root / "docs/screenshots" / name, "docs/screenshots/" + name)
     if (args.build / "compiler.json").exists():
         bundle.write(args.build / "compiler.json", "BUILD-INFO.json")

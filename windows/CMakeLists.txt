@@ -2,6 +2,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
   kittyng.c
+  kittyng-utility-ui.c
   kittyng-companions.c
   kittyng-portable.c
   kittyng-legacy-crypt.c
@@ -51,6 +52,8 @@ add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
 add_executable(test_session_browser ${CMAKE_SOURCE_DIR}/test/test_session_browser.c)
 target_link_libraries(test_session_browser utils ${platform_libraries})
+add_executable(test_utility_ui ${CMAKE_SOURCE_DIR}/test/test_utility_ui.c)
+target_link_libraries(test_utility_ui utils ${platform_libraries})
 add_executable(test_language_controls ${CMAKE_SOURCE_DIR}/test/test_language_controls.c
   kittyng-language.c ${CMAKE_SOURCE_DIR}/dialog.c)
 target_link_libraries(test_language_controls utils ${platform_libraries})

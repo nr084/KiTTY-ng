@@ -16,7 +16,7 @@ IDI_TRAYICON ICON "kageant.ico"
 
 IDD_LOAD_PASSPHRASE DIALOG DISCARDABLE 0, 0, 140, 60
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Pageant: Loading Encrypted Key"
+CAPTION "Kageant: Loading Encrypted Key"
 FONT 8, "MS Shell Dlg"
 BEGIN
     CTEXT "Enter passphrase to load key", IDC_PASSPHRASE_STATIC1, 10, 6, 120, 8
@@ -29,7 +29,7 @@ END
 
 IDD_ONDEMAND_PASSPHRASE DIALOG DISCARDABLE 0, 0, 250, 78
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Pageant: Decrypting Stored Key"
+CAPTION "Kageant: Decrypting Stored Key"
 FONT 8, "MS Shell Dlg"
 BEGIN
     CTEXT "A client of Pageant wants to use the following encrypted key:",
@@ -48,7 +48,7 @@ END
 
 IDD_KEYLIST DIALOG DISCARDABLE 0, 0, 450, 236
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Pageant Key List"
+CAPTION "Kageant Key List"
 FONT 8, "MS Shell Dlg"
 BEGIN
     LISTBOX IDC_KEYLIST_LISTBOX, 10, 10, 420, 155,
@@ -66,7 +66,7 @@ END
 /* Accelerators used: cl */
 IDD_ABOUT DIALOG DISCARDABLE 140, 40, 270, 136
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About Pageant"
+CAPTION "About Kageant"
 FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON "&Close", IDOK, 216, 118, 48, 14

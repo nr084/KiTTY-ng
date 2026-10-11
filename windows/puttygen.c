@@ -8,6 +8,11 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "kittyng.h"
+#define MessageBox kr_messagebox
+#define AppendMenu kr_utility_append_menu
+#define SetDlgItemText kr_utility_set_item_text
+#define dupprintf kr_printf
 #include "ssh.h"
 #include "sshkeygen.h"
 #include "licence.h"
@@ -29,6 +34,7 @@
 static Filename *cmdline_keyfile = NULL;
 static ptrlen cmdline_demo_keystr;
 static Filename *demo_screenshot_filename = NULL;
+static bool test_language_menu;
 
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
@@ -39,7 +45,7 @@ void modalfatalbox(const char *fmt, ...)
     char *stuff;
 
     va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
+    stuff = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
     MessageBox(NULL, stuff, "PuTTYgen Fatal Error",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
@@ -56,7 +62,7 @@ void nonfatal(const char *fmt, ...)
     char *stuff;
 
     va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
+    stuff = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
     MessageBox(NULL, stuff, "PuTTYgen Error",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
@@ -205,6 +211,7 @@ struct PassphraseProcStruct {
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                                        WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
 
@@ -232,7 +239,7 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         p = (struct PassphraseProcStruct *) lParam;
         passphrase = p->passphrase;
         if (p->comment)
-            SetDlgItemText(hwnd, 101, p->comment);
+            kr_utility_set_raw_item_text(hwnd, 101, p->comment);
         burnstr(*passphrase);
         *passphrase = dupstr("");
         SetDlgItemText(hwnd, 102, *passphrase);
@@ -296,6 +303,7 @@ struct PPKParams {
 static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
                                       WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     struct PPKParams *pp;
     char *buf;
 
@@ -467,6 +475,7 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
 static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
                                     WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     switch (msg) {
       case WM_INITDIALOG: {
         /*
@@ -506,6 +515,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                                   WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     switch (msg) {
       case WM_INITDIALOG:
         /*
@@ -1362,6 +1372,7 @@ struct certinfo_dialog_ctx {
 static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
                             LPARAM lParam, void *vctx)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     struct certinfo_dialog_ctx *ctx = (struct certinfo_dialog_ctx *)vctx;
 
     switch (msg) {
@@ -1478,9 +1489,43 @@ static INT_PTR CertInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
 /*
  * Dialog-box function for the main PuTTYgen dialog box.
  */
+static void refresh_edcurve_labels(HWND hwnd)
+{
+    int selected = SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_GETCURSEL, 0, 0);
+    SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_RESETCONTENT, 0, 0);
+    for (int i = 0; i < n_ec_ed_curve_lengths; i++) {
+        const struct ec_curve *curve;
+        const ssh_keyalg *alg;
+        int bits = ec_ed_curve_lengths[i];
+        ec_ed_alg_and_curve_by_bits(bits, &curve, &alg);
+        char *desc = kr_printf("%s (%d bits)", curve->textname, bits);
+        kr_utility_combo_add(hwnd, IDC_EDCURVE, desc);
+        sfree(desc);
+    }
+    SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_SETCURSEL, selected, 0);
+}
+
+static bool utility_label_fits(HWND hwnd, int id)
+{
+    HWND control = GetDlgItem(hwnd, id);
+    wchar_t text[512];
+    int len = GetWindowTextW(control, text, lenof(text));
+    int clean = 0;
+    for (int i = 0; i < len; i++) if (text[i] != L'&') text[clean++] = text[i];
+    HDC dc = GetDC(control);
+    if (!dc) return false;
+    HFONT previous = SelectObject(dc, (HFONT)SendMessage(control, WM_GETFONT, 0, 0));
+    SIZE size; RECT bounds;
+    bool ok = GetTextExtentPoint32W(dc, text, clean, &size) &&
+        GetWindowRect(control, &bounds) && size.cx <= bounds.right - bounds.left;
+    SelectObject(dc, previous); ReleaseDC(control, dc);
+    return ok;
+}
+
 static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                                     WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     const int DEMO_SCREENSHOT_TIMER_ID = 1230;
     static const char entropy_msg[] =
         "Please generate some randomness by moving the mouse over the blank area.";
@@ -1574,6 +1619,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Help");
 
             SetMenu(hwnd, menu);
+            kr_add_utility_language_menu(hwnd, 30000);
         }
 
         /*
@@ -1625,11 +1671,11 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             SendDlgItemMessage(hwnd, IDC_FINGERPRINT, EM_SETREADONLY, 1,
                                0);
             staticedit(&cp, "Key &comment:", IDC_COMMENTSTATIC,
-                       IDC_COMMENTEDIT, 82);
+                       IDC_COMMENTEDIT, 75);
             staticpassedit(&cp, "Key p&assphrase:", IDC_PASSPHRASE1STATIC,
-                           IDC_PASSPHRASE1EDIT, 82);
+                           IDC_PASSPHRASE1EDIT, 75);
             staticpassedit(&cp, "C&onfirm passphrase:",
-                           IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 82);
+                           IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 75);
             endbox(&cp);
             beginbox(&cp, "Actions", IDC_BOX_ACTIONS);
             staticbtn(&cp, "Generate a public/private key pair",
@@ -1683,8 +1729,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     ec_ed_alg_and_curve_by_bits(bits, &curve, &alg);
                     char *desc = dupprintf("%s (%d bits)",
                                            curve->textname, bits);
-                    SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_ADDSTRING, 0,
-                                       (LPARAM)desc);
+                    kr_utility_combo_add(hwnd, IDC_EDCURVE, desc);
                     sfree(desc);
                 }
             }
@@ -1737,6 +1782,36 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_TIMER:
         if ((UINT_PTR)wParam == DEMO_SCREENSHOT_TIMER_ID) {
             KillTimer(hwnd, DEMO_SCREENSHOT_TIMER_ID);
+            if (test_language_menu) {
+                state = (struct MainDlgState *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+                const int fields[] = {IDC_KEYDISPLAY, IDC_COMMENTEDIT, IDC_FINGERPRINT,
+                                      IDC_PASSPHRASE1EDIT, IDC_PASSPHRASE2EDIT};
+                char *before[lenof(fields)];
+                for (size_t i = 0; i < lenof(fields); i++)
+                    before[i] = GetDlgItemText_alloc(hwnd, fields[i]);
+                strbuf *original = strbuf_new();
+                ssh_key_private_blob(state->ssh2key.key, BinarySink_UPCAST(original));
+                bool ok = state->key_exists;
+                for (int language = 1; language >= 0; language--) {
+                    SendMessage(hwnd, WM_COMMAND, 30000 + language, 0);
+                    ok &= kr_language() == language;
+                    const int labels[] = {IDC_COMMENTSTATIC, IDC_PASSPHRASE1STATIC,
+                                          IDC_PASSPHRASE2STATIC, IDC_SAVEPUB, IDC_SAVE};
+                    for (size_t i = 0; i < lenof(labels); i++)
+                        ok &= utility_label_fits(hwnd, labels[i]);
+                    for (size_t i = 0; i < lenof(fields); i++) {
+                        char *after = GetDlgItemText_alloc(hwnd, fields[i]);
+                        ok &= !strcmp(before[i], after); burnstr(after);
+                    }
+                    strbuf *after = strbuf_new();
+                    ssh_key_private_blob(state->ssh2key.key, BinarySink_UPCAST(after));
+                    ok &= ptrlen_eq_ptrlen(ptrlen_from_strbuf(original), ptrlen_from_strbuf(after));
+                    strbuf_free(after);
+                }
+                for (size_t i = 0; i < lenof(fields); i++) burnstr(before[i]);
+                strbuf_free(original);
+                if (!ok) { EndDialog(hwnd, 99); return 0; }
+            }
             char *err = save_screenshot(hwnd, demo_screenshot_filename);
             if (err) {
                 MessageBox(hwnd, err, "Demo screenshot failure",
@@ -1771,6 +1846,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         }
         break;
       case WM_COMMAND:
+        if (kr_utility_language_command(hwnd, 30000, LOWORD(wParam))) {
+            refresh_edcurve_labels(hwnd);
+            return 0;
+        }
         switch (LOWORD(wParam)) {
           case IDC_KEYSSH1:
           case IDC_KEYSSH2RSA:
@@ -2381,7 +2460,7 @@ static NORETURN void opt_error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    char *msg = dupvprintf(fmt, ap);
+    char *msg = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
 
     MessageBox(NULL, msg, "PuTTYgen command line error", MB_ICONERROR | MB_OK);
@@ -2436,6 +2515,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 opt_error("unexpected extra argument '%s'\n",
                           cmdline_arg_to_str(valarg));
             }
+        } else if (match_optval("--language")) {
+            const char *language = cmdline_arg_to_str(valarg);
+            if (strcmp(language, "ru") && strcmp(language, "en"))
+                opt_error("unknown interface language: %s", language);
         } else if (match_opt("-pgpfp")) {
             pgp_fingerprints_msgbox(NULL);
             return 0;
@@ -2549,6 +2632,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 }
             }
             sfree(val);
+        } else if (match_opt("-test-language-menu")) {
+            test_language_menu = true;
         } else if (match_optval("-demo-screenshot")) {
             demo_screenshot_filename = cmdline_arg_to_filename(valarg);
             cmdline_demo_keystr = PTRLEN_LITERAL(
@@ -2607,8 +2692,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     random_setup_special();
-    ret = DialogBoxParam(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc,
-                         (LPARAM)params) != IDOK;
+    INT_PTR dialog_result = DialogBoxParam(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc,
+                                           (LPARAM)params);
+    ret = demo_screenshot_filename ? (dialog_result != 0) : (dialog_result != IDOK);
 
     cleanup_exit(ret);
     return ret;                        /* just in case optimiser complains */

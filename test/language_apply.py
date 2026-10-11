@@ -13,6 +13,7 @@ environment = os.environ.copy()
 environment.pop("KITTY_NG_PORTABLE_DIR", None)
 
 def verify(command):
+    subprocess.run([*command, "set0"], env=environment, check=True)
     for step in ("read0", "pending1", "read0", "set1", "read1", "set0", "read0"):
         subprocess.run([*command, step], env=environment, check=True)
     subprocess.run([*command, "set1"], env=environment, check=True)

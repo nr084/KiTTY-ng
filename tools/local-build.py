@@ -237,6 +237,10 @@ def main():
             check("translations", {"config.c", "windows/config.c", "windows/kittyng-language.c", "ssh/ca-config.c",
                   "locale/ru.json", "tools/check-translations.py"},
                   [([PYTHON, "tools/check-translations.py"], None)])
+            check("utility-translations", {"windows/puttygen.c", "windows/pageant.c",
+                  "windows/puttygen.rc", "windows/pageant.rc", "windows/plink.c", "pscp.c", "psftp.c",
+                  "locale/ru.json", "tools/check-utility-translations.py"},
+                  [([PYTHON, "tools/check-utility-translations.py"], None)])
             staged = work / "release"
             for arch in dict.fromkeys(args.arch):
                 directory = work / arch
@@ -288,6 +292,12 @@ def main():
                     check(arch + "/language-apply", files,
                           [([PYTHON, "test/language_apply.py", directory / "test_language_controls.exe"], None)],
                           compiler=compiler)
+                    files = source_dependencies(ninja, directory, ["test_utility_ui.exe",
+                        utility_executable("puttygen", arch), cli_executable,
+                        utility_executable("pscp", arch), utility_executable("psftp", arch)])
+                    files.update({"test/utility_languages.py"})
+                    check(arch + "/utility-languages", files,
+                          [([PYTHON, "test/utility_languages.py", directory, arch], None)], compiler=compiler)
                     # Session-dialog painting has no bearing on SSH authentication.
                     files = source_dependencies(ninja, directory, [executable, cli_executable])
                     files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}

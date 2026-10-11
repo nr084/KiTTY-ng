@@ -7,6 +7,10 @@
 #include <shellapi.h>
 
 static int ui_language = -1;
+int kr_windows_language(LANGID language)
+{
+    return PRIMARYLANGID(language) == LANG_RUSSIAN ? 1 : 0;
+}
 static const struct { const char *en, *ru; } translations[] = {
 #include "kittyng-translations.h"
 };
@@ -15,7 +19,7 @@ int kr_language(void)
 {
     if (ui_language < 0) {
         ui_language = 0; /* Registry helpers may format paths recursively. */
-        DWORD language = 0;
+        DWORD language = kr_windows_language(GetUserDefaultUILanguage());
         HKEY key = open_regkey_ro(HKEY_CURRENT_USER, PUTTY_REG_POS);
         if (key) {
             get_reg_dword(key, "UILanguage", &language);
@@ -54,21 +58,33 @@ const char *kr_translate(const char *english)
 {
     if (english && kr_language()) {
         /* Controls insert accelerator '&' markers before reaching Win32. */
-        char plain[1024];
-        size_t n = 0;
-        for (const char *p = english; *p; p++) {
-            if (*p == '&')
-                continue;
-            if (n + 1 >= sizeof(plain))
-                return english;
-            plain[n++] = *p;
+        char *clean = NULL;
+        const char *plain = english;
+        if (strchr(english, '&')) {
+            clean = snewn(strlen(english) + 1, char);
+            char *out = clean;
+            for (const char *p = english; *p; p++)
+                if (*p != '&') *out++ = *p;
+            *out = 0;
+            plain = clean;
         }
-        plain[n] = '\0';
+        const char *result = english;
         for (size_t i = 0; i < lenof(translations); i++)
-            if (!strcmp(plain, translations[i].en))
-                return translations[i].ru;
+            if (!strcmp(plain, translations[i].en)) {
+                result = translations[i].ru;
+                break;
+            }
+        sfree(clean);
+        return result;
     }
     return english;
+}
+
+const char *kr_untranslate(const char *text)
+{
+    for (size_t i = 0; i < lenof(translations); i++)
+        if (!strcmp(text, translations[i].ru)) return translations[i].en;
+    return text;
 }
 
 char *kr_printf(const char *format, ...)

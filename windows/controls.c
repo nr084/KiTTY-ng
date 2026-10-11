@@ -588,8 +588,9 @@ void static2btn(struct ctlpos *cp, const char *stext, int sid,
     RECT r;
     int lwid, rwid1, rwid2, rpos1, rpos2;
 
-    rpos1 = GAPBETWEEN + (cp->width + GAPBETWEEN) / 2;
-    rpos2 = GAPBETWEEN + 3 * (cp->width + GAPBETWEEN) / 4;
+    /* KiTTYgen's translated save captions need wider buttons. */
+    rpos1 = GAPBETWEEN + 2 * (cp->width + GAPBETWEEN) / 5;
+    rpos2 = GAPBETWEEN + 7 * (cp->width + GAPBETWEEN) / 10;
     lwid = rpos1 - 2 * GAPBETWEEN;
     rwid1 = rpos2 - rpos1 - GAPBETWEEN;
     rwid2 = cp->width + GAPBETWEEN - rpos2;

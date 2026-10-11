@@ -21,6 +21,14 @@
 
 #include "putty.h"
 #ifdef _WIN32
+#include "kittyng.h"
+#define printf kr_console_printf
+#define fprintf kr_console_fprintf
+#define vfprintf kr_console_vfprintf
+#define dupprintf kr_printf
+#define dupvprintf kr_utility_vprintf
+#endif
+#ifdef _WIN32
 #include "kittyng-companions.h"
 #endif
 #include "psftp.h"
@@ -2227,6 +2235,9 @@ static void usage(void)
     printf("       pscp [options] source [source...] [user@]host:target\n");
     printf("       pscp [options] -ls [user@]host:filespec\n");
     printf("Options:\n");
+#ifdef _WIN32
+    printf("  --language en|ru  select interface language\n");
+#endif
     printf("  -V        print version information and exit\n");
     printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -p        preserve file attributes\n");
@@ -2336,7 +2347,13 @@ int psftp_main(CmdlineArgList *arglist)
             preserve = true;
         } else if (strcmp(argstr, "-q") == 0) {
             statistics = false;
-        } else if (strcmp(argstr, "-h") == 0 ||
+        }
+#ifdef _WIN32
+        else if (kr_language_arg(argstr, nextarg ? cmdline_arg_to_str(nextarg) : NULL)) {
+            arglistpos++;
+        }
+#endif
+        else if (strcmp(argstr, "-h") == 0 ||
                    strcmp(argstr, "-?") == 0 ||
                    strcmp(argstr, "--help") == 0) {
             usage();

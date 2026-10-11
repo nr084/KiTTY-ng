@@ -9,6 +9,14 @@
 #include <limits.h>
 
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyng.h"
+#define printf kr_console_printf
+#define fprintf kr_console_fprintf
+#define vfprintf kr_console_vfprintf
+#define dupprintf kr_printf
+#define dupvprintf kr_utility_vprintf
+#endif
 #include "psftp.h"
 #include "storage.h"
 #include "ssh.h"
@@ -2178,7 +2186,11 @@ static int sftp_cmd_help(struct sftp_command *cmd)
             printf("%-*s", maxlen+2, lookup->name);
             if (lookup->longhelp == NULL)
                 lookup = lookup_command(lookup->shorthelp);
+            #ifdef _WIN32
+            kr_console_fputs(lookup->shorthelp, stdout); printf("\n");
+#else
             printf("%s\n", lookup->shorthelp);
+#endif
         }
     } else {
         /*
@@ -2193,7 +2205,11 @@ static int sftp_cmd_help(struct sftp_command *cmd)
                 printf("%s", lookup->name);
                 if (lookup->longhelp == NULL)
                     lookup = lookup_command(lookup->shorthelp);
+                #ifdef _WIN32
+                kr_console_fputs(lookup->longhelp, stdout);
+#else
                 printf("%s", lookup->longhelp);
+#endif
             }
         }
     }
@@ -2532,6 +2548,9 @@ static void usage(void)
     printf("%s\n", ver);
     printf("Usage: psftp [options] [user@]host\n");
     printf("Options:\n");
+#ifdef _WIN32
+    printf("  --language en|ru  select interface language\n");
+#endif
     printf("  -V        print version information and exit\n");
     printf("  -pgpfp    print PGP key fingerprints and exit\n");
     printf("  -b file   use specified batchfile\n");
@@ -2835,7 +2854,13 @@ int psftp_main(CmdlineArgList *arglist)
             /* We have our own verbosity in addition to `flags'. */
             if (cmdline_verbose())
                 verbose = true;
-        } else if (strcmp(argstr, "-h") == 0 ||
+        }
+#ifdef _WIN32
+        else if (kr_language_arg(argstr, nextarg ? cmdline_arg_to_str(nextarg) : NULL)) {
+            arglistpos++;
+        }
+#endif
+        else if (strcmp(argstr, "-h") == 0 ||
                    strcmp(argstr, "-?") == 0 ||
                    strcmp(argstr, "--help") == 0) {
             usage();

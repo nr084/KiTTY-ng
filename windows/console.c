@@ -7,6 +7,7 @@
 #include <stdlib.h>
 
 #include "putty.h"
+#include "kittyng.h"
 #include "storage.h"
 #include "ssh.h"
 #include "console.h"
@@ -25,9 +26,9 @@ void cleanup_exit(int code)
 
 void console_print_error_msg(const char *prefix, const char *msg)
 {
-    fputs(prefix, stderr);
+    kr_console_fputs(prefix, stderr);
     fputs(": ", stderr);
-    fputs(msg, stderr);
+    kr_console_fputs(msg, stderr);
     fputc('\n', stderr);
     fflush(stderr);
 }
@@ -362,15 +363,15 @@ static const char *console_print_seatdialogtext(
             put_byte(conio, '\n');
             break;
           case SDT_DISPLAY:
-            put_fmt(conio, "  %s\n", item->text);
+            put_fmt(conio, kr_translate("  %s\n"), item->text);
             break;
           case SDT_SCARY_HEADING:
             /* Can't change font size or weight in this context */
-            put_fmt(conio, "%s\n", item->text);
+            put_fmt(conio, kr_translate("%s\n"), item->text);
             break;
           case SDT_BATCH_ABORT:
             if (console_batch_mode) {
-                put_fmt(conio, "%s\n", item->text);
+                put_fmt(conio, kr_translate("%s\n"), item->text);
                 return NULL;
             }
             break;
@@ -402,7 +403,7 @@ SeatPromptResult console_confirm_ssh_host_key(
     ResponseType response;
 
     while (true) {
-        put_fmt(conio, "%s (y/n, Return cancels connection, i for more info) ",
+        put_fmt(conio, kr_translate("%s (y/n, Return cancels connection, i for more info) "),
                 prompt);
 
         response = parse_and_free_response(console_read_line(conio, true));
@@ -415,10 +416,10 @@ SeatPromptResult console_confirm_ssh_host_key(
                     put_dataz(conio, item->text);
                     break;
                   case SDT_MORE_INFO_VALUE_SHORT:
-                    put_fmt(conio, ": %s\n", item->text);
+                    put_fmt(conio, kr_translate(": %s\n"), item->text);
                     break;
                   case SDT_MORE_INFO_VALUE_BLOB:
-                    put_fmt(conio, ":\n%s\n", item->text);
+                    put_fmt(conio, kr_translate(":\n%s\n"), item->text);
                     break;
                   default:
                     break;
@@ -434,7 +435,7 @@ SeatPromptResult console_confirm_ssh_host_key(
             store_host_key(seat, host, port, keytype, keystr);
         result = SPR_OK;
     } else {
-        put_dataz(conio, console_abandoned_msg);
+        put_dataz(conio, kr_translate(console_abandoned_msg));
         result = SPR_USER_ABORT;
     }
   out:
@@ -456,7 +457,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
         goto out;
     }
 
-    put_fmt(conio, "%s (y/n) ", prompt);
+    put_fmt(conio, kr_translate("%s (y/n) "), prompt);
 
     ResponseType response = parse_and_free_response(
         console_read_line(conio, true));
@@ -464,7 +465,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
     if (response == RESPONSE_YES) {
         result = SPR_OK;
     } else {
-        put_dataz(conio, console_abandoned_msg);
+        put_dataz(conio, kr_translate(console_abandoned_msg));
         result = SPR_USER_ABORT;
     }
   out:
@@ -486,7 +487,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
         goto out;
     }
 
-    put_fmt(conio, "%s (y/n) ", prompt);
+    put_fmt(conio, kr_translate("%s (y/n) "), prompt);
 
     ResponseType response = parse_and_free_response(
         console_read_line(conio, true));
@@ -494,7 +495,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
     if (response == RESPONSE_YES) {
         result = SPR_OK;
     } else {
-        put_dataz(conio, console_abandoned_msg);
+        put_dataz(conio, kr_translate(console_abandoned_msg));
         result = SPR_USER_ABORT;
     }
   out:
@@ -572,11 +573,11 @@ int console_askappend(LogPolicy *lp, Filename *filename,
     int result;
 
     if (console_batch_mode) {
-        put_fmt(conio, msgtemplate_batch, FILENAME_MAX, filename->utf8path);
+        put_fmt(conio, kr_translate(msgtemplate_batch), FILENAME_MAX, filename->utf8path);
         result = 0;
         goto out;
     }
-    put_fmt(conio, msgtemplate, FILENAME_MAX, filename->utf8path);
+    put_fmt(conio, kr_translate(msgtemplate), FILENAME_MAX, filename->utf8path);
 
     ResponseType response = parse_and_free_response(
         console_read_line(conio, true));
@@ -615,7 +616,7 @@ void old_keyfile_warning(void)
         "Once the key is loaded into PuTTYgen, you can perform\n"
         "this conversion simply by saving it again.\n";
 
-    fputs(message, stderr);
+    kr_console_fputs(message, stderr);
 }
 
 /*

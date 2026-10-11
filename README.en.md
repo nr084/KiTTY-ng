@@ -52,6 +52,8 @@ Transfers inherit the current session's SSH port, proxy, keys and saved root pas
 
 ## Interface language
 
+On first launch, the client and utilities follow the Windows display language: Russian for Russian Windows, English otherwise. A saved selection takes precedence. **KiTTYgen** has a separate **Language → Русский / English** menu; switching saves the preference and preserves the open key. Console utilities accept `--language ru` and `--language en` for local help, messages and confirmation prompts.
+
 Open **Window → Appearance → Interface language** and select **English** or **Русский** from the dropdown. Click **Apply** beside the dropdown to save the language and immediately update the interface, keeping the current panel open. You can also run `kitty-ng-x64.exe --language en` or `--language ru`.
 
 Configuration panels, menus, standard dialogs and client messages are translated. Session names, host keys, protocol identifiers and remote terminal output retain their original content. License texts remain in their original language.
@@ -59,6 +61,8 @@ Configuration panels, menus, standard dialogs and client messages are translated
 The screenshots below show the English interface:
 
 ![Interface language dropdown](docs/screenshots/language-en.png)
+
+![KiTTYgen in English](docs/screenshots/kittygen-en.png)
 
 ![Session configuration](docs/screenshots/session-en.png)
 

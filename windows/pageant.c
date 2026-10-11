@@ -10,6 +10,11 @@
 #include <tchar.h>
 
 #include "putty.h"
+#include "kittyng.h"
+#define MessageBox kr_messagebox
+#define AppendMenu kr_append_menu
+#define SetDlgItemText kr_utility_set_item_text
+#define dupprintf kr_printf
 #include "ssh.h"
 #include "misc.h"
 #include "tree234.h"
@@ -84,7 +89,7 @@ void modalfatalbox(const char *fmt, ...)
     char *buf;
 
     va_start(ap, fmt);
-    buf = dupvprintf(fmt, ap);
+    buf = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
     MessageBox(traywindow, buf, "Pageant Fatal Error",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
@@ -106,6 +111,7 @@ struct PassphraseProcStruct {
 static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
                                     WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     switch (msg) {
       case WM_INITDIALOG:
         SetDlgItemText(hwnd, IDC_LICENCE_TEXTBOX, LICENCE_TEXT("\r\n\r\n"));
@@ -131,6 +137,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                                   WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     switch (msg) {
       case WM_INITDIALOG: {
         char *buildinfo_text = buildinfo("\r\n");
@@ -217,6 +224,7 @@ static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                                        WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     struct PassphraseProcStruct *p;
 
     if (msg == WM_INITDIALOG) {
@@ -251,7 +259,7 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         if (!p->modal)
             SetActiveWindow(hwnd); /* this won't have happened automatically */
         if (p->comment)
-            SetDlgItemText(hwnd, IDC_PASSPHRASE_FINGERPRINT, p->comment);
+            kr_utility_set_raw_item_text(hwnd, IDC_PASSPHRASE_FINGERPRINT, p->comment);
         burnstr(p->passphrase);
         p->passphrase = dupstr("");
         SetDlgItemText(hwnd, IDC_PASSPHRASE_EDITBOX, p->passphrase);
@@ -399,9 +407,9 @@ static void keylist_update_callback(
     if (ctx->hashwidth < sz.cx) ctx->hashwidth = sz.cx;
 
     if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
-        put_fmt(disp->info, "(encrypted)");
+        put_fmt(disp->info, "%s", kr_translate("(encrypted)"));
     } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
-        put_fmt(disp->info, "(re-encryptable)");
+        put_fmt(disp->info, "%s", kr_translate("(re-encryptable)"));
 
         /* At least one key can be re-encrypted */
         ctx->enable_reencrypt_controls = true;
@@ -567,6 +575,7 @@ static void prompt_add_keyfile(bool encrypted)
 static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                                     WPARAM wParam, LPARAM lParam)
 {
+    if (kr_utility_dialog_event(hwnd, msg)) return 0;
     static const struct {
         const char *name;
         FingerprintType value;
@@ -606,8 +615,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
         int selection = 0;
         for (size_t i = 0; i < lenof(fptypes); i++) {
-            SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE, CB_ADDSTRING,
-                               0, (LPARAM)fptypes[i].name);
+            kr_utility_combo_add(hwnd, IDC_KEYLIST_FPTYPE, fptypes[i].name);
             if (fptype == fptypes[i].value)
                 selection = (int)i;
         }
@@ -693,8 +701,10 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 put_datapl(sb, ptrlen_from_strbuf(disp->info));
             }
 
-            TabbedTextOut(di->hDC, di->rcItem.left + r.right + colpos_comment,
-                          di->rcItem.top, sb->s, sb->len, 0, NULL, 0);
+            wchar_t *wide_comment = dup_mb_to_wc(CP_UTF8, sb->s);
+            TabbedTextOutW(di->hDC, di->rcItem.left + r.right + colpos_comment,
+                          di->rcItem.top, wide_comment, wcslen(wide_comment), 0, NULL, 0);
+            sfree(wide_comment);
 
             strbuf_free(sb);
 
@@ -844,28 +854,25 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 /* Set up a system tray icon */
 static BOOL AddTrayIcon(HWND hwnd)
 {
-    BOOL res;
-    NOTIFYICONDATA tnid;
-    HICON hicon;
-
-#ifdef NIM_SETVERSION
-    tnid.uVersion = 0;
-    res = Shell_NotifyIcon(NIM_SETVERSION, &tnid);
-#endif
-
-    tnid.cbSize = sizeof(NOTIFYICONDATA);
+    NOTIFYICONDATAW tnid = {0};
+    tnid.cbSize = sizeof(tnid);
     tnid.hWnd = hwnd;
-    tnid.uID = 1;              /* unique within this systray use */
+    tnid.uID = 1;
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
-    tnid.hIcon = hicon = LoadIcon(hinst, MAKEINTRESOURCE(201));
-    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
-
-    res = Shell_NotifyIcon(NIM_ADD, &tnid);
-
-    if (hicon) DestroyIcon(hicon);
-
-    return res;
+    HICON icon = tnid.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(201));
+    wchar_t *tip = dup_mb_to_wc(CP_UTF8, kr_translate("Kageant (KiTTY-NG authentication agent)"));
+    wcsncpy(tnid.szTip, tip, lenof(tnid.szTip) - 1);
+    sfree(tip);
+    BOOL result = Shell_NotifyIconW(NIM_ADD, &tnid);
+#ifdef NIM_SETVERSION
+    if (result) {
+        tnid.uVersion = 0; /* Retain the existing tray-message protocol. */
+        Shell_NotifyIconW(NIM_SETVERSION, &tnid);
+    }
+#endif
+    if (icon) DestroyIcon(icon);
+    return result;
 }
 
 /* Update the saved-sessions menu. */
@@ -1486,7 +1493,7 @@ static NORETURN void opt_error(const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    char *msg = dupvprintf(fmt, ap);
+    char *msg = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
 
     MessageBox(NULL, msg, "Pageant command line error", MB_ICONERROR | MB_OK);
@@ -1583,6 +1590,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             CommandLineKey *clkey = &clkeys[nclkeys++];
             clkey->fn = cmdline_arg_to_filename(valarg);
             clkey->add_encrypted = add_keys_encrypted;
+        } else if (match_optval("--language")) {
+            const char *language = cmdline_arg_to_str(valarg);
+            if (strcmp(language, "ru") && strcmp(language, "en"))
+                opt_error("unknown interface language: %s", language);
         } else if (match_opt("-pgpfp")) {
             pgp_fingerprints_msgbox(NULL);
             return 0;

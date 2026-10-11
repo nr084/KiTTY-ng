@@ -6,6 +6,10 @@
 #include <stdarg.h>
 
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyng.h"
+#define dupvprintf kr_utility_vprintf
+#endif
 #include "misc.h"
 #include "console.h"
 
