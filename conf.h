@@ -1291,3 +1291,35 @@ CONF_OPTION(winclass,
     DEFAULT_STR(""),
     SAVE_KEYWORD("WindowClass"),
 )
+
+/* KiTTY extensions adapted to PuTTY's typed configuration metadata. */
+CONF_OPTION(transparencynumber,
+    VALUE_TYPE(INT),
+    DEFAULT_INT(-1),
+    SAVE_KEYWORD("TransparencyValue"),
+)
+CONF_OPTION(kr_reconnect_delay,
+    VALUE_TYPE(INT),
+    DEFAULT_INT(0),
+    SAVE_KEYWORD("KiTTYRUSReconnectDelay"),
+)
+CONF_OPTION(password,
+    VALUE_TYPE(STR),
+    DEFAULT_STR(""),
+    NOT_SAVED,
+)
+CONF_OPTION(kr_password_encoded,
+    VALUE_TYPE(STR),
+    DEFAULT_STR(""),
+    SAVE_KEYWORD("Password"),
+)
+CONF_OPTION(kr_password_decoded,
+    VALUE_TYPE(BOOL),
+    DEFAULT_BOOL(true),
+    NOT_SAVED,
+)
+CONF_OPTION(folder,
+    VALUE_TYPE(STR),
+    DEFAULT_STR(""),
+    SAVE_KEYWORD("Folder"),
+)

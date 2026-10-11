@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "putty.h"
 #include "storage.h"
+#include "kittyrus-portable.h"
 
 #include <shlobj.h>
 #ifndef CSIDL_APPDATA
@@ -561,6 +562,21 @@ static HANDLE access_random_seed(int action)
 {
     HANDLE rethandle;
 
+    if (kr_portable()) {
+        CreateDirectoryW(kr_portable_root(), NULL);
+        wchar_t *path = dupwcs(kr_portable_seedpath());
+        if (action == DEL) {
+            DeleteFileW(path);
+            rethandle = INVALID_HANDLE_VALUE;
+        } else {
+            rethandle = CreateFileW(path, action == OPEN_W ? GENERIC_WRITE : GENERIC_READ,
+                FILE_SHARE_READ, NULL, action == OPEN_W ? CREATE_ALWAYS : OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL, NULL);
+        }
+        sfree(path);
+        return rethandle; /* Never falls back to profile/registry storage. */
+    }
+
     /*
      * Iterate over a selection of possible random seed paths until
      * we find one that works.
@@ -837,6 +853,7 @@ void cleanup_all(void)
         registry_recursive_remove(key);
         close_regkey(key);
     }
+    if (kr_portable()) return;
     /*
      * Now open the parent key and remove the PuTTY main key. Once
      * we've done that, see if the parent key has any other
@@ -844,23 +861,7 @@ void cleanup_all(void)
      */
     if ((key = open_regkey_rw(HKEY_CURRENT_USER, PUTTY_REG_PARENT)) != NULL) {
         del_regkey(key, PUTTY_REG_PARENT_CHILD);
-        char *name = enum_regkey(key, 0);
         close_regkey(key);
-
-        /*
-         * If the parent key had no other children, we must delete
-         * it in its turn. That means opening the _grandparent_
-         * key.
-         */
-        if (name) {
-            sfree(name);
-        } else {
-            if ((key = open_regkey_rw(HKEY_CURRENT_USER,
-                                      PUTTY_REG_GPARENT)) != NULL) {
-                del_regkey(key, PUTTY_REG_GPARENT_CHILD);
-                close_regkey(key);
-            }
-        }
     }
     /*
      * Now we're done.

@@ -201,3 +201,9 @@ if(platform STREQUAL unix)
 endif()
 
 configure_file(cmake/cmake.h.in ${GENERATED_SOURCES_DIR}/cmake.h)
+if(WIN32)
+  foreach(program plink pscp psftp)
+    set_property(SOURCE ${CMAKE_SOURCE_DIR}/windows/${program}.rc APPEND PROPERTY OBJECT_DEPENDS
+      ${CMAKE_SOURCE_DIR}/windows/version.rc2 ${CMAKE_SOURCE_DIR}/version.h)
+  endforeach()
+endif()

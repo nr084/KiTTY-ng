@@ -78,6 +78,8 @@ struct WinGuiSeat {
 
     struct unicode_data ucsdata;
     bool session_closed;
+    bool kr_saved_password_tried;
+    bool kr_session_started, kr_retryable;
     bool reconfiguring;
 
     const SessionSpecial *specials;

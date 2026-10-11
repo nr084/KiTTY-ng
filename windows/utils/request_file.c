@@ -1,4 +1,5 @@
 #include "putty.h"
+#include "kittyrus.h"
 
 typedef enum SavedDir { SD_NONE, SD_WCHAR, SD_CHAR } SavedDir;
 
@@ -186,6 +187,22 @@ static bool do_filereq_w(
     }
     of.nFilterIndex = 1;
 
+    wchar_t *translated_filters = NULL;
+    if (kr_language()) {
+        size_t used = 0;
+        for (const wchar_t *p = of.lpstrFilter; *p; p += wcslen(p) + 1) {
+            char *english = dup_wc_to_mb(CP_UTF8, p, "");
+            wchar_t *translated = dup_mb_to_wc(CP_UTF8, kr_translate(english));
+            size_t n = wcslen(translated) + 1;
+            translated_filters = sresize(translated_filters, used + n + 1, wchar_t);
+            memcpy(translated_filters + used, translated, n * sizeof(wchar_t));
+            used += n;
+            sfree(english); sfree(translated);
+        }
+        translated_filters[used] = 0;
+        of.lpstrFilter = translated_filters;
+    }
+
     of.hwndOwner = hwnd;
 
     if (initial) {
@@ -198,7 +215,7 @@ static bool do_filereq_w(
     of.nMaxFile = filename_size;
 
     if (title) {
-        wchar_t *wtitle = dup_mb_to_wc(CP_ACP, title);
+        wchar_t *wtitle = dup_mb_to_wc(kr_language() ? CP_UTF8 : CP_ACP, kr_translate(title));
         tofree2 = wtitle;
         of.lpstrTitle = wtitle;
     }
@@ -207,6 +224,7 @@ static bool do_filereq_w(
         of.Flags |= OFN_ALLOWMULTISELECT | OFN_EXPLORER;
 
     bool toret = save ? GetSaveFileNameW(&of) : GetOpenFileNameW(&of);
+    sfree(translated_filters);
 
     if (dir)
         save_dir(dir);

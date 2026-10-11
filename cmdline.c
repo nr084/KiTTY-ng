@@ -198,6 +198,18 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
     const char *value_utf8 = cmdline_arg_to_utf8(nextarg);
     const char *value = cmdline_arg_to_str(nextarg);
 
+#ifdef _WIN32
+    /* Portable location is selected lazily before any settings are loaded. */
+    if (!strcmp(p, "--portable")) return 1;
+    if (!strcmp(p, "--portable-dir")) return nextarg ? 2 : -2;
+    if (!strcmp(p, "--language")) {
+        if (!nextarg) return -2;
+        if (strcmp(value, "en") && strcmp(value, "ru"))
+            cmdline_error("Language must be en or ru");
+        return 2;
+    }
+#endif
+
     if (p[0] != '-') {
         if (need_save < 0)
             return 0;
@@ -969,6 +981,11 @@ void cmdline_run_saved(Conf *conf)
                                   saves[pri].params[i].value, 0, conf);
         saves[pri].nsaved = 0;
     }
+#ifdef _WIN32
+    /* CLI utilities share KiTTY-RUS's saved password without a -pw argument. */
+    if (!cmdline_password && *conf_get_str(conf, CONF_password))
+        cmdline_password = dupstr(conf_get_str(conf, CONF_password));
+#endif
 }
 
 bool cmdline_host_ok(Conf *conf)

@@ -20,6 +20,7 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "kittyrus-portable.h"
 #include "storage.h"
 
 #define MAX_JUMPLIST_ITEMS 30 /* PuTTY will never show more items in
@@ -673,6 +674,7 @@ static void update_jumplist_from_registry(void)
 /* Clears the entire jumplist. */
 void clear_jumplist(void)
 {
+    if (kr_portable()) return;
     ICustomDestinationList *pCDL;
 
     if (CoCreateInstance(&CLSID_DestinationList, NULL, CLSCTX_INPROC_SERVER,
@@ -686,6 +688,7 @@ void clear_jumplist(void)
 /* Adds a saved session to the Windows 7 jumplist. */
 void add_session_to_jumplist(const char * const sessionname)
 {
+    if (kr_portable()) return;
     if ((osMajorVersion < 6) || (osMajorVersion == 6 && osMinorVersion < 1))
         return;                        /* do nothing on pre-Win7 systems */
 
@@ -700,6 +703,7 @@ void add_session_to_jumplist(const char * const sessionname)
 /* Removes a saved session from the Windows jumplist. */
 void remove_session_from_jumplist(const char * const sessionname)
 {
+    if (kr_portable()) return;
     if ((osMajorVersion < 6) || (osMajorVersion == 6 && osMinorVersion < 1))
         return;                        /* do nothing on pre-Win7 systems */
 

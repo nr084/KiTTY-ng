@@ -10,6 +10,14 @@
 #include <time.h>
 
 #include "putty.h"
+#include "kittyrus.h"
+#define dupprintf kr_printf
+#undef SetWindowText
+#define SetWindowText kr_set_text
+#undef SetDlgItemText
+#define SetDlgItemText kr_set_item_text
+#undef MessageBox
+#define MessageBox kr_messagebox
 #include "ssh.h"
 #include "putty-rc.h"
 #include "win-gui-seat.h"
@@ -109,7 +117,7 @@ static INT_PTR pds_default_dlgproc(PortableDialogStuff *pds, HWND hwnd,
          */
         ReleaseCapture();
         if (pds->dp->ended)
-            ShinyEndDialog(hwnd, pds->dp->endresult ? 1 : 0);
+            ShinyEndDialog(hwnd, pds->dp->endresult);
         break;
       case WM_COMMAND:
       case WM_DRAWITEM:
@@ -121,7 +129,7 @@ static INT_PTR pds_default_dlgproc(PortableDialogStuff *pds, HWND hwnd,
         if (pds->initialised) {
             ret = winctrl_handle_command(pds->dp, msg, wParam, lParam);
             if (pds->dp->ended && GetCapture() != hwnd)
-                ShinyEndDialog(hwnd, pds->dp->endresult ? 1 : 0);
+                ShinyEndDialog(hwnd, pds->dp->endresult);
         } else
             ret = 0;
         return ret;
@@ -299,6 +307,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
+        kr_localize_dialog(hwnd);
         char *str = dupprintf("%s Event Log", appname);
         SetWindowText(hwnd, str);
         sfree(str);
@@ -382,6 +391,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG: {
+        kr_localize_dialog(hwnd);
         char *str = dupprintf("%s Licence", appname);
         SetWindowText(hwnd, str);
         sfree(str);
@@ -410,6 +420,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
+        kr_localize_dialog(hwnd);
         str = dupprintf("About %s", appname);
         SetWindowText(hwnd, str);
         sfree(str);
@@ -441,7 +452,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
           case IDA_WEB:
             /* Load web browser */
             ShellExecute(hwnd, "open",
-                         "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
+                         "https://github.com/nr084/kitty-rus",
                          0, 0, SW_SHOWDEFAULT);
             return 0;
         }
@@ -478,7 +489,7 @@ struct treeview_faff {
 static HTREEITEM treeview_insert(struct treeview_faff *faff,
                                  int level, char *text, char *path)
 {
-    TVINSERTSTRUCT ins;
+    TVINSERTSTRUCTW ins;
     int i;
     HTREEITEM newitem;
     ins.hParent = (level > 0 ? faff->lastat[level - 1] : TVI_ROOT);
@@ -489,10 +500,13 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
 #define INSITEM item
 #endif
     ins.INSITEM.mask = TVIF_TEXT | TVIF_PARAM;
-    ins.INSITEM.pszText = text;
-    ins.INSITEM.cchTextMax = strlen(text)+1;
+    const char *translated = kr_translate(text);
+    wchar_t *wide = dup_mb_to_wc(translated == text ? CP_ACP : CP_UTF8, translated);
+    ins.INSITEM.pszText = wide;
+    ins.INSITEM.cchTextMax = wcslen(wide)+1;
     ins.INSITEM.lParam = (LPARAM)path;
-    newitem = TreeView_InsertItem(faff->treeview, &ins);
+    newitem = (HTREEITEM)SendMessageW(faff->treeview, TVM_INSERTITEMW, 0, (LPARAM)&ins);
+    sfree(wide);
     if (level > 0)
         TreeView_Expand(faff->treeview, faff->lastat[level - 1],
                         (level > 1 ? TVE_COLLAPSE : TVE_EXPAND));
@@ -503,6 +517,7 @@ static HTREEITEM treeview_insert(struct treeview_faff *faff,
 }
 
 Filename *dialog_box_demo_screenshot_filename = NULL;
+const char *kr_demo_panel = NULL;
 
 /* ctrltrees indices for the main dialog box */
 enum {
@@ -525,9 +540,11 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
 
     switch (msg) {
       case WM_INITDIALOG:
+
+        kr_localize_dialog(hwnd);
         pds_initdialog_start(pds, hwnd);
 
-        pds_create_controls(pds, TREE_BASE, IDCX_STDBASE, 3, 3, 235, "");
+        pds_create_controls(pds, TREE_BASE, IDCX_STDBASE, 3, 3, 313, "");
 
         SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
                     (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
@@ -543,7 +560,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
             HWND tvstatic;
 
             r.left = 3;
-            r.right = r.left + 95;
+            r.right = r.left + 112;
             r.top = 3;
             r.bottom = r.top + 10;
             MapDialogRect(hwnd, &r);
@@ -553,13 +570,14 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                                       r.right - r.left, r.bottom - r.top,
                                       hwnd, (HMENU) IDCX_TVSTATIC, hinst,
                                       NULL);
+            kr_localize_window(tvstatic, "Category:");
             font = SendMessage(hwnd, WM_GETFONT, 0, 0);
             SendMessage(tvstatic, WM_SETFONT, font, MAKELPARAM(true, 0));
 
             r.left = 3;
-            r.right = r.left + 95;
+            r.right = r.left + 112;
             r.top = 13;
-            r.bottom = r.top + 219;
+            r.bottom = r.top + 297;
             MapDialogRect(hwnd, &r);
             treeview = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREEVIEW, "",
                                       WS_CHILD | WS_VISIBLE |
@@ -616,7 +634,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                     c++;
 
                 item = treeview_insert(&tvfaff, j, c, s->pathname);
-                if (!hfirst) {
+                if (!hfirst || (kr_demo_panel && !strcmp(kr_demo_panel, s->pathname))) {
                     hfirst = item;
                     firstpath = s->pathname;
                 }
@@ -636,7 +654,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
              */
             assert(firstpath);   /* config.c must have given us _something_ */
             pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
-                                100, 3, 13, firstpath);
+                                117, 3, 13, firstpath);
             dlg_refresh(NULL, pds->dp);    /* and set up control values */
         }
 
@@ -663,7 +681,8 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
 
       case WM_NOTIFY:
         if (LOWORD(wParam) == IDCX_TREEVIEW &&
-            ((LPNMHDR) lParam)->code == TVN_SELCHANGED) {
+            (((LPNMHDR) lParam)->code == TVN_SELCHANGEDA ||
+             ((LPNMHDR) lParam)->code == TVN_SELCHANGEDW)) {
             /*
              * Selection-change events on the treeview cause us to do
              * a flurry of control deletion and creation - but only
@@ -683,9 +702,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
             SendMessage (hwnd, WM_SETREDRAW, false, 0);
 
             item.hItem = i;
-            item.pszText = buffer;
-            item.cchTextMax = sizeof(buffer);
-            item.mask = TVIF_TEXT | TVIF_PARAM;
+            item.mask = TVIF_PARAM; /* labels are Unicode; paths remain English */
             TreeView_GetItem(((LPNMHDR) lParam)->hwndFrom, &item);
             {
                 /* Destroy all controls in the currently visible panel. */
@@ -707,7 +724,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                 }
             }
             pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
-                                100, 3, 13, (char *)item.lParam);
+                                117, 3, 13, (char *)item.lParam);
 
             dlg_refresh(NULL, pds->dp);    /* set up control values */
 
@@ -755,7 +772,8 @@ void defuse_showwindow(void)
 
 bool do_config(Conf *conf)
 {
-    bool ret;
+    int ret;
+    do {
     PortableDialogStuff *pds = pds_new(2);
 
     setup_config_box(pds->ctrlbox, false, 0, 0);
@@ -772,6 +790,7 @@ bool do_config(Conf *conf)
                          NULL, GenericMainDlgProc, pds);
 
     pds_free(pds);
+    } while (ret == 2);
 
     return ret;
 }
@@ -779,11 +798,13 @@ bool do_config(Conf *conf)
 bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
 {
     Conf *backup_conf;
-    bool ret;
+    int ret;
     int protocol;
-    PortableDialogStuff *pds = pds_new(2);
 
     backup_conf = conf_copy(conf);
+
+    do {
+    PortableDialogStuff *pds = pds_new(2);
 
     protocol = conf_get_int(conf, CONF_protocol);
     setup_config_box(pds->ctrlbox, true, protocol, protcfginfo);
@@ -801,6 +822,7 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
                          NULL, GenericMainDlgProc, pds);
 
     pds_free(pds);
+    } while (ret == 2);
 
     if (!ret)
         conf_copy_into(conf, backup_conf);
@@ -885,6 +907,7 @@ static INT_PTR HostKeyMoreInfoProc(HWND hwnd, UINT msg, WPARAM wParam,
 
     switch (msg) {
       case WM_INITDIALOG: {
+        kr_localize_dialog(hwnd);
         int index = 100, y = 12;
 
         WPARAM font = SendMessage(hwnd, WM_GETFONT, 0, 0);
@@ -1034,6 +1057,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG: {
+        kr_localize_dialog(hwnd);
         strbuf *dlg_text = strbuf_new();
         const char *scary_heading = NULL;
         const char *dlg_title = process_seatdialogtext(
@@ -1071,7 +1095,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         RECT r;
         r.left = 40;
         r.top = edittop;
-        r.right = 290;
+        r.right = 410;
         r.bottom = height;
         MapDialogRect(hwnd, &r);
         SetWindowPos(GetDlgItem(hwnd, IDC_HK_TEXT), NULL,
@@ -1081,10 +1105,10 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         static const struct {
             int id, x;
         } buttons[] = {
-            { IDCANCEL, 288 },
-            { IDC_HK_ACCEPT, 168 },
-            { IDC_HK_ONCE, 216 },
-            { IDC_HK_MOREINFO, 60 },
+            { IDCANCEL, 390 },
+            { IDC_HK_ACCEPT, 216 },
+            { IDC_HK_ONCE, 282 },
+            { IDC_HK_MOREINFO, 78 },
             { IDHELP, 12 },
         };
         for (size_t i = 0; i < lenof(buttons); i++) {
@@ -1185,6 +1209,16 @@ const SeatDialogPromptDescriptions *win_seat_prompt_descriptions(Seat *seat)
         .weak_accept_action = "press \"Yes\"",
         .weak_cancel_action = "press \"No\"",
     };
+    static SeatDialogPromptDescriptions localized;
+    if (kr_language()) {
+        localized.hk_accept_action = kr_translate(descs.hk_accept_action);
+        localized.hk_connect_once_action = kr_translate(descs.hk_connect_once_action);
+        localized.hk_cancel_action = kr_translate(descs.hk_cancel_action);
+        localized.hk_cancel_action_Participle = kr_translate(descs.hk_cancel_action_Participle);
+        localized.weak_accept_action = kr_translate(descs.weak_accept_action);
+        localized.weak_cancel_action = kr_translate(descs.weak_cancel_action);
+        return &localized;
+    }
     return &descs;
 }
 
@@ -1342,7 +1376,8 @@ static INT_PTR CAConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
 
     switch (msg) {
       case WM_INITDIALOG:
-        pds_initdialog_start(pds, hwnd);
+
+        kr_localize_dialog(hwnd);pds_initdialog_start(pds, hwnd);
 
         SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
                     (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));

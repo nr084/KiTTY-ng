@@ -1,0 +1,53 @@
+name: Сборка и проверка Windows
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, x86, arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Проверка переводов
+        run: python tools/check-translations.py
+      - name: Настройка сборки
+        run: cmake --preset windows-${{ matrix.arch }}
+      - name: Сборка
+        run: cmake --build --preset windows-${{ matrix.arch }} --parallel
+      - name: Сборка тестов
+        if: matrix.arch != 'arm64'
+        run: cmake --build build/windows-${{ matrix.arch }} --config Release --target test_kittyrus test_kittyrus_legacy testcrypt test_host_strfoo test_bpp --parallel
+      - name: Совместимость с KiTTY
+        if: matrix.arch != 'arm64'
+        run: |
+          python test/run_kittyrus.py build/windows-${{ matrix.arch }}/Release/test_kittyrus.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python test/run_kittyrus_legacy.py build/windows-${{ matrix.arch }}/Release/test_kittyrus_legacy.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & ./build/windows-${{ matrix.arch }}/Release/test_host_strfoo.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & ./build/windows-${{ matrix.arch }}/Release/test_bpp.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $env:PUTTY_TESTCRYPT='"'+(Resolve-Path build/windows-${{ matrix.arch }}/Release/testcrypt.exe).Path+'"'
+          python test/cryptsuite.py
+      - name: Локальный SSH-сервер для тестов
+        if: matrix.arch != 'arm64'
+        run: python -m pip install paramiko
+      - name: Проверка сохранённого пароля и переподключения
+        if: matrix.arch != 'arm64'
+        run: |
+          python test/ssh_saved_password.py build/windows-${{ matrix.arch }}/Release/kitty-rus.exe build/windows-${{ matrix.arch }}/Release/plink.exe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python test/ssh_saved_password.py --reconnect build/windows-${{ matrix.arch }}/Release/kitty-rus.exe
+      - name: Архив выпуска
+        run: python tools/package-release.py ${{ matrix.arch }} build/windows-${{ matrix.arch }}/Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KiTTY-RUS-${{ matrix.arch }}
+          path: dist/*
+          if-no-files-found: error

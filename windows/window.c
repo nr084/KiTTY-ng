@@ -21,6 +21,14 @@
 #include "security-api.h"
 #include "win-gui-seat.h"
 #include "tree234.h"
+#include "kittyrus.h"
+#define dupprintf kr_printf
+#undef MessageBox
+#define MessageBox kr_messagebox
+#undef AppendMenu
+#define AppendMenu kr_append_menu
+#undef InsertMenu
+#define InsertMenu kr_insert_menu
 
 #ifdef NO_MULTIMON
 #include <multimon.h>
@@ -50,6 +58,23 @@
 #define IDM_FULLSCREEN  0x0180
 #define IDM_COPY      0x0190
 #define IDM_PASTE     0x01A0
+#define IDM_KR_TRAY   0x01B0
+#define WM_KR_TRAY    (WM_APP + 101)
+#define KR_RECONNECT_TIMER 0x4B525553
+static UINT kr_taskbar_created;
+
+static bool kr_tray_icon(HWND hwnd, bool add)
+{
+    NOTIFYICONDATAW icon = {0};
+    icon.cbSize = sizeof(icon);
+    icon.hWnd = hwnd;
+    icon.uID = 1;
+    icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    icon.uCallbackMessage = WM_KR_TRAY;
+    icon.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(IDI_MAINICON));
+    wcscpy(icon.szTip, L"KiTTY-RUS");
+    return Shell_NotifyIconW(add ? NIM_ADD : NIM_DELETE, &icon) != FALSE;
+}
 #define IDM_SPECIALSEP 0x0200
 
 #define IDM_SPECIAL_MIN 0x0400
@@ -239,6 +264,11 @@ static bool win_seat_eof(Seat *seat);
 static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p);
 static void win_seat_notify_remote_exit(Seat *seat);
 static void win_seat_connection_fatal(Seat *seat, const char *msg);
+static void kr_notify_session_started(Seat *seat)
+{
+    WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
+    wgs->kr_session_started = true;
+}
 static void win_seat_nonfatal(Seat *seat, const char *msg);
 static void win_seat_update_specials_menu(Seat *seat);
 static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
@@ -253,7 +283,7 @@ static const SeatVtable win_seat_vt = {
     .sent = nullseat_sent,
     .banner = nullseat_banner_to_stderr,
     .get_userpass_input = win_seat_get_userpass_input,
-    .notify_session_started = nullseat_notify_session_started,
+    .notify_session_started = kr_notify_session_started,
     .notify_remote_exit = win_seat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = win_seat_connection_fatal,
@@ -337,6 +367,8 @@ static void start_backend(WinGuiSeat *wgs)
     }
 
     wgs->session_closed = false;
+    wgs->kr_saved_password_tried = false;
+    wgs->kr_session_started = wgs->kr_retryable = false;
 }
 
 static void close_session(void *vctx)
@@ -346,9 +378,13 @@ static void close_session(void *vctx)
     int i;
 
     wgs->session_closed = true;
+    int delay = conf_get_int(wgs->conf, CONF_kr_reconnect_delay);
+    if (delay > 0 && wgs->kr_retryable)
+        SetTimer(wgs->term_hwnd, KR_RECONNECT_TIMER,
+                 (UINT)min(delay, 86400) * 1000, NULL);
     newtitle = dupprintf("%s (inactive)", appname);
-    win_set_icon_title(&wgs->termwin, newtitle, DEFAULT_CODEPAGE);
-    win_set_title(&wgs->termwin, newtitle, DEFAULT_CODEPAGE);
+    win_set_icon_title(&wgs->termwin, newtitle, kr_language() ? CP_UTF8 : DEFAULT_CODEPAGE);
+    win_set_title(&wgs->termwin, newtitle, kr_language() ? CP_UTF8 : DEFAULT_CODEPAGE);
     sfree(newtitle);
 
     if (wgs->ldisc) {
@@ -743,8 +779,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
         for (j = 0; j < lenof(wgs->popup_menus); j++) {
             m = wgs->popup_menus[j].menu;
-            AppendMenu(m, MF_ENABLED, IDM_COPY, "&Copy");
-            AppendMenu(m, MF_ENABLED, IDM_PASTE, "&Paste");
+            kr_append_menu(m, MF_ENABLED, IDM_COPY, "&Copy");
+            kr_append_menu(m, MF_ENABLED, IDM_PASTE, "&Paste");
         }
 
         wgs->savedsess_menu = CreateMenu();
@@ -755,17 +791,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             m = wgs->popup_menus[j].menu;
 
             AppendMenu(m, MF_SEPARATOR, 0, 0);
-            AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
+            kr_append_menu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
-            AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
-            AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+            kr_append_menu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
+            kr_append_menu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_TRAY, "Send to tray");
             AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR)wgs->savedsess_menu,
                        "Sa&ved Sessions");
-            AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
+            kr_append_menu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
-            AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
-            AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
-            AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
+            kr_append_menu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
+            kr_append_menu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
+            kr_append_menu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             AppendMenu(m, (conf_get_int(wgs->conf, CONF_resize_action)
                            == RESIZE_DISABLED) ? MF_GRAYED : MF_ENABLED,
@@ -795,6 +832,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Finally show the window!
      */
     ShowWindow(wgs->term_hwnd, show);
+    kr_apply_transparency(wgs->term_hwnd, wgs->conf);
     SetForegroundWindow(wgs->term_hwnd);
 
     term_set_focus(wgs->term, GetForegroundWindow() == wgs->term_hwnd);
@@ -882,6 +920,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 static void wgs_cleanup(WinGuiSeat *wgs)
 {
+    KillTimer(wgs->term_hwnd, KR_RECONNECT_TIMER);
+    kr_tray_icon(wgs->term_hwnd, false);
     deinit_fonts(wgs);
     sfree(wgs->logpal);
     if (wgs->pal)
@@ -1032,7 +1072,7 @@ static void update_savedsess_menu(WinGuiSeat *wgs)
          i < ((sesslist.nsessions <= MENU_SAVED_MAX+1) ? sesslist.nsessions
                                                        : MENU_SAVED_MAX+1);
          i++)
-        AppendMenu(wgs->savedsess_menu, MF_ENABLED,
+        AppendMenuA(wgs->savedsess_menu, MF_ENABLED,
                    IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
                    sesslist.sessions[i]);
     if (sesslist.nsessions <= 1)
@@ -1177,11 +1217,19 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
     char *title = dupprintf("%s Fatal Error", appname);
+    /* Retry only a lost established session, never failed authentication
+     * or a rejected host key. Normal shell exits do not reach this hook. */
+    wgs->kr_retryable = wgs->kr_session_started &&
+        conf_get_int(wgs->conf, CONF_kr_reconnect_delay) > 0;
     show_mouseptr(wgs, true);
-    MessageBox(wgs->term_hwnd, msg, title, MB_ICONERROR | MB_OK);
+    if (!wgs->kr_retryable)
+        MessageBox(wgs->term_hwnd, msg, title, MB_ICONERROR | MB_OK);
+    else
+        logevent(wgs->logctx, msg);
     sfree(title);
 
-    if (conf_get_int(wgs->conf, CONF_close_on_exit) == FORCE_ON)
+    if (conf_get_int(wgs->conf, CONF_close_on_exit) == FORCE_ON &&
+        !wgs->kr_retryable)
         PostQuitMessage(1);
     else {
         queue_toplevel_callback(close_session, wgs);
@@ -1219,7 +1267,7 @@ void cmdline_error(const char *fmt, ...)
     char *message, *title;
 
     va_start(ap, fmt);
-    message = dupvprintf(fmt, ap);
+    message = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
     title = dupprintf("%s Command Line Error", appname);
     MessageBox(find_window_for_msgbox(), message, title, MB_ICONERROR | MB_OK);
@@ -2108,8 +2156,8 @@ static void exit_callback(void *vctx)
         close_on_exit = conf_get_int(wgs->conf, CONF_close_on_exit);
         /* Abnormal exits will already have set session_closed and taken
          * appropriate action. */
-        if (close_on_exit == FORCE_ON ||
-            (close_on_exit == AUTO && exitcode != INT_MAX)) {
+        if (exitcode != INT_MAX &&
+            (close_on_exit == FORCE_ON || close_on_exit == AUTO)) {
             PostQuitMessage(0);
         } else {
             queue_toplevel_callback(close_session, wgs);
@@ -2201,9 +2249,33 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     int resize_action;
     WinGuiSeat *wgs = (WinGuiSeat *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
 
+    if (kr_taskbar_created && message == kr_taskbar_created) {
+        /* Explorer has discarded its tray icons: make hidden sessions
+         * reachable again even if adding a replacement icon fails. */
+        if (wgs && !IsWindowVisible(hwnd))
+            ShowWindow(hwnd, SW_RESTORE);
+        return 0;
+    }
+
     switch (message) {
       case WM_CREATE:
+        kr_taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
         break;
+      case WM_TIMER:
+        if (wParam == KR_RECONNECT_TIMER) {
+            KillTimer(hwnd, KR_RECONNECT_TIMER);
+            if (conf_get_int(wgs->conf, CONF_kr_reconnect_delay) > 0)
+                PostMessage(hwnd, WM_SYSCOMMAND, IDM_RESTART, 0);
+            return 0;
+        }
+        break;
+      case WM_KR_TRAY:
+        if (lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP) {
+            kr_tray_icon(hwnd, false);
+            ShowWindow(hwnd, SW_RESTORE);
+            SetForegroundWindow(hwnd);
+        }
+        return 0;
       case WM_CLOSE: {
         char *title, *msg, *additional = NULL;
         show_mouseptr(wgs, true);
@@ -2226,6 +2298,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         return 0;
       }
       case WM_DESTROY:
+        KillTimer(hwnd, KR_RECONNECT_TIMER);
+        kr_tray_icon(hwnd, false);
         show_mouseptr(wgs, true);
         PostQuitMessage(0);
         return 0;
@@ -2345,12 +2419,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             break;
           }
           case IDM_RESTART:
+            KillTimer(hwnd, KR_RECONNECT_TIMER);
             if (!wgs->backend) {
                 lp_eventlog(&wgs->logpolicy, "----- Session restarted -----");
                 term_pwron(wgs->term, false);
                 start_backend(wgs);
             }
 
+            break;
+          case IDM_KR_TRAY:
+            if (kr_tray_icon(hwnd, true))
+                ShowWindow(hwnd, SW_HIDE);
             break;
           case IDM_RECONF: {
             Conf *prev_conf;
@@ -2391,6 +2470,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             }
 
             /* Pass new config data to the logging module */
+            kr_apply_transparency(hwnd, wgs->conf);
+            if (conf_get_int(wgs->conf, CONF_kr_reconnect_delay) <= 0)
+                KillTimer(hwnd, KR_RECONNECT_TIMER);
             log_reconfig(wgs->logctx, wgs->conf);
 
             sfree(wgs->logpal);
@@ -5491,7 +5573,7 @@ void modalfatalbox(const char *fmt, ...)
     char *message, *title;
 
     va_start(ap, fmt);
-    message = dupvprintf(fmt, ap);
+    message = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
     show_mouseptr(NULL, true);
     title = dupprintf("%s Fatal Error", appname);
@@ -5511,7 +5593,7 @@ void nonfatal(const char *fmt, ...)
     char *message, *title;
 
     va_start(ap, fmt);
-    message = dupvprintf(fmt, ap);
+    message = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
     show_mouseptr(NULL, true);
     title = dupprintf("%s Error", appname);
@@ -5916,6 +5998,16 @@ static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p)
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
     SeatPromptResult spr;
     spr = cmdline_get_passwd_input(p, &wgs->cmdline_get_passwd_state, true);
+    if (spr.kind == SPRK_INCOMPLETE && !wgs->kr_saved_password_tried &&
+        p->n_prompts == 1 && !p->prompts[0]->echo && p->to_server &&
+        (!p->from_server || strstr(p->prompts[0]->prompt, "assword"))) {
+        const char *password = conf_get_str(wgs->conf, CONF_password);
+        if (*password) {
+            prompt_set_result(p->prompts[0], password);
+            wgs->kr_saved_password_tried = true;
+            return SPR_OK;
+        }
+    }
     if (spr.kind == SPRK_INCOMPLETE)
         spr = term_get_userpass_input(wgs->term, p);
     return spr;

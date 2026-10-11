@@ -9,6 +9,38 @@
 #include "putty.h"
 #include "dialog.h"
 #include "storage.h"
+#include "kittyrus.h"
+#define dupprintf kr_printf
+
+static void language_handler(dlgcontrol *ctrl, dlgparam *dlg,
+                             void *data, int event)
+{
+    if (event == EVENT_REFRESH) {
+        dlg_radiobutton_set(ctrl, dlg, kr_language());
+    } else if (event == EVENT_VALCHANGE) {
+        int language = dlg_radiobutton_get(ctrl, dlg);
+        if (language != kr_language()) {
+            if (kr_set_language(language))
+                dlg_end(dlg, 2); /* Rebuild the dialog with the same Conf. */
+            else
+                dlg_error_msg(dlg, "Unable to save interface language");
+        }
+    }
+}
+
+static void password_handler(dlgcontrol *ctrl, dlgparam *dlg,
+                             void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    if (event == EVENT_REFRESH) {
+        dlg_editbox_set_utf8(ctrl, dlg, conf_get_str(conf, CONF_password));
+    } else if (event == EVENT_VALCHANGE) {
+        char *password = dlg_editbox_get_utf8(ctrl, dlg);
+        conf_set_str(conf, CONF_password, password);
+        conf_set_bool(conf, CONF_kr_password_decoded, true);
+        smemclr(password, strlen(password)); sfree(password);
+    }
+}
 
 static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
@@ -48,6 +80,24 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     struct controlset *s;
     dlgcontrol *c;
     char *str;
+
+    s = ctrl_getset(b, "Connection/Data", "kittyrus", "KiTTY-RUS");
+    c = ctrl_editbox(s, "Saved password", NO_SHORTCUT, 100,
+                     HELPCTX(no_help), password_handler, P(NULL), P(NULL));
+    c->editbox.password = true;
+
+    s = ctrl_getset(b, "Window/Appearance", "kittyrus", "KiTTY-RUS");
+    ctrl_radiobuttons(s, "Interface language", NO_SHORTCUT, 2,
+                     HELPCTX(no_help), language_handler, P(NULL),
+                     "English", NO_SHORTCUT, I(0),
+                     "Russian", NO_SHORTCUT, I(1));
+    ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
+                 HELPCTX(no_help), conf_editbox_handler,
+                 I(CONF_transparencynumber), ED_INT);
+    s = ctrl_getset(b, "Connection", "kittyrus", "KiTTY-RUS");
+    ctrl_editbox(s, "Reconnect delay in seconds (0 disables)", NO_SHORTCUT, 30,
+                 HELPCTX(no_help), conf_editbox_handler,
+                 I(CONF_kr_reconnect_delay), ED_INT);
 
     if (!midsession) {
         /*

@@ -1,0 +1,14 @@
+Generated with the built-in image_gen tool, then converted to a multi-size ICO.
+
+Final prompt:
+Edit this KiTTY-RUS icon. Preserve exactly two terminal monitors, their modern
+silver bezels, dark screens with green >_ prompts and transparent background.
+Add an unmistakable visible connection BETWEEN the two monitors: a single bold
+clean network cable or connector line, routed visibly around the right/bottom
+gap, with its two ends attached to each monitor. It must clearly show these two
+terminals linked to one another, and remain recognizable at small icon sizes.
+Keep the connector tasteful and bold, not a lightning bolt. No other objects,
+no background tile, no text. Preserve real alpha transparency.
+
+PNG source: icons/kitty-rus.png
+Windows ICO: windows/kitty-rus.ico (16, 24, 32, 48, 64, 128, 256 pixels)

@@ -4,6 +4,8 @@
 /build/
 /dist/
 /upstream-kitty.json
+!/icons/kitty-rus.png
+!/LICENCE-KiTTY.txt
 *.pyc
 *.vcxproj
 *.vcxproj.filters
@@ -102,6 +104,7 @@ Makefile
 /doc/copy.but
 /icons/*.pam
 /icons/*.png
+!/icons/kitty-rus.png
 /icons/*.ico
 /icons/*.icns
 /icons/*.xpm

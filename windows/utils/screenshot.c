@@ -68,7 +68,9 @@ char *save_screenshot(HWND hwnd, Filename *outfile)
         goto out;
     }
 
-    if (!BitBlt(dcSave, 0, 0, w, h, dcWindow, x, y, SRCCOPY)) {
+    /* Render the owned window directly: demos can run hidden or occluded. */
+    if (!PrintWindow(hwnd, dcSave, 0) &&
+        !BitBlt(dcSave, 0, 0, w, h, dcWindow, x, y, SRCCOPY)) {
         err = dupprintf("BitBlt: %s", win_strerror(GetLastError()));
         goto out;
     }

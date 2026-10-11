@@ -1,0 +1,282 @@
+{
+  "source_commit": "75fa2abcd220c17249ff7252f8d5224137001f2d",
+  "scope": "0.76b_My_PuTTY and extension source trees; older duplicate excluded",
+  "source_file_count": 351,
+  "feature_switches": {
+    "MOD_ADB": [
+      "0.76b_My_PuTTY/be_all.c",
+      "0.76b_My_PuTTY/be_all_s.c",
+      "0.76b_My_PuTTY/be_nos_s.c",
+      "0.76b_My_PuTTY/be_nossh.c",
+      "0.76b_My_PuTTY/cmdline.c",
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/windows/window.c",
+      "adb/adb.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_commun.c",
+      "kitty_commun.h",
+      "kitty_savedump.c"
+    ],
+    "MOD_BACKGROUNDIMAGE": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/config.c",
+      "0.76b_My_PuTTY/windows/dialog.c",
+      "0.76b_My_PuTTY/windows/platform.h",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_commun.c",
+      "kitty_image.c",
+      "kitty_image.h",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_DISABLEALTGR": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_FAR2L": [
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/terminal/terminal.h",
+      "0.76b_My_PuTTY/windows/win-gui-seat.h",
+      "0.76b_My_PuTTY/windows/window.c",
+      "far2l/cdecode.c",
+      "far2l/cdecode.h",
+      "far2l/cencode.c",
+      "far2l/cencode.h",
+      "kitty_settings.c"
+    ],
+    "MOD_HYPERLINK": [
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/terminal/terminal.h",
+      "0.76b_My_PuTTY/windows/config.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty_savedump.c",
+      "kitty_settings.c",
+      "url/re_lib/regexp.c"
+    ],
+    "MOD_INTEGRATED_AGENT": [
+      "0.76b_My_PuTTY/pageant.c",
+      "0.76b_My_PuTTY/ssh/kex2-client.c",
+      "0.76b_My_PuTTY/windows/pageant-rc.h",
+      "0.76b_My_PuTTY/windows/pageant.c",
+      "0.76b_My_PuTTY/windows/window.c"
+    ],
+    "MOD_INTEGRATED_KEYGEN": [
+      "0.76b_My_PuTTY/windows/puttygen.c",
+      "0.76b_My_PuTTY/windows/window.c"
+    ],
+    "MOD_KEYMAPPING": [
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/windows/window.c"
+    ],
+    "MOD_LAUNCHER": [
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_launcher.c"
+    ],
+    "MOD_NOHYPERLINK": [
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty_settings.c",
+      "url/urlhack.c",
+      "url/urlhack.old.c"
+    ],
+    "MOD_NOPASSWORD": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty_settings.c"
+    ],
+    "MOD_NOTRANSPARENCY": [
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty_win.c"
+    ],
+    "MOD_PERSO": [
+      "0.76b_My_PuTTY/be_all_s.c",
+      "0.76b_My_PuTTY/cmdline.c",
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/keygen/mpunsafe.c",
+      "0.76b_My_PuTTY/logging.c",
+      "0.76b_My_PuTTY/pageant.c",
+      "0.76b_My_PuTTY/pageant.h",
+      "0.76b_My_PuTTY/pscp.c",
+      "0.76b_My_PuTTY/psftp.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/ssh.h",
+      "0.76b_My_PuTTY/ssh/connection1.c",
+      "0.76b_My_PuTTY/ssh/connection2.c",
+      "0.76b_My_PuTTY/ssh/login1.c",
+      "0.76b_My_PuTTY/ssh/portfwd.c",
+      "0.76b_My_PuTTY/ssh/userauth2-client.c",
+      "0.76b_My_PuTTY/ssh/verstring.c",
+      "0.76b_My_PuTTY/sshrand.c",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/terminal/terminal.h",
+      "0.76b_My_PuTTY/timing.c",
+      "0.76b_My_PuTTY/utils/conf.c",
+      "0.76b_My_PuTTY/utils/tree234.c",
+      "0.76b_My_PuTTY/utils/version.c",
+      "0.76b_My_PuTTY/windows/config.c",
+      "0.76b_My_PuTTY/windows/console.c",
+      "0.76b_My_PuTTY/windows/controls.c",
+      "0.76b_My_PuTTY/windows/dialog.c",
+      "0.76b_My_PuTTY/windows/help.c",
+      "0.76b_My_PuTTY/windows/jump-list.c",
+      "0.76b_My_PuTTY/windows/network.c",
+      "0.76b_My_PuTTY/windows/pageant.c",
+      "0.76b_My_PuTTY/windows/platform.h",
+      "0.76b_My_PuTTY/windows/plink.c",
+      "0.76b_My_PuTTY/windows/putty-rc.h",
+      "0.76b_My_PuTTY/windows/puttygen.c",
+      "0.76b_My_PuTTY/windows/sftp.c",
+      "0.76b_My_PuTTY/windows/storage.c",
+      "0.76b_My_PuTTY/windows/utils/defaults.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_commun.c",
+      "kitty_savedump.c",
+      "kitty_settings.c",
+      "void.c"
+    ],
+    "MOD_PORTABLE": [
+      "kitty.c",
+      "kitty_commun.c"
+    ],
+    "MOD_PORTKNOCKING": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/pscp.c",
+      "0.76b_My_PuTTY/psftp.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/plink.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty_savedump.c",
+      "kitty_settings.c",
+      "kitty_ssh.c",
+      "kitty_ssh.h"
+    ],
+    "MOD_PRINTCLIP": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/windows/dialog.c",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_PROXY": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/dialog.c",
+      "0.76b_My_PuTTY/windows/plink.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_PUTTYX": [
+      "0.76b_My_PuTTY/terminal/terminal.c"
+    ],
+    "MOD_RECONNECT": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/ssh/connection2.c",
+      "0.76b_My_PuTTY/ssh/userauth2-client.c",
+      "0.76b_My_PuTTY/sshrand.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_commun.c",
+      "kitty_commun.h",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_RUTTY": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/ldisc.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/putty-rc.h",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_RUTTY1": [
+      "0.76b_My_PuTTY/windows/window.c"
+    ],
+    "MOD_SAVEDUMP": [
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c"
+    ],
+    "MOD_STARTBUTTON": [
+      "0.76b_My_PuTTY/config.c",
+      "kitty_image.c"
+    ],
+    "MOD_TUTTY": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/windows/config.c",
+      "0.76b_My_PuTTY/windows/controls.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_TUTTYCOLOR": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty_savedump.c",
+      "kitty_settings.c"
+    ],
+    "MOD_WTS": [
+      "0.76b_My_PuTTY/windows/window.c"
+    ],
+    "MOD_ZMODEM": [
+      "0.76b_My_PuTTY/config.c",
+      "0.76b_My_PuTTY/dialog.c",
+      "0.76b_My_PuTTY/dialog.h",
+      "0.76b_My_PuTTY/putty.h",
+      "0.76b_My_PuTTY/settings.c",
+      "0.76b_My_PuTTY/terminal/terminal.c",
+      "0.76b_My_PuTTY/terminal/terminal.h",
+      "0.76b_My_PuTTY/windows/controls.c",
+      "0.76b_My_PuTTY/windows/network.c",
+      "0.76b_My_PuTTY/windows/platform.h",
+      "0.76b_My_PuTTY/windows/window.c",
+      "kitty.c",
+      "kitty.h",
+      "kitty_commun.c",
+      "kitty_commun.h",
+      "kitty_savedump.c",
+      "kitty_settings.c",
+      "zmodem/winpzmodem.c"
+    ]
+  }
+}

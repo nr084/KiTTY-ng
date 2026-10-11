@@ -5,6 +5,9 @@
 #include <stdarg.h>
 
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyrus.h"
+#endif
 
 SeatDialogText *seat_dialog_text_new(void)
 {
@@ -28,6 +31,12 @@ static void seat_dialog_text_append_v(
     sgrowarray(sdt->items, sdt->itemsize, sdt->nitems);
     SeatDialogTextItem *item = &sdt->items[sdt->nitems++];
     item->type = type;
+#ifdef _WIN32
+    /* Translate local prose before formatting; retain fingerprints and keys. */
+    if (type != SDT_DISPLAY && type != SDT_MORE_INFO_VALUE_SHORT &&
+        type != SDT_MORE_INFO_VALUE_BLOB)
+        fmt = kr_translate(fmt);
+#endif
     item->text = dupvprintf(fmt, ap);
 }
 

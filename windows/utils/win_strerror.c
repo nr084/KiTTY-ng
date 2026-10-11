@@ -14,6 +14,7 @@
  */
 
 #include "putty.h"
+#include "kittyrus.h"
 
 struct errstring {
     int error;
@@ -36,36 +37,40 @@ static int errstring_compare(void *av, void *bv)
     return errstring_find(&a->error, bv);
 }
 
-static tree234 *errstrings = NULL;
+static tree234 *errstrings[2];
 
 const char *win_strerror(int error)
 {
     struct errstring *es;
+    int language = kr_language();
 
-    if (!errstrings)
-        errstrings = newtree234(errstring_compare);
+    if (!errstrings[language])
+        errstrings[language] = newtree234(errstring_compare);
 
-    es = find234(errstrings, &error, errstring_find);
+    es = find234(errstrings[language], &error, errstring_find);
 
     if (!es) {
-        char msgtext[65536]; /* maximum size for FormatMessage is 64K */
+        wchar_t wide[65536]; /* maximum size for FormatMessage is 64K */
 
         es = snew(struct errstring);
         es->error = error;
-        if (!FormatMessage((FORMAT_MESSAGE_FROM_SYSTEM |
+        if (!FormatMessageW((FORMAT_MESSAGE_FROM_SYSTEM |
                             FORMAT_MESSAGE_IGNORE_INSERTS), NULL, error,
-                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                           msgtext, lenof(msgtext)-1, NULL)) {
-            sprintf(msgtext,
-                    "(unable to format: FormatMessage returned %u)",
-                    (unsigned int)GetLastError());
+                           MAKELANGID(language ? LANG_RUSSIAN : LANG_ENGLISH, SUBLANG_DEFAULT),
+                           wide, lenof(wide)-1, NULL) &&
+            !FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                            NULL, error, 0, wide, lenof(wide)-1, NULL)) {
+            swprintf(wide, lenof(wide),
+                     L"(FormatMessage: %u)", (unsigned int)GetLastError());
         } else {
-            int len = strlen(msgtext);
-            if (len > 0 && msgtext[len-1] == '\n')
-                msgtext[len-1] = '\0';
+            int len = wcslen(wide);
+            while (len > 0 && (wide[len-1] == L'\n' || wide[len-1] == L'\r'))
+                wide[--len] = 0;
         }
+        char *msgtext = dup_wc_to_mb(language ? CP_UTF8 : CP_ACP, wide, "");
         es->text = dupprintf("Error %d: %s", error, msgtext);
-        add234(errstrings, es);
+        sfree(msgtext);
+        add234(errstrings[language], es);
     }
 
     return es->text;

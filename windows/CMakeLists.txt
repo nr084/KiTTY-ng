@@ -1,6 +1,9 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
+  kittyrus.c
+  kittyrus-portable.c
+  kittyrus-legacy-crypt.c
   utils/agent_mutex_name.c
   utils/agent_named_pipe_name.c
   utils/arm_arch_queries.c
@@ -41,6 +44,12 @@ add_sources_from_current_dir(utils
   utils/version.c
   utils/win_strerror.c
   unicode.c)
+target_link_libraries(utils PUBLIC bcrypt)
+
+add_executable(test_kittyrus ${CMAKE_SOURCE_DIR}/test/test_kittyrus.c storage.c)
+target_link_libraries(test_kittyrus utils ${platform_libraries})
+add_executable(test_kittyrus_legacy
+  ${CMAKE_SOURCE_DIR}/test/test_kittyrus_legacy.c kittyrus-legacy-crypt.c)
 if(NOT HAVE_STRTOUMAX)
   add_sources_from_current_dir(utils utils/strtoumax.c)
 endif()
@@ -105,13 +114,19 @@ add_executable(putty
   help.c
   ${CMAKE_SOURCE_DIR}/stubs/no-console.c
   putty.rc)
-be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
+set_property(SOURCE putty.rc APPEND PROPERTY OBJECT_DEPENDS
+  ${CMAKE_CURRENT_SOURCE_DIR}/putty-common.rc2
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.rc2
+  ${CMAKE_CURRENT_SOURCE_DIR}/kitty-rus.ico
+  ${CMAKE_SOURCE_DIR}/version.h)
+be_list(putty KiTTY-RUS SSH SERIAL OTHERBACKENDS)
 add_dependencies(putty generated_licence_h)
 target_link_libraries(putty
   guiterminal guimisc eventloop sshclient otherbackends settings network crypto
   utils
   ${platform_libraries})
 set_target_properties(putty PROPERTIES WIN32_EXECUTABLE ON)
+set_target_properties(putty PROPERTIES OUTPUT_NAME "kitty-rus")
 installed_program(putty)
 
 add_executable(puttytel
@@ -206,3 +221,7 @@ target_link_libraries(test_terminal
   guiterminal settings eventloop utils ${platform_libraries})
 
 add_sources_from_current_dir(test_conf no-jump-list.c handle-wait.c)
+foreach(program pageant puttygen puttytel)
+  set_property(SOURCE ${program}.rc APPEND PROPERTY OBJECT_DEPENDS
+    ${CMAKE_CURRENT_SOURCE_DIR}/version.rc2 ${CMAKE_SOURCE_DIR}/version.h)
+endforeach()

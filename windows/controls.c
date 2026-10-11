@@ -17,6 +17,7 @@
 #include <ctype.h>
 
 #include "putty.h"
+#include "kittyrus.h"
 #include "misc.h"
 #include "dialog.h"
 
@@ -92,6 +93,8 @@ HWND doctl(struct ctlpos *cp, RECT r, const char *wclass, int wstyle,
         ctl = CreateWindowEx(exstyle, wclass, wtext, wstyle,
                              r.left, r.top, r.right, r.bottom,
                              cp->hwnd, (HMENU)(ULONG_PTR)wid, hinst, NULL);
+        if (!strcmp(wclass, "STATIC") || !strcmp(wclass, "BUTTON"))
+            kr_set_text(ctl, wtext);
         SendMessage(ctl, WM_SETFONT, cp->font, MAKELPARAM(true, 0));
 
         if (!strcmp(wclass, "LISTBOX")) {
@@ -388,6 +391,7 @@ void checkbox(struct ctlpos *cp, const char *text, int id)
  */
 char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
 {
+    text = kr_translate(text);
     HDC hdc = GetDC(hwnd);
     int width, nlines, j;
     INT *pwidths, nfit;
@@ -421,8 +425,24 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, const char *text, int *lines)
     oldfont = SelectObject(hdc, newfont);
 
     while (*p) {
-        if (!GetTextExtentExPoint(hdc, p, strlen(p), width,
-                                  &nfit, pwidths, &size) ||
+        BOOL measured;
+        if (kr_language()) {
+            wchar_t *wide = dup_mb_to_wc(CP_UTF8, p);
+            int fit;
+            measured = GetTextExtentExPointW(hdc, wide, wcslen(wide), width,
+                                            &fit, pwidths, &size);
+            if (measured) {
+                fit = max(fit, 1);
+                wide[fit] = 0;
+                char *prefix = dup_wc_to_mb(CP_UTF8, wide, "");
+                nfit = strlen(prefix); sfree(prefix);
+            }
+            sfree(wide);
+        } else {
+            measured = GetTextExtentExPoint(hdc, p, strlen(p), width,
+                                            &nfit, pwidths, &size);
+        }
+        if (!measured ||
             (size_t)nfit >= strlen(p)) {
             /*
              * Either GetTextExtentExPoint returned failure, or the
@@ -1533,7 +1553,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             } else {
                 num_ids = 1;
                 editboxfw(&pos, false, true, NULL, 0, base_id);
-                SetDlgItemText(pos.hwnd, base_id, ctrl->label);
+                kr_set_item_text(pos.hwnd, base_id, ctrl->label);
                 MakeDlgItemBorderless(pos.hwnd, base_id);
             }
             break;
@@ -1845,13 +1865,15 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
 
         SetMapMode(hdc, MM_TEXT);      /* ensure logical units == pixels */
 
-        GetTextExtentPoint32(hdc, (char *)c->data,
-                             strlen((char *)c->data), &s);
+        wchar_t *heading = dup_mb_to_wc(kr_language() ? CP_UTF8 : CP_ACP,
+                                       kr_translate((char *)c->data));
+        GetTextExtentPoint32W(hdc, heading, wcslen(heading), &s);
         DrawEdge(hdc, &r, EDGE_ETCHED, BF_ADJUST | BF_RECT);
-        TextOut(hdc,
+        TextOutW(hdc,
                 r.left + (r.right-r.left-s.cx)/2,
                 r.top + (r.bottom-r.top-s.cy)/2,
-                (char *)c->data, strlen((char *)c->data));
+                heading, wcslen(heading));
+        sfree(heading);
 
         return true;
     }
@@ -2272,6 +2294,15 @@ void dlg_listbox_add(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)text);
 }
 
+void kr_listbox_add_label(dlgcontrol *ctrl, dlgparam *dp, char const *text)
+{
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    int msg = ctrl->type == CTRL_LISTBOX && ctrl->listbox.height != 0 ? LB_ADDSTRING : CB_ADDSTRING;
+    wchar_t *wide = dup_mb_to_wc(CP_UTF8, kr_translate(text));
+    SendDlgItemMessageW(dp->hwnd, c->base_id + 1, msg, 0, (LPARAM)wide);
+    sfree(wide);
+}
+
 /*
  * Each listbox entry may have a numeric id associated with it.
  * Note that some front ends only permit a string to be stored at
@@ -2292,8 +2323,19 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
            LB_ADDSTRING : CB_ADDSTRING);
     msg2 = (c->ctrl->type==CTRL_LISTBOX && c->ctrl->listbox.height!=0 ?
             LB_SETITEMDATA : CB_SETITEMDATA);
-    index = SendDlgItemMessage(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)text);
+    wchar_t *wide = dup_mb_to_wc(CP_UTF8, kr_translate(text));
+    index = SendDlgItemMessageW(dp->hwnd, c->base_id+1, msg, 0, (LPARAM)wide);
+    sfree(wide);
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg2, index, (LPARAM)id);
+}
+
+void kr_listbox_addwithid_raw(dlgcontrol *ctrl, dlgparam *dp, const char *text, int id)
+{
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    int msg = ctrl->type == CTRL_LISTBOX && ctrl->listbox.height != 0 ? LB_ADDSTRING : CB_ADDSTRING;
+    int msg2 = ctrl->type == CTRL_LISTBOX && ctrl->listbox.height != 0 ? LB_SETITEMDATA : CB_SETITEMDATA;
+    int index = SendDlgItemMessageA(dp->hwnd, c->base_id + 1, msg, 0, (LPARAM)text);
+    SendDlgItemMessage(dp->hwnd, c->base_id + 1, msg2, index, (LPARAM)id);
 }
 
 int dlg_listbox_getid(dlgcontrol *ctrl, dlgparam *dp, int index)
@@ -2350,7 +2392,7 @@ void dlg_text_set(dlgcontrol *ctrl, dlgparam *dp, char const *text)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->type == CTRL_TEXT);
-    SetDlgItemText(dp->hwnd, c->base_id, text);
+    kr_set_item_text(dp->hwnd, c->base_id, text);
 }
 
 void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
@@ -2397,6 +2439,7 @@ void dlg_label_change(dlgcontrol *ctrl, dlgparam *dp, char const *text)
     }
     if (escaped) {
         SetDlgItemText(dp->hwnd, id, escaped);
+        kr_set_item_text(dp->hwnd, id, escaped);
         sfree(escaped);
     }
 }
@@ -2434,14 +2477,14 @@ void dlg_fontsel_set(dlgcontrol *ctrl, dlgparam *dp, FontSpec *fs)
     fontspec_free((FontSpec *)c->data);
     c->data = fontspec_copy(fs);
 
-    boldstr = (fs->isbold ? "bold, " : "");
+    boldstr = (fs->isbold ? (char *)kr_translate("bold, ") : "");
     if (fs->height == 0)
-        buf = dupprintf("Font: %s, %sdefault height", fs->name, boldstr);
+        buf = kr_printf("Font: %s, %sdefault height", fs->name, boldstr);
     else
-        buf = dupprintf("Font: %s, %s%d-%s", fs->name, boldstr,
+        buf = kr_printf("Font: %s, %s%d-%s", fs->name, boldstr,
                         (fs->height < 0 ? -fs->height : fs->height),
-                        (fs->height < 0 ? "pixel" : "point"));
-    SetDlgItemText(dp->hwnd, c->base_id+1, buf);
+                        kr_translate(fs->height < 0 ? "pixel" : "point"));
+    kr_set_item_text(dp->hwnd, c->base_id+1, buf);
     sfree(buf);
 
     dlg_auto_set_fixed_pitch_flag(dp);
@@ -2519,7 +2562,7 @@ void dlg_beep(dlgparam *dp)
 
 void dlg_error_msg(dlgparam *dp, const char *msg)
 {
-    MessageBox(dp->hwnd, msg,
+    kr_messagebox(dp->hwnd, msg,
                dp->errtitle ? dp->errtitle : NULL,
                MB_OK | MB_ICONERROR);
 }

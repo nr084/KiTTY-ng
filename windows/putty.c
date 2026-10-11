@@ -1,8 +1,13 @@
 #include "putty.h"
 #include "storage.h"
+#include "kittyrus.h"
+#define dupprintf kr_printf
+#undef MessageBox
+#define MessageBox kr_messagebox
 
 extern bool sesslist_demo_mode;
 extern Filename *dialog_box_demo_screenshot_filename;
+extern const char *kr_demo_panel;
 static strbuf *demo_terminal_data = NULL;
 static Filename *terminal_demo_screenshot_filename;
 
@@ -101,6 +106,11 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                     dialog_box_demo_screenshot_filename =
                         cmdline_arg_to_filename(arglist->args[arglistpos++]);
                 }
+            } else if (!strcmp(p, "-demo-panel")) {
+                if (!arglist->args[arglistpos])
+                    cmdline_error("%s expects a panel path", p);
+                else
+                    kr_demo_panel = dupstr(cmdline_arg_to_str(arglist->args[arglistpos++]));
             } else if (!strcmp(p, "-demo-terminal")) {
                 if (!arglist->args[arglistpos] ||
                     !arglist->args[arglistpos+1]) {
@@ -179,7 +189,7 @@ const struct BackendVtable *backend_vt_from_conf(Conf *conf)
 
 const wchar_t *get_app_user_model_id(void)
 {
-    return L"SimonTatham.PuTTY";
+    return L"nr084.KiTTY-RUS";
 }
 
 static void demo_terminal_screenshot(void *ctx, unsigned long now)

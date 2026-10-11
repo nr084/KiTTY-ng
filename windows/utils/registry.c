@@ -4,6 +4,7 @@
  */
 
 #include "putty.h"
+#include "kittyrus-portable.h"
 
 HKEY open_regkey_fn(bool create, bool write, HKEY hk, const char *path, ...)
 {
@@ -11,6 +12,20 @@ HKEY open_regkey_fn(bool create, bool write, HKEY hk, const char *path, ...)
     bool hk_needs_close = false;
     va_list ap;
     va_start(ap, path);
+
+    if (kr_file_key(hk) || (hk == HKEY_CURRENT_USER && kr_portable() &&
+        !strncmp(path, PUTTY_REG_POS, strlen(PUTTY_REG_POS)) &&
+        (!path[strlen(PUTTY_REG_POS)] || path[strlen(PUTTY_REG_POS)] == '\\'))) {
+        strbuf *joined = strbuf_new();
+        for (; path; path = va_arg(ap, const char *)) {
+            if (joined->len) put_byte(joined, '\\');
+            put_dataz(joined, path);
+        }
+        HKEY result = kr_file_open(create, hk, joined->s);
+        strbuf_free(joined);
+        va_end(ap);
+        return result;
+    }
 
     for (; path; path = va_arg(ap, const char *)) {
         HKEY hk_sub = NULL;
@@ -46,16 +61,19 @@ HKEY open_regkey_fn(bool create, bool write, HKEY hk, const char *path, ...)
 
 void close_regkey(HKEY key)
 {
+    if (kr_file_key(key)) { kr_file_close(key); return; }
     RegCloseKey(key);
 }
 
 void del_regkey(HKEY key, const char *name)
 {
+    if (kr_file_key(key)) { kr_file_delete(key, name); return; }
     RegDeleteKey(key, name);
 }
 
 char *enum_regkey(HKEY key, int index)
 {
+    if (kr_file_key(key)) return kr_file_enum(key, index);
     size_t regbuf_size = MAX_PATH + 1;
     char *regbuf = snewn(regbuf_size, char);
 
@@ -73,6 +91,14 @@ char *enum_regkey(HKEY key, int index)
 
 bool get_reg_dword(HKEY key, const char *name, DWORD *out)
 {
+    if (kr_file_key(key)) {
+        char *value = kr_file_get(key, name);
+        bool plain = kr_plain_key(key);
+        bool ok = value && (plain || !strncmp(value, "d:", 2));
+        if (ok) *out = (DWORD)strtoul(value + (plain ? 0 : 2), NULL, 10);
+        sfree(value);
+        return ok;
+    }
     DWORD type, size;
     size = sizeof(*out);
 
@@ -86,12 +112,27 @@ bool get_reg_dword(HKEY key, const char *name, DWORD *out)
 
 bool put_reg_dword(HKEY key, const char *name, DWORD value)
 {
+    if (kr_file_key(key)) {
+        char *text = kr_plain_key(key) ? dupprintf("%ld", (long)(int32_t)value) :
+            dupprintf("d:%lu", (unsigned long)value);
+        bool ok = kr_file_put(key, name, text);
+        sfree(text);
+        return ok;
+    }
     return RegSetValueEx(key, name, 0, REG_DWORD, (CONST BYTE *) &value,
                          sizeof(value)) == ERROR_SUCCESS;
 }
 
 char *get_reg_sz(HKEY key, const char *name)
 {
+    if (kr_file_key(key)) {
+        char *text = kr_file_get(key, name);
+        if (kr_plain_key(key)) return text;
+        strbuf *value = text && !strncmp(text, "s:", 2) ?
+            base64_decode_sb(ptrlen_from_asciz(text + 2)) : NULL;
+        sfree(text);
+        return value ? strbuf_to_str(value) : NULL;
+    }
     DWORD type, size;
 
     if (RegQueryValueEx(key, name, 0, &type, NULL,
@@ -114,6 +155,14 @@ char *get_reg_sz(HKEY key, const char *name)
 
 bool put_reg_sz(HKEY key, const char *name, const char *str)
 {
+    if (kr_file_key(key)) {
+        if (kr_plain_key(key)) return kr_file_put(key, name, str);
+        strbuf *encoded = base64_encode_sb(ptrlen_from_asciz(str), 0);
+        char *text = dupcat("s:", encoded->s);
+        bool ok = kr_file_put(key, name, text);
+        strbuf_free(encoded); sfree(text);
+        return ok;
+    }
     /* You have to store the trailing NUL as well */
     return RegSetValueEx(key, name, 0, REG_SZ, (CONST BYTE *)str,
                          1 + strlen(str)) == ERROR_SUCCESS;
@@ -139,6 +188,13 @@ bool put_reg_sz(HKEY key, const char *name, const char *str)
  */
 strbuf *get_reg_multi_sz(HKEY key, const char *name)
 {
+    if (kr_file_key(key)) {
+        char *text = kr_file_get(key, name);
+        strbuf *value = text && !strncmp(text, "m:", 2) ?
+            base64_decode_sb(ptrlen_from_asciz(text + 2)) : NULL;
+        sfree(text);
+        return value;
+    }
     DWORD type, size;
 
     if (RegQueryValueEx(key, name, 0, &type, NULL,
@@ -161,6 +217,13 @@ strbuf *get_reg_multi_sz(HKEY key, const char *name)
 
 bool put_reg_multi_sz(HKEY key, const char *name, strbuf *str)
 {
+    if (kr_file_key(key)) {
+        strbuf *encoded = base64_encode_sb(ptrlen_from_strbuf(str), 0);
+        char *text = dupcat("m:", encoded->s);
+        bool ok = kr_file_put(key, name, text);
+        strbuf_free(encoded); sfree(text);
+        return ok;
+    }
     /*
      * Of course, to write our string list into the registry, we _do_
      * have to include both trailing NULs. But this is easy, because a
@@ -179,6 +242,6 @@ char *get_reg_sz_simple(HKEY key, const char *name, const char *leaf)
     if (!subkey)
         return NULL;
     char *toret = get_reg_sz(subkey, leaf);
-    RegCloseKey(subkey);
+    close_regkey(subkey);
     return toret;
 }

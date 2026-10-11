@@ -7,6 +7,7 @@
  */
 
 #include "putty.h"
+#include "kittyrus.h"
 
 static HWND message_box_owner;
 
@@ -41,11 +42,14 @@ int message_box(HWND owner, LPCTSTR text, LPCTSTR caption, DWORD style,
     mbox.cbSize = sizeof(mbox);
     /* Assumes the globals `hinst' and `hwnd' have sensible values. */
     mbox.hInstance = hinst;
-    mbox.dwLanguageId = LANG_NEUTRAL;
+    mbox.dwLanguageId = MAKELANGID(kr_language() ? LANG_RUSSIAN : LANG_ENGLISH, SUBLANG_DEFAULT);
 
     mbox.hwndOwner = message_box_owner = owner;
 
     wchar_t *wtext, *wcaption;
+    text = kr_translate(text);
+    caption = kr_translate(caption);
+    utf8 |= kr_language() != 0;
     if (utf8) {
         wtext = decode_utf8_to_wide_string(text);
         wcaption = decode_utf8_to_wide_string(caption);

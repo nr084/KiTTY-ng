@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyrus.h"
+#endif
 #include "storage.h"
 #ifndef NO_GSSAPI
 #include "ssh/gssc.h"
@@ -520,6 +523,11 @@ char *save_settings(const char *section, Conf *conf)
 {
     struct settings_w *sesskey;
     char *errmsg;
+
+#ifdef _WIN32
+    errmsg = kr_prepare_password(conf);
+    if (errmsg) return errmsg;
+#endif
 
     sesskey = open_settings_w(section, &errmsg);
     if (!sesskey)
@@ -1049,6 +1057,9 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
         }
     }
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
+#ifdef _WIN32
+    kr_load_password(conf);
+#endif
 }
 
 bool do_defaults(const char *session, Conf *conf)
