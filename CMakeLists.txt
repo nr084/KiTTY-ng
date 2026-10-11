@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.7...3.28)
-project(putty LANGUAGES C)
+project(kitty-ng LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 

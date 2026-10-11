@@ -1,4 +1,4 @@
-"""Keep KiTTY-RUS's base version identical to the imported PuTTY release."""
+"""Keep kitty-ng's base version identical to the imported PuTTY release."""
 import argparse
 import re
 from pathlib import Path
@@ -14,7 +14,7 @@ text = header.read_text()
 text = re.sub(r'^#define PRERELEASE .*\n', '', text, flags=re.M)
 base = re.search(r"^#define RELEASE (\d+\.\d+)$", text, re.M).group(1)
 version = base + ("" if args.stage == "stable" else "-" + args.stage)
-text = re.sub(r'^#define TEXTVER .*$', f'#define TEXTVER "KiTTY-RUS {version}"', text, flags=re.M)
+text = re.sub(r'^#define TEXTVER .*$', f'#define TEXTVER "kitty-ng {version}"', text, flags=re.M)
 text = re.sub(r'^#define SSHVER .*$', f'#define SSHVER "-Release-{version}"', text, flags=re.M)
 if args.stage != "stable":
     text = text.replace(f"#define RELEASE {base}\n", f"#define RELEASE {base}\n#define PRERELEASE 1\n")

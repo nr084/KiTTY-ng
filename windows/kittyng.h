@@ -1,5 +1,5 @@
-#ifndef KITTYRUS_H
-#define KITTYRUS_H
+#ifndef KITTYNG_H
+#define KITTYNG_H
 
 /* UI strings are UTF-8; terminal data and session identifiers are untouched. */
 int kr_language(void);

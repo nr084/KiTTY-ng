@@ -1,0 +1,39 @@
+{
+  "checked_on": "2026-10-11",
+  "putty_version": "0.85",
+  "official_latest_url": "https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html",
+  "official_source_url": "https://the.earth.li/~sgtatham/putty/0.85/putty-src.zip",
+  "official_archive_sha256": "232c5c286a5b35f445dbbf49e159469acde372a3907aef738d88e28b4b0f6da2",
+  "files": [
+    {
+      "file": "pscp.c",
+      "identical_to_putty_0_85": true,
+      "upstream_sha256": "03ab19f33709a31d113d7984e51a15ad5aee75ebfd5bd1962397f14beeafb042"
+    },
+    {
+      "file": "psftp.c",
+      "identical_to_putty_0_85": true,
+      "upstream_sha256": "1cda36ec3200bb08a7dbde2ad21efb8894c5e009ed8555b6f9c9692c287496a4"
+    },
+    {
+      "file": "pageant.c",
+      "identical_to_putty_0_85": true,
+      "upstream_sha256": "1fe25c7b52fe4b5cb08e7efb2264b96fea6be0d3a57b36edee9aab7f988ec148"
+    },
+    {
+      "file": "windows/plink.c",
+      "identical_to_putty_0_85": true,
+      "upstream_sha256": "f467a50f5b5544fbfdc0e11bdeedd2849b77eff5f56de83f2b93d7481a3fedc0"
+    },
+    {
+      "file": "windows/pageant.c",
+      "identical_to_putty_0_85": true,
+      "upstream_sha256": "1b74eef641b317ac2377a9e826ed81c31194253fa489a28941790db0c60754bb"
+    },
+    {
+      "file": "windows/puttygen.c",
+      "identical_to_putty_0_85": true,
+      "upstream_sha256": "e92751e60fddf40e35fe066a96b285f5521e3c0aa702d73a498ae6019a68524d"
+    }
+  ]
+}

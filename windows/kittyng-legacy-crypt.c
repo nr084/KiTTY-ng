@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include "kittyrus-legacy-crypt.h"
+#include "kittyng-legacy-crypt.h"
 
 static const char alphabet[] =
     "AZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbn0123456789+/";

@@ -9,7 +9,7 @@
 #include <assert.h>
 #include "putty.h"
 #include "storage.h"
-#include "kittyrus-portable.h"
+#include "kittyng-portable.h"
 
 #include <shlobj.h>
 #ifndef CSIDL_APPDATA

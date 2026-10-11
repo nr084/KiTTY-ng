@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "kittyrus-legacy-crypt.h"
+#include "kittyng-legacy-crypt.h"
 
 static char *unhex(const char *hex)
 {

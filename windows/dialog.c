@@ -10,7 +10,7 @@
 #include <time.h>
 
 #include "putty.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 #define dupprintf kr_printf
 #undef SetWindowText
 #define SetWindowText kr_set_text
@@ -452,7 +452,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
           case IDA_WEB:
             /* Load web browser */
             ShellExecute(hwnd, "open",
-                         "https://github.com/nr084/kitty-rus",
+                         "https://github.com/nr084/kitty-ng",
                          0, 0, SW_SHOWDEFAULT);
             return 0;
         }

@@ -1,11 +1,11 @@
 #include "rcstuff.h"
 #include "putty-rc.h"
 
-#define APPNAME "KiTTY-RUS"
+#define APPNAME "kitty-ng"
 #define APPDESC "SSH, Telnet, Rlogin, and SUPDUP client"
 
-IDI_MAINICON ICON "kitty-rus.ico"
-IDI_CFGICON ICON "kitty-rus.ico"
+IDI_MAINICON ICON "kitty-ng.ico"
+IDI_CFGICON ICON "kitty-ng.ico"
 
 #include "help.rc2"
 #include "putty-common.rc2"

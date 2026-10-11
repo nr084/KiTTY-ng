@@ -7,8 +7,8 @@
     { "name": "windows-arm64", "inherits": "windows-base", "architecture": "ARM64" }
   ],
   "buildPresets": [
-    { "name": "windows-x64", "configurePreset": "windows-x64", "configuration": "Release", "targets": ["putty", "plink", "pscp", "psftp", "puttygen", "pageant"] },
-    { "name": "windows-x86", "configurePreset": "windows-x86", "configuration": "Release", "targets": ["putty", "plink", "pscp", "psftp", "puttygen", "pageant"] },
-    { "name": "windows-arm64", "configurePreset": "windows-arm64", "configuration": "Release", "targets": ["putty", "plink", "pscp", "psftp", "puttygen", "pageant"] }
+    { "name": "windows-x64", "configurePreset": "windows-x64", "configuration": "Release", "targets": ["kitty-ng", "plink", "pscp", "psftp", "puttygen", "pageant"] },
+    { "name": "windows-x86", "configurePreset": "windows-x86", "configuration": "Release", "targets": ["kitty-ng", "plink", "pscp", "psftp", "puttygen", "pageant"] },
+    { "name": "windows-arm64", "configurePreset": "windows-arm64", "configuration": "Release", "targets": ["kitty-ng", "plink", "pscp", "psftp", "puttygen", "pageant"] }
   ]
 }

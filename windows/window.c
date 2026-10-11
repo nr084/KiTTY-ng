@@ -21,7 +21,7 @@
 #include "security-api.h"
 #include "win-gui-seat.h"
 #include "tree234.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -72,7 +72,7 @@ static bool kr_tray_icon(HWND hwnd, bool add)
     icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     icon.uCallbackMessage = WM_KR_TRAY;
     icon.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(IDI_MAINICON));
-    wcscpy(icon.szTip, L"KiTTY-RUS");
+    wcscpy(icon.szTip, L"kitty-ng");
     return Shell_NotifyIconW(add ? NIM_ADD : NIM_DELETE, &icon) != FALSE;
 }
 #define IDM_SPECIALSEP 0x0200

@@ -1,11 +1,11 @@
 /* All values are synthetic test credentials, never real account data. */
 #include "putty.h"
 #include "storage.h"
-#include "kittyrus.h"
-#include "kittyrus-portable.h"
-#include "kittyrus-legacy-crypt.h"
+#include "kittyng.h"
+#include "kittyng-portable.h"
+#include "kittyng-legacy-crypt.h"
 
-const char *const appname = "KiTTY-RUS-test";
+const char *const appname = "kitty-ng-test";
 void nonfatal(const char *fmt, ...) { fprintf(stderr, "Storage failure: %s\n", fmt); abort(); }
 void modalfatalbox(const char *fmt, ...) { fprintf(stderr, "Fatal failure: %s\n", fmt); abort(); }
 void add_session_to_jumplist(const char *s) {}

@@ -1,14 +1,14 @@
-/* KiTTY-RUS UI extensions. See LICENCE and LICENCE-KiTTY.txt. */
+/* kitty-ng UI extensions. See LICENCE and LICENCE-KiTTY.txt. */
 #include "putty.h"
-#include "kittyrus.h"
-#include "kittyrus-portable.h"
-#include "kittyrus-legacy-crypt.h"
+#include "kittyng.h"
+#include "kittyng-portable.h"
+#include "kittyng-legacy-crypt.h"
 #include <bcrypt.h>
 #include <shellapi.h>
 
 static int ui_language = -1;
 static const struct { const char *en, *ru; } translations[] = {
-#include "kittyrus-translations.h"
+#include "kittyng-translations.h"
 };
 
 int kr_language(void)

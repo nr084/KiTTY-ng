@@ -8,7 +8,7 @@
 
 #include "putty.h"
 #ifdef _WIN32
-#include "kittyrus.h"
+#include "kittyng.h"
 #define dupprintf kr_printf
 #define ui_listbox_add kr_listbox_add_label
 #define session_list_add kr_listbox_addwithid_raw

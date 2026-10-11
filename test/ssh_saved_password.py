@@ -15,7 +15,7 @@ from pathlib import Path
 import paramiko
 
 password = "synthetic-root-password"
-encoded = json.loads(Path(__file__).with_name("kittyrus-password-vector.json").read_text())["encoded"]
+encoded = json.loads(Path(__file__).with_name("kittyng-password-vector.json").read_text())["encoded"]
 key = paramiko.RSAKey.generate(2048)
 fingerprint = "SHA256:" + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
 
@@ -90,7 +90,7 @@ for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
                 listener.close()
         worker = threading.Thread(target=serve, daemon=True)
         worker.start()
-        with tempfile.TemporaryDirectory(prefix="kitty-rus-ssh-test-") as directory:
+        with tempfile.TemporaryDirectory(prefix="kitty-ng-ssh-test-") as directory:
             root = Path(directory)
             (root / "Sessions").mkdir()
             (root / "Sessions/root-test").write_text(

@@ -17,7 +17,7 @@
 #include <ctype.h>
 
 #include "putty.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 #include "misc.h"
 #include "dialog.h"
 

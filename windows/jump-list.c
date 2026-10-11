@@ -20,7 +20,7 @@
 #include <assert.h>
 
 #include "putty.h"
-#include "kittyrus-portable.h"
+#include "kittyng-portable.h"
 #include "storage.h"
 
 #define MAX_JUMPLIST_ITEMS 30 /* PuTTY will never show more items in

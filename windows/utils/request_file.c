@@ -1,5 +1,5 @@
 #include "putty.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 
 typedef enum SavedDir { SD_NONE, SD_WCHAR, SD_CHAR } SavedDir;
 

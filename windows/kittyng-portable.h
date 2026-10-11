@@ -1,5 +1,5 @@
-#ifndef KITTYRUS_PORTABLE_H
-#define KITTYRUS_PORTABLE_H
+#ifndef KITTYNG_PORTABLE_H
+#define KITTYNG_PORTABLE_H
 bool kr_portable(void);
 const wchar_t *kr_portable_root(void);
 const wchar_t *kr_portable_seedpath(void);

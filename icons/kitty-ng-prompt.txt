@@ -1,3 +1,5 @@
+Значок kitty-ng. Ниже сохранён точный исторический промпт генерации до переименования проекта.
+
 Generated with the built-in image_gen tool, then converted to a multi-size ICO.
 
 Final prompt:
@@ -10,5 +12,5 @@ terminals linked to one another, and remain recognizable at small icon sizes.
 Keep the connector tasteful and bold, not a lightning bolt. No other objects,
 no background tile, no text. Preserve real alpha transparency.
 
-PNG source: icons/kitty-rus.png
-Windows ICO: windows/kitty-rus.ico (16, 24, 32, 48, 64, 128, 256 pixels)
+PNG source: icons/kitty-ng.png
+Windows ICO: windows/kitty-ng.ico (16, 24, 32, 48, 64, 128, 256 pixels)

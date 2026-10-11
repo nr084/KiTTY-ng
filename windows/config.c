@@ -9,7 +9,7 @@
 #include "putty.h"
 #include "dialog.h"
 #include "storage.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 #define dupprintf kr_printf
 
 static void language_handler(dlgcontrol *ctrl, dlgparam *dlg,
@@ -81,12 +81,12 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     dlgcontrol *c;
     char *str;
 
-    s = ctrl_getset(b, "Connection/Data", "kittyrus", "KiTTY-RUS");
+    s = ctrl_getset(b, "Connection/Data", "kittyng", "kitty-ng");
     c = ctrl_editbox(s, "Saved password", NO_SHORTCUT, 100,
                      HELPCTX(no_help), password_handler, P(NULL), P(NULL));
     c->editbox.password = true;
 
-    s = ctrl_getset(b, "Window/Appearance", "kittyrus", "KiTTY-RUS");
+    s = ctrl_getset(b, "Window/Appearance", "kittyng", "kitty-ng");
     ctrl_radiobuttons(s, "Interface language", NO_SHORTCUT, 2,
                      HELPCTX(no_help), language_handler, P(NULL),
                      "English", NO_SHORTCUT, I(0),
@@ -94,7 +94,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_transparencynumber), ED_INT);
-    s = ctrl_getset(b, "Connection", "kittyrus", "KiTTY-RUS");
+    s = ctrl_getset(b, "Connection", "kittyng", "kitty-ng");
     ctrl_editbox(s, "Reconnect delay in seconds (0 disables)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_kr_reconnect_delay), ED_INT);

@@ -7,7 +7,7 @@
  */
 
 #include "putty.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 
 static HWND message_box_owner;
 

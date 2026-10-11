@@ -1,6 +1,6 @@
 #include "putty.h"
 #include "storage.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -189,7 +189,7 @@ const struct BackendVtable *backend_vt_from_conf(Conf *conf)
 
 const wchar_t *get_app_user_model_id(void)
 {
-    return L"nr084.KiTTY-RUS";
+    return L"nr084.kitty-ng";
 }
 
 static void demo_terminal_screenshot(void *ctx, unsigned long now)

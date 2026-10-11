@@ -6,7 +6,7 @@
 
 #include "putty.h"
 #ifdef _WIN32
-#include "kittyrus.h"
+#include "kittyng.h"
 #endif
 
 SeatDialogText *seat_dialog_text_new(void)

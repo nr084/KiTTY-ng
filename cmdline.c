@@ -982,7 +982,7 @@ void cmdline_run_saved(Conf *conf)
         saves[pri].nsaved = 0;
     }
 #ifdef _WIN32
-    /* CLI utilities share KiTTY-RUS's saved password without a -pw argument. */
+    /* CLI utilities share kitty-ng's saved password without a -pw argument. */
     if (!cmdline_password && *conf_get_str(conf, CONF_password))
         cmdline_password = dupstr(conf_get_str(conf, CONF_password));
 #endif

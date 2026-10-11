@@ -14,7 +14,7 @@
  */
 
 #include "putty.h"
-#include "kittyrus.h"
+#include "kittyng.h"
 
 struct errstring {
     int error;

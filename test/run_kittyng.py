@@ -1,12 +1,17 @@
 """Verify legacy file compatibility using synthetic KiTTY portable sessions."""
 import subprocess
+import os
+import shutil
 import sys
 import tempfile
 from pathlib import Path
 
 binary = Path(sys.argv[1]).resolve()
-for suffix, custom in [("", False), (".ktx", False), (".session", True)]:
-  with tempfile.TemporaryDirectory(prefix="kitty-rus-test-") as directory:
+for suffix, custom, mode in [("", False, "argument"), (".ktx", False, "argument"),
+                            (".session", True, "argument"), ("", False, "new-marker"),
+                            ("", False, "old-marker"), ("", False, "new-env"),
+                            ("", False, "old-env")]:
+  with tempfile.TemporaryDirectory(prefix="kitty-ng-test-") as directory:
     root = Path(directory)
     session_base = "my sessions" if custom else "Sessions"
     host_base = "known keys" if custom else "SshHostKeys"
@@ -24,7 +29,20 @@ for suffix, custom in [("", False), (".ktx", False), (".session", True)]:
     hostkeys = root / host_base
     hostkeys.mkdir()
     (hostkeys / "rsa@2222%3Alegacy.example.com.khk").write_bytes(b"0x10001,0xabcdef")
-    subprocess.run([str(binary), "--portable-dir", str(root)], check=True)
+    environment = os.environ.copy()
+    for key in ["KITTY_NG_PORTABLE_DIR", "KITTY_RUS_PORTABLE_DIR"]:
+        environment.pop(key, None)
+    command = [str(binary), "--portable-dir", str(root)]
+    if mode.endswith("marker"):
+        executable = root / binary.name
+        shutil.copy2(binary, executable)
+        (root / ("kitty-ng.portable" if mode == "new-marker" else "kitty-rus.portable")).touch()
+        command = [str(executable)]
+    elif mode.endswith("env"):
+        key = "KITTY_NG_PORTABLE_DIR" if mode == "new-env" else "KITTY_RUS_PORTABLE_DIR"
+        environment[key] = str(root)
+        command = [str(binary)]
+    subprocess.run(command, check=True, env=environment)
     saved = (sessions / ("root-session" + suffix)).read_bytes()
     assert b"LegacyUnknownOption\\preserve%20this\\" in saved
     assert b"TestMultiline\\first%0Asecond%5Cthird%25fourth\\" in saved

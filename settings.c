@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include "putty.h"
 #ifdef _WIN32
-#include "kittyrus.h"
+#include "kittyng.h"
 #endif
 #include "storage.h"
 #ifndef NO_GSSAPI

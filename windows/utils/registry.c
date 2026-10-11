@@ -4,7 +4,7 @@
  */
 
 #include "putty.h"
-#include "kittyrus-portable.h"
+#include "kittyng-portable.h"
 
 HKEY open_regkey_fn(bool create, bool write, HKEY hk, const char *path, ...)
 {
