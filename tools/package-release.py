@@ -28,6 +28,8 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
     for name in ["README.md", "LICENCE", "LICENCE-KiTTY.txt", "VERSION"]:
         bundle.write(root / name, name)
     bundle.write(root / "docs/migration.md", "docs/migration.md")
+    bundle.write(root / "docs/kitty-feature-audit.json", "docs/kitty-feature-audit.json")
+    bundle.write(root / "docs/screenshots/session-ru.png", "docs/screenshots/session-ru.png")
     bundle.write(root / "icons/kitty-rus.png", "icons/kitty-rus.png")
     bundle.write(root / "icons/kitty-rus-prompt.txt", "icons/kitty-rus-prompt.txt")
     bundle.writestr("kitty-rus.portable", "")
