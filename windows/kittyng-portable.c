@@ -3,6 +3,7 @@
 #include "kittyng-portable.h"
 #include "kittyng.h"
 #include "kittyng-keypaths.h"
+#include "kittyng-extensions.h"
 #include <shellapi.h>
 
 typedef struct FileKey FileKey;
@@ -10,14 +11,14 @@ typedef struct FileValue FileValue;
 struct FileValue { FileValue *next; char *name, *value; };
 struct FileKey {
     FileKey *next; wchar_t *path; bool writable;
-    bool session, hostkeys, sessions;
+    bool session, hostkeys, sessions, proxy;
     FileValue *values;
     bool dirty;
 };
 static FileKey *filekeys;
 static wchar_t *portable_root;
 static bool initialized;
-static wchar_t *sessions_directory, *hostkeys_directory, *seed_path;
+static wchar_t *sessions_directory, *hostkeys_directory, *seed_path, *proxies_directory;
 static wchar_t session_suffix[64], hostkey_suffix[64];
 static wchar_t *join(const wchar_t *parent, const wchar_t *child);
 
@@ -39,6 +40,7 @@ static void load_legacy_paths(void)
 {
     sessions_directory = join(portable_root, L"Sessions");
     hostkeys_directory = join(portable_root, L"SshHostKeys");
+    proxies_directory = join(portable_root, L"Proxies");
     seed_path = join(portable_root, L"putty.rnd");
     wchar_t *ini = join(portable_root, L"kitty.ini");
     GetPrivateProfileStringW(L"KiTTY", L"fileextension", L"", session_suffix, lenof(session_suffix), ini);
@@ -56,6 +58,7 @@ static void load_legacy_paths(void)
             *value++ = 0;
             wchar_t **destination = !strcmp(line, "Sessions") ? &sessions_directory :
                 !strcmp(line, "SshHostKeys") ? &hostkeys_directory :
+                !strcmp(line, "Proxies") ? &proxies_directory :
                 !strcmp(line, "seedfile") ? &seed_path : NULL;
             if (destination) { sfree(*destination); *destination = configpath(value); }
             else if (!strcmp(line, "sessionsuffix") || !strcmp(line, "keysuffix")) {
@@ -216,10 +219,13 @@ static void setvalue(FileKey *key, const char *name, const char *value)
     (*p)->value = dupstr(value);
 }
 
-static void loadsession(FileKey *key)
+static bool loadsession(FileKey *key)
 {
     FILE *fp = _wfopen(key->path, L"rb");
-    if (!fp) return;
+    if (!fp) return false;
+    int first = fgetc(fp);
+    bool content = first != EOF;
+    if (content) ungetc(first, fp);
     char *line;
     while ((line = fgetline(fp)) != NULL) {
         size_t n = strlen(line);
@@ -234,7 +240,9 @@ static void loadsession(FileKey *key)
         }
         sfree(line);
     }
-    fclose(fp);
+    bool ok = !ferror(fp) && (!content || key->values != NULL);
+    if (fclose(fp)) ok = false;
+    return ok;
 }
 
 static bool savesession(FileKey *key)
@@ -271,6 +279,7 @@ HKEY kr_file_open(bool create, HKEY parent, const char *path)
     FileKey *pk = findkey(parent);
     wchar_t *directory;
     bool session = pk && pk->sessions, sessions = false, hostkeys = false;
+    bool proxy = pk && pk->proxy;
     if (pk) {
         directory = dupwcs(pk->path);
     } else {
@@ -287,10 +296,11 @@ HKEY kr_file_open(bool create, HKEY parent, const char *path)
         return NULL;
     }
     if (!pk && *path == '\\') path++;
-    if (!pk && !strncmp(path, "Sessions", 8) && (!path[8] || path[8] == '\\')) {
-        wchar_t *next = dupwcs(sessions_directory);
+    bool proxies = !pk && !strncmp(path, "Proxies", 7) && (!path[7] || path[7] == '\\');
+    if (proxies || (!pk && !strncmp(path, "Sessions", 8) && (!path[8] || path[8] == '\\'))) {
+        wchar_t *next = dupwcs(proxies ? proxies_directory : sessions_directory);
         sfree(directory); directory = next;
-        path += 8;
+        path += proxies ? 7 : 8; proxy = proxies;
         sessions = !*path;
         session = *path != 0;
         if (*path == '\\') path++;
@@ -312,7 +322,7 @@ HKEY kr_file_open(bool create, HKEY parent, const char *path)
         }
         wchar_t *encoded = session ? legacy_component(part) : component(part);
         wchar_t *next = join(directory, encoded);
-        if (session && final && *session_suffix) {
+        if (session && !proxy && final && *session_suffix) {
             size_t a = wcslen(next), b = wcslen(session_suffix);
             if (a < b || wcscmp(next + a - b, session_suffix)) {
                 next = sresize(next, a + b + 1, wchar_t);
@@ -329,6 +339,34 @@ HKEY kr_file_open(bool create, HKEY parent, const char *path)
         path += len;
     }
     DWORD attr = GetFileAttributesW(directory);
+    DWORD attribute_error = GetLastError();
+    if (session && attr == INVALID_FILE_ATTRIBUTES &&
+        (attribute_error == ERROR_FILE_NOT_FOUND || attribute_error == ERROR_PATH_NOT_FOUND)) {
+        /* Original KiTTY uses %-encoded basenames. Also accept existing raw
+         * Unicode filenames without renaming them on the next save. */
+        wchar_t *slash = wcsrchr(directory, L'\\');
+        if (slash && wcschr(slash+1, L'%')) {
+            char *encoded = dup_wc_to_mb(CP_UTF8, slash+1, "");
+            strbuf *decoded = percent_decode_sb(ptrlen_from_asciz(encoded)); sfree(encoded);
+            if (!memchr(decoded->s, 0, decoded->len)) {
+                wchar_t *leaf = legacy_component(decoded->s);
+                size_t prefix = slash-directory+1;
+                wchar_t *alternative = snewn(prefix+wcslen(leaf)+1, wchar_t);
+                memcpy(alternative, directory, prefix*sizeof(wchar_t)); wcscpy(alternative+prefix, leaf); sfree(leaf);
+                DWORD attributes = GetFileAttributesW(alternative);
+                if (attributes != INVALID_FILE_ATTRIBUTES) { sfree(directory); directory = alternative; attr = attributes; }
+                else sfree(alternative);
+            }
+            strbuf_free(decoded);
+        }
+        if (attr == INVALID_FILE_ATTRIBUTES) SetLastError(attribute_error);
+    }
+    if (attr == INVALID_FILE_ATTRIBUTES && GetLastError() != ERROR_FILE_NOT_FOUND && GetLastError() != ERROR_PATH_NOT_FOUND) {
+        sfree(directory); return NULL;
+    }
+    if (session && create && attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_READONLY)) {
+        sfree(directory); SetLastError(ERROR_ACCESS_DENIED); return NULL;
+    }
     if ((!session && (attr == INVALID_FILE_ATTRIBUTES || !(attr & FILE_ATTRIBUTE_DIRECTORY))) ||
         (session && !create && attr == INVALID_FILE_ATTRIBUTES) ||
         (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_REPARSE_POINT))) {
@@ -339,10 +377,15 @@ HKEY kr_file_open(bool create, HKEY parent, const char *path)
     key->path = directory;
     key->writable = create; /* open_regkey_fn sets writable below for rw */
     key->session = session; key->sessions = sessions; key->hostkeys = hostkeys;
+    key->proxy = proxy;
     key->values = NULL; key->dirty = false;
     key->next = filekeys;
     filekeys = key;
-    if (session) loadsession(key);
+    if (session && attr != INVALID_FILE_ATTRIBUTES && !loadsession(key)) {
+        /* Whole-file encryption and unrecognised data must never be replaced
+         * with a partial/default session when their parser is retired. */
+        kr_file_close((HKEY)key); SetLastError(ERROR_INVALID_DATA); return NULL;
+    }
     return (HKEY)key;
 }
 
@@ -433,7 +476,7 @@ bool kr_file_put(HKEY key, const char *name, const char *value)
 }
 
 static void collect(const wchar_t *directory, const char *prefix,
-                    bool recursive, bool folders, char **result, int *index)
+                    bool recursive, bool folders, const wchar_t *file_suffix, char **result, int *index)
 {
     wchar_t *pattern = join(directory, recursive ? L"*" : L"_*");
     WIN32_FIND_DATAW data;
@@ -448,12 +491,12 @@ static void collect(const wchar_t *directory, const char *prefix,
         char *name = dupprintf("%s%s%s", prefix, *prefix ? "/" : "", encoded);
         wchar_t *subdir = join(directory, data.cFileName);
         bool isdir = data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
-        size_t suffixlen = wcslen(session_suffix), namelen = wcslen(data.cFileName);
+        size_t suffixlen = wcslen(file_suffix), namelen = wcslen(data.cFileName);
         bool suffixmatch = !suffixlen || (namelen >= suffixlen &&
-            !wcscmp(data.cFileName + namelen - suffixlen, session_suffix));
+            !wcscmp(data.cFileName + namelen - suffixlen, file_suffix));
         if (recursive && !isdir && suffixlen && suffixmatch) {
             size_t n = strlen(name);
-            char *suffix = dup_wc_to_mb(CP_UTF8, session_suffix, "");
+            char *suffix = dup_wc_to_mb(CP_UTF8, file_suffix, "");
             name[n - strlen(suffix)] = 0; sfree(suffix);
         }
         bool istemp = wcslen(data.cFileName) >= 4 &&
@@ -462,7 +505,7 @@ static void collect(const wchar_t *directory, const char *prefix,
             if ((*index)-- == 0) *result = dupstr(name);
         }
         if (recursive && isdir && !*result)
-            collect(subdir, name, true, folders, result, index);
+            collect(subdir, name, true, folders, file_suffix, result, index);
         sfree(encoded); sfree(name); sfree(subdir);
     } while (!*result && FindNextFileW(search, &data));
     FindClose(search);
@@ -473,7 +516,7 @@ char *kr_file_enum(HKEY key, int index)
     FileKey *k = findkey(key);
     char *result = NULL;
     bool recursive = k->sessions;
-    collect(k->path, "", recursive, false, &result, &index);
+    collect(k->path, "", recursive, false, k->proxy ? L"" : session_suffix, &result, &index);
     return result;
 }
 
@@ -482,7 +525,7 @@ char *kr_session_folder_enum(int index)
 {
     if (!kr_portable()) return NULL;
     char *encoded = NULL;
-    collect(sessions_directory, "", true, true, &encoded, &index);
+    collect(sessions_directory, "", true, true, session_suffix, &encoded, &index);
     if (!encoded) return NULL;
     strbuf *decoded = strbuf_new();
     unescape_registry_key(encoded, decoded);
@@ -520,10 +563,11 @@ static int update_profile(const wchar_t *path)
             !memchr(input->s + begin, 0, content - begin)) {
             *split++ = 0;
             line[content - begin - 1] = 0;
-            if (kr_key_path_setting(line)) {
+            if (kr_portable_path_setting(line) || !strcmp(line, "Autocommand")) {
                 strbuf *value = percent_decode_sb(ptrlen_from_asciz(split));
                 /* Never reinterpret existing relative paths from the CWD. */
                 if (!memchr(value->s, 0, value->len) &&
+                    (strcmp(line, "Autocommand") || kr_script_reference(value->s)) &&
                     (value->s[0] == '\\' || value->s[0] == '/' ||
                      (value->len > 1 && value->s[1] == ':'))) {
                     Filename *key = filename_from_str(value->s);

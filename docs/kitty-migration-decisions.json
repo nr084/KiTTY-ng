@@ -1,0 +1,371 @@
+{
+  "source_commit": "75fa2abcd220c17249ff7252f8d5224137001f2d",
+  "scope": "KiTTY extensions on PuTTY 0.85; ported, standard replacements and deliberate exclusions",
+  "status": "closed",
+  "decisions": [
+    {
+      "id": "portable-and-sessions",
+      "status": "ported",
+      "reason": "Старый портативный формат, вложенные папки, поиск, Unicode, неизвестные поля и относительные ссылки сохраняются; общий агент использует те же сеансы.",
+      "options": [
+        "folder",
+        "sessionname"
+      ],
+      "switches": [
+        "MOD_PORTABLE",
+        "MOD_LAUNCHER",
+        "MOD_STARTBUTTON"
+      ],
+      "features": [
+        "portable directories",
+        "session browser",
+        "Windows Jump List"
+      ]
+    },
+    {
+      "id": "password-and-transfer",
+      "status": "ported",
+      "reason": "Совместимый сохранённый пароль и передача через kscp своей архитектуры, включая перетаскивание, ключи, текущий удалённый каталог и параметры.",
+      "options": [
+        "password",
+        "sftpconnect",
+        "pscpoptions",
+        "pscpshell",
+        "pscpremotedir",
+        "scp_auto_pwd",
+        "winscpprot"
+      ],
+      "switches": [],
+      "features": [
+        "SCP/SFTP",
+        "drag and drop"
+      ]
+    },
+    {
+      "id": "startup-automation",
+      "status": "ported",
+      "reason": "Autocommand, текст ScriptfileContent и UTF-8 Scriptfile; задержки после успешного входа, между строками и символами. Старые файловые Autocommand распознаются для текстовых расширений.",
+      "options": [
+        "autocommand",
+        "scriptfile",
+        "scriptfilecontent",
+        "bcdelay",
+        "initdelay"
+      ],
+      "switches": [
+        "MOD_PERSO"
+      ]
+    },
+    {
+      "id": "window-and-notes",
+      "status": "ported",
+      "reason": "Прозрачность, трей, старт maximized/fullscreen, поверх окон, защита ввода, сохранение положения/сеанса, заметки, ICO, звонок и прокрутка.",
+      "options": [
+        "transparencynumber",
+        "sendtotray",
+        "maximize",
+        "fullscreen",
+        "saveonexit",
+        "iconefile",
+        "save_windowpos",
+        "xpos",
+        "ypos",
+        "windowstate",
+        "foreground_on_bell",
+        "scrolllines",
+        "comment"
+      ],
+      "switches": [
+        "MOD_NOTRANSPARENCY"
+      ],
+      "features": [
+        "always on top",
+        "input protection"
+      ]
+    },
+    {
+      "id": "keyboard",
+      "status": "ported",
+      "reason": "DisableAltGr и пользовательские Shortcuts: стандартные действия и отправка текста; комбинации в фигурных скобках, Ctrl+F3 и числовые коды старого KiTTY. Опасные макросы локального исполнения не активируются.",
+      "options": [
+        "disablealtgr"
+      ],
+      "switches": [
+        "MOD_DISABLEALTGR"
+      ]
+    },
+    {
+      "id": "urls",
+      "status": "ported",
+      "reason": "Ctrl+щелчок открывает только HTTP/HTTPS в браузере Windows; произвольные команды браузера и регулярные выражения не загружаются.",
+      "options": [
+        "url_ctrl_click"
+      ],
+      "switches": [
+        "MOD_HYPERLINK",
+        "MOD_NOHYPERLINK"
+      ]
+    },
+    {
+      "id": "shared-proxies",
+      "status": "ported",
+      "reason": "ProxySelection читает общие Proxies из текущего реестра/портативного каталога. Нет обхода отсутствующего или повреждённого выбранного прокси.",
+      "options": [
+        "proxyselection"
+      ],
+      "switches": [
+        "MOD_PROXY"
+      ]
+    },
+    {
+      "id": "reconnect",
+      "status": "ported",
+      "reason": "Повторное подключение после потери установленного SSH-соединения и после пробуждения Windows; нет повторов обычного выхода и отказа входа.",
+      "options": [
+        "wakeup_reconnect",
+        "failure_reconnect"
+      ],
+      "switches": [
+        "MOD_RECONNECT"
+      ]
+    },
+    {
+      "id": "agent-keygen",
+      "status": "replaced",
+      "reason": "Отдельные актуальные kageant и kittygen своей архитектуры с общим языком и современными алгоритмами; код старых встроенных копий не дублируется.",
+      "options": [],
+      "switches": [
+        "MOD_INTEGRATED_AGENT",
+        "MOD_INTEGRATED_KEYGEN"
+      ]
+    },
+    {
+      "id": "terminal-keyboard-colours",
+      "status": "replaced",
+      "reason": "Стандартные возможности PuTTY 0.85: xterm 216+, xterm-style bitmap, true colour и настройки палитры. Дополнительные варианты палитр и старые таблицы клавиш не импортируются автоматически.",
+      "options": [
+        "bold_colour",
+        "under_colour",
+        "sel_colour"
+      ],
+      "switches": [
+        "MOD_KEYMAPPING",
+        "MOD_PUTTYX",
+        "MOD_TUTTYCOLOR"
+      ]
+    },
+    {
+      "id": "far2l",
+      "status": "replaced",
+      "reason": "FAR2L работает как стандартное TTY-приложение через современный xterm-режим PuTTY. Собственный старый FARTTY-парсер не переносится. OSC 52 разрешает только явно включённую запись; чтения буфера обмена удалённым сервером нет.",
+      "options": [
+        "osc52_warn_before_cliboard_sync"
+      ],
+      "switches": [
+        "MOD_FAR2L"
+      ],
+      "features": [
+        "optional OSC 52 write"
+      ]
+    },
+    {
+      "id": "rutty",
+      "status": "retired",
+      "reason": "Старый RuTTY expect-движок с условиями ожидания и остановки исключён. Перенесены обычные стартовые команды/скрипты; условные RuTTY-сценарии не исполняются и не считаются совместимыми.",
+      "options": [
+        "script_filename",
+        "script_mode",
+        "script_line_delay",
+        "script_char_delay",
+        "script_cond_line",
+        "script_cond_use",
+        "script_crlf",
+        "script_enable",
+        "script_except",
+        "script_timeout",
+        "script_waitfor",
+        "script_halton"
+      ],
+      "switches": [
+        "MOD_RUTTY",
+        "MOD_RUTTY1"
+      ]
+    },
+    {
+      "id": "background-images",
+      "status": "retired",
+      "reason": "JPEG, слайд-шоу и просмотр изображений исключены из области терминального клиента; остаются палитра и прозрачность.",
+      "options": [
+        "bg_opacity",
+        "bg_slideshow",
+        "bg_type",
+        "bg_image_filename",
+        "bg_image_style",
+        "bg_image_abs_x",
+        "bg_image_abs_y",
+        "bg_image_abs_fixed"
+      ],
+      "switches": [
+        "MOD_BACKGROUNDIMAGE"
+      ]
+    },
+    {
+      "id": "zmodem",
+      "status": "retired",
+      "reason": "Старый запуск внешнего winpzmodem исключён. Через SSH используется SCP/SFTP; для последовательного порта эта замена не обеспечивает передачу файлов.",
+      "options": [
+        "rzcommand",
+        "rzoptions",
+        "szcommand",
+        "szoptions",
+        "zdownloaddir"
+      ],
+      "switches": [
+        "MOD_ZMODEM"
+      ]
+    },
+    {
+      "id": "port-knocking",
+      "status": "retired",
+      "reason": "Встроенные блокирующие IPv4-последовательности port knocking исключены; для требующих их серверов нужен отдельный клиент knocking/SPA перед SSH.",
+      "options": [
+        "portknockingoptions"
+      ],
+      "switches": [
+        "MOD_PORTKNOCKING"
+      ]
+    },
+    {
+      "id": "unsafe-local-hooks",
+      "status": "retired",
+      "reason": "Скрытый чат-сервер, встроенный редактор, исполнение локальных команд из специальных remote OSC и дампы состояния исключены; удалённый вывод не запускает локальные команды.",
+      "options": [],
+      "switches": [
+        "MOD_SAVEDUMP"
+      ],
+      "features": [
+        "remote local-command hooks",
+        "hidden chat server",
+        "embedded editor"
+      ]
+    },
+    {
+      "id": "obsolete-bundles",
+      "status": "retired",
+      "reason": "ADB-бэкэнд, Cygterm/CtHelper, старые Cygwin DLL и UPX-дубликаты не входят в поставку; используются стандартные протоколы PuTTY и актуальные отдельные приложения.",
+      "options": [],
+      "switches": [
+        "MOD_ADB"
+      ],
+      "features": [
+        "Cygterm",
+        "CtHelper",
+        "UPX binaries",
+        "SSH browser / Internet Explorer hooks"
+      ]
+    },
+    {
+      "id": "window-management",
+      "status": "retired",
+      "reason": "Старые roll-up, межоконный Ctrl+Tab и kiosk-ограничения кнопок окна исключены; стандартное управление окнами Windows, защита ввода и трей остаются.",
+      "options": [
+        "ctrl_tab_switch",
+        "window_closable",
+        "window_minimizable",
+        "window_maximizable",
+        "window_has_sysmenu",
+        "bottom_buttons"
+      ],
+      "switches": [
+        "MOD_TUTTY",
+        "MOD_WTS"
+      ]
+    },
+    {
+      "id": "external-winscp",
+      "status": "retired",
+      "reason": "Встроенные аргументы и редактор WinSCP не переносятся; перенос файлов обеспечен kscp, внешние приложения настраиваются отдельно.",
+      "options": [
+        "winscpoptions",
+        "winscprawsettings"
+      ],
+      "switches": []
+    },
+    {
+      "id": "legacy-cosmetics",
+      "status": "retired",
+      "reason": "Индексы старого встроенного набора значков, подчёркивание URL и произвольные regex/browser-команды исключены; поддерживаются ICO и стандартный браузер Windows.",
+      "options": [
+        "icone",
+        "url_underline",
+        "url_defbrowser",
+        "url_defregex",
+        "url_browser",
+        "url_regex"
+      ],
+      "switches": []
+    },
+    {
+      "id": "clipboard-print",
+      "status": "retired",
+      "reason": "Отдельная печать буфера обмена исключена: текст можно печатать внешним редактором; штатная терминальная печать PuTTY сохраняется.",
+      "options": [
+        "printclip"
+      ],
+      "switches": [
+        "MOD_PRINTCLIP"
+      ]
+    },
+    {
+      "id": "alternate-host",
+      "status": "retired",
+      "reason": "Неявное переключение на HostAlt исключено; отдельные профили/DNS позволяют явно выбирать сервер без автоматического повторного использования учётных данных на другом адресе.",
+      "options": [
+        "host_alt"
+      ],
+      "switches": []
+    },
+    {
+      "id": "idle-and-shutdown",
+      "status": "retired",
+      "reason": "AntiIdle-эмуляция клавиш и AutocommandOut исключены; keepalive PuTTY сохраняет соединение, но не обходит shell idle-политику; завершение настраивается на сервере.",
+      "options": [
+        "antiidle",
+        "autocommandout"
+      ],
+      "switches": []
+    },
+    {
+      "id": "legacy-logging",
+      "status": "retired",
+      "reason": "Старые per-line LogTimestamp и LogTimeRotation исключены; остаётся штатный журнал PuTTY, датированные имена и метки пакетного журнала. Периодическая ротация требует внешнего средства и не считается автоматически перенесённой.",
+      "options": [
+        "logtimerotation",
+        "logtimestamp"
+      ],
+      "switches": []
+    },
+    {
+      "id": "terminal-misc",
+      "status": "retired",
+      "reason": "NoFocusReporting и печать туннелей в заголовке не переносятся: старый FARTTY-режим отсутствует, состояние соединения доступно в журнале событий.",
+      "options": [
+        "no_focus_rep",
+        "ssh_tunnel_print_in_title"
+      ],
+      "switches": []
+    },
+    {
+      "id": "master-password",
+      "status": "retired",
+      "reason": "Целиком зашифрованные мастер-паролем профили не читаются и не перезаписываются. Их нужно предварительно экспортировать старым KiTTY в обычный формат; сохранённый пароль сеанса поддерживается.",
+      "options": [],
+      "switches": [
+        "MOD_NOPASSWORD"
+      ],
+      "features": [
+        "whole-file master-password encryption"
+      ]
+    }
+  ]
+}

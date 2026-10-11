@@ -25,6 +25,9 @@
 #include <shellapi.h>
 #include <shlobj.h>
 #include "kittyng-transfer.h"
+#include "kittyng-extensions.h"
+#include "kittyng-keypaths.h"
+#include "kittyng-companions.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -62,6 +65,15 @@
 #define IDM_COPY      0x0190
 #define IDM_PASTE     0x01A0
 #define IDM_KR_TRAY   0x01B0
+#define IDM_KR_TOP    0x0230
+#define IDM_KR_PROTECT 0x0240
+#define IDM_KR_COMMAND 0x0250
+#define IDM_KR_SCRIPT 0x0260
+#define IDM_KR_AGENT 0x0270
+#define IDM_KR_KEYGEN 0x0280
+#define KR_COMMAND_TIMER 0x4B4E4701
+#define KR_EXTENSION_TEST_TIMER 0x4B4E4702
+extern bool kr_test_extensions;
 #define WM_KR_TRAY    (WM_APP + 101)
 #define KR_RECONNECT_TIMER 0x4B525553
 static UINT kr_taskbar_created;
@@ -192,6 +204,7 @@ static void wintw_clip_write(
     TermWin *, int clipboard, wchar_t *text, int *attrs,
     truecolour *colours, int len, bool must_deselect);
 static void wintw_clip_request_paste(TermWin *, int clipboard);
+static void wintw_remote_clipboard(TermWin *, const char *encoded);
 static void wintw_refresh(TermWin *);
 static void wintw_request_resize(TermWin *, int w, int h);
 static void wintw_set_title(TermWin *, const char *title, int codepage);
@@ -219,6 +232,7 @@ static const TermWinVtable windows_termwin_vt = {
     .bell = wintw_bell,
     .clip_write = wintw_clip_write,
     .clip_request_paste = wintw_clip_request_paste,
+    .remote_clipboard = wintw_remote_clipboard,
     .refresh = wintw_refresh,
     .request_resize = wintw_request_resize,
     .set_title = wintw_set_title,
@@ -312,6 +326,267 @@ static const SeatVtable win_seat_vt = {
     .get_cursor_position = win_seat_get_cursor_position,
 };
 
+static void kr_cancel_commands(WinGuiSeat *wgs)
+{
+    KillTimer(wgs->term_hwnd, KR_COMMAND_TIMER);
+    if (wgs->kr_commands) {
+        smemclr(wgs->kr_commands, wcslen(wgs->kr_commands) * sizeof(wchar_t));
+        sfree(wgs->kr_commands); wgs->kr_commands = NULL;
+    }
+    wgs->kr_command_index = 0;
+}
+
+static void kr_free_bindings(WinGuiSeat *wgs)
+{
+    for (size_t i = 0; i < wgs->kr_binding_count; i++) {
+        wchar_t *text = wgs->kr_bindings[i].text;
+        if (text) { smemclr(text, wcslen(text)*sizeof(wchar_t)); sfree(text); }
+    }
+    sfree(wgs->kr_bindings); wgs->kr_bindings = NULL; wgs->kr_binding_count = 0;
+}
+
+static void kr_load_bindings(WinGuiSeat *wgs)
+{
+    kr_free_bindings(wgs);
+    static const struct { const char *name, *fallback; UINT action; } actions[] = {
+        {"script", "{CONTROL}{F2}", IDM_KR_SCRIPT},
+        {"sendfile", "{CONTROL}{F3}", IDM_KR_UPLOAD},
+        {"getfile", "{CONTROL}{F4}", IDM_KR_DOWNLOAD},
+        {"tray", "{CONTROL}{F6}", IDM_KR_TRAY},
+        {"visible", "{CONTROL}{F7}", IDM_KR_TOP},
+        {"protect", "{CONTROL}{F9}", IDM_KR_PROTECT},
+        {"autocommand", "{SHIFT}{F12}", IDM_KR_COMMAND},
+        {"eventlog", "", IDM_SHOWLOG}, {"copyall", "", IDM_COPYALL},
+        {"duplicate", "", IDM_DUPSESS}, {"opennew", "", IDM_NEWSESS},
+        {"changesettings", "", IDM_RECONF}, {"fullscreen", "", IDM_FULLSCREEN},
+        {"clearscrollback", "", IDM_CLRSB}, {"resetterminal", "", IDM_RESET}
+    };
+    for (size_t i = 0; i < lenof(actions); i++) {
+        char *value = kr_ini_string("Shortcuts", actions[i].name, actions[i].fallback);
+        UINT key = kr_parse_shortcut(value); sfree(value); if (!key) continue;
+        wgs->kr_bindings = sresize(wgs->kr_bindings, wgs->kr_binding_count+1, struct KrBinding);
+        wgs->kr_bindings[wgs->kr_binding_count++] = (struct KrBinding){key, actions[i].action, NULL};
+    }
+    char *list = kr_ini_string("Shortcuts", "list", ""), *cursor = list;
+    while (*cursor && wgs->kr_binding_count < 512) {
+        while (isspace((unsigned char)*cursor) || *cursor == ';') cursor++;
+        if (!*cursor) break;
+        char *name = cursor;
+        while (*cursor && !isspace((unsigned char)*cursor) && *cursor != ';') cursor++;
+        if (*cursor) *cursor++ = 0;
+        UINT key = kr_parse_shortcut(name);
+        if (!key) continue;
+        char *value = kr_ini_string("Shortcuts", name, "");
+        if (*value) {
+            wchar_t *text = kr_command_text(value, true, false);
+            wgs->kr_bindings = sresize(wgs->kr_bindings, wgs->kr_binding_count+1, struct KrBinding);
+            wgs->kr_bindings[wgs->kr_binding_count++] = (struct KrBinding){key, 0, text};
+        }
+        smemclr(value, strlen(value)); sfree(value);
+    }
+    sfree(list);
+}
+
+static bool kr_shortcut(WinGuiSeat *wgs, WPARAM key, bool execute)
+{
+    UINT modifiers = 0;
+    if (GetKeyState(VK_CONTROL) & 0x8000) modifiers |= MOD_CONTROL;
+    if (GetKeyState(VK_SHIFT) & 0x8000) modifiers |= MOD_SHIFT;
+    if (GetKeyState(VK_MENU) & 0x8000) modifiers |= MOD_ALT;
+    if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000) modifiers |= MOD_WIN;
+    if (GetKeyState(VK_RMENU) & 0x8000) modifiers = (modifiers & ~(MOD_ALT | MOD_CONTROL)) | 16;
+    UINT code = key | (modifiers << 16);
+    for (size_t i = 0; i < wgs->kr_binding_count; i++) {
+        struct KrBinding *binding = &wgs->kr_bindings[i];
+        if (binding->key != code) continue;
+        if (!execute) return true;
+        if (wgs->kr_input_locked && binding->action != IDM_KR_PROTECT) return true;
+        if (binding->action) SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, binding->action, 0);
+        else if (wgs->backend && backend_sendok(wgs->backend) && wgs->kr_session_started)
+            term_keyinputw(wgs->term, binding->text, wcslen(binding->text));
+        return true;
+    }
+    return false;
+}
+
+static wchar_t *kr_read_script(const Filename *file)
+{
+    FILE *fp = f_open(file, "rb", false);
+    if (!fp) return NULL;
+    strbuf *data = strbuf_new();
+    char chunk[4096]; size_t n;
+    while (data->len <= 1048576 && (n = fread(chunk, 1, sizeof(chunk), fp)) != 0)
+        put_data(data, chunk, n);
+    bool valid = !ferror(fp) && data->len <= 1048576 && !memchr(data->s, 0, data->len);
+    if (fclose(fp)) valid = false;
+    const char *text = data->s;
+    if (data->len >= 3 && !memcmp(text, "\xEF\xBB\xBF", 3)) text += 3;
+    valid = valid && MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text, -1, NULL, 0);
+    wchar_t *script = valid ? kr_command_text(text, false, true) : NULL;
+    smemclr(data->s, data->len); strbuf_free(data); return script;
+}
+
+static void kr_command_tick(WinGuiSeat *wgs)
+{
+    if (!wgs->backend || wgs->session_closed) { kr_cancel_commands(wgs); return; }
+    if (!backend_sendok(wgs->backend) || !wgs->kr_session_started || wgs->kr_input_locked) return;
+    if (!wgs->kr_commands_started) {
+        wgs->kr_commands_started = true;
+        if (strlen(conf_get_str(wgs->conf, CONF_autocommand)) > 65536 ||
+            strlen(conf_get_str(wgs->conf, CONF_scriptfilecontent)) > 1048576) {
+            kr_cancel_commands(wgs);
+            MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            return;
+        }
+        const Filename *file = conf_get_filename(wgs->conf, CONF_kr_script_file);
+        wchar_t *script = filename_is_null(file) ? kr_command_text(conf_get_str(wgs->conf, CONF_scriptfilecontent), false, true) : kr_read_script(file);
+        if (!script) {
+            kr_cancel_commands(wgs);
+            MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            return;
+        }
+        const char *automatic = conf_get_str(wgs->conf, CONF_autocommand);
+        wchar_t *command = NULL;
+        if (kr_script_reference(automatic)) {
+            Filename *reference = kr_portable_load_key_path(automatic);
+            DWORD attributes = GetFileAttributesW(reference->wpath);
+            if (attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY))
+                command = kr_read_script(reference);
+            filename_free(reference);
+            if (attributes != INVALID_FILE_ATTRIBUTES && !command) {
+                smemclr(script, wcslen(script)*sizeof(wchar_t)); sfree(script); kr_cancel_commands(wgs);
+                MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR);
+                return;
+            }
+        }
+        if (!command && ((automatic[0] && automatic[1] == ':') || automatic[0] == '\\')) {
+            smemclr(script, wcslen(script)*sizeof(wchar_t)); sfree(script); kr_cancel_commands(wgs);
+            MessageBox(wgs->term_hwnd, "Automatic command references an unavailable local script. Select a UTF-8 startup script explicitly.", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            return;
+        }
+        if (!command) command = kr_command_text(automatic, true, true);
+        size_t length = wcslen(script) + wcslen(command) + 1;
+        wgs->kr_commands = snewn(length, wchar_t);
+        wcscpy(wgs->kr_commands, script); wcscat(wgs->kr_commands, command);
+        smemclr(script, wcslen(script)*sizeof(wchar_t)); sfree(script);
+        smemclr(command, wcslen(command)*sizeof(wchar_t)); sfree(command);
+        wgs->kr_command_due = GetTickCount64() + min(max(0, conf_get_int(wgs->conf, CONF_initdelay)), 60000);
+    }
+    if (GetTickCount64() < wgs->kr_command_due) return;
+    wchar_t *text = wgs->kr_commands + wgs->kr_command_index;
+    if (!*text) { kr_cancel_commands(wgs); return; }
+    int n = 1;
+    int character_delay = min(max(0, conf_get_int(wgs->conf, CONF_bcdelay)), 1000);
+    if (!character_delay) {
+        while (text[n-1] != '\r' && text[n] && n < 512) n++;
+    }
+    if (text[n-1] >= 0xD800 && text[n-1] <= 0xDBFF && text[n] >= 0xDC00 && text[n] <= 0xDFFF) n++;
+    term_keyinputw(wgs->term, text, n); wgs->kr_command_index += n;
+    int wait = text[n-1] == '\r' ? min(max(0, conf_get_int(wgs->conf, CONF_kr_command_delay)), 60000) : character_delay;
+    wgs->kr_command_due = GetTickCount64() + wait;
+    SetTimer(wgs->term_hwnd, KR_COMMAND_TIMER, max(10, wait), NULL);
+}
+
+static void kr_save_window(WinGuiSeat *wgs)
+{
+    if (wgs->kr_window_saved) return;
+    const char *name = conf_get_str(wgs->conf, CONF_kr_session_name);
+    if (!*name || (!conf_get_bool(wgs->conf, CONF_save_windowpos) && !conf_get_bool(wgs->conf, CONF_saveonexit))) return;
+    settings_r *existing = open_settings_r(name);
+    if (!existing) return; /* Never invent a partial profile from a CLI launch. */
+    close_settings_r(existing);
+    WINDOWPLACEMENT placement = { .length = sizeof(placement) };
+    if (!GetWindowPlacement(wgs->term_hwnd, &placement)) return;
+    wgs->kr_window_saved = true;
+    RECT position = placement.rcNormalPosition;
+    if (!IsIconic(wgs->term_hwnd) && !IsZoomed(wgs->term_hwnd) && !is_full_screen(wgs))
+        GetWindowRect(wgs->term_hwnd, &position);
+    else {
+        MONITORINFO info = { .cbSize = sizeof(info) };
+        if (GetMonitorInfoW(MonitorFromWindow(wgs->term_hwnd, MONITOR_DEFAULTTONEAREST), &info))
+            OffsetRect(&position, info.rcWork.left-info.rcMonitor.left, info.rcWork.top-info.rcMonitor.top);
+    }
+    conf_set_int(wgs->conf, CONF_xpos, position.left);
+    conf_set_int(wgs->conf, CONF_ypos, position.top);
+    conf_set_bool(wgs->conf, CONF_windowstate, IsZoomed(wgs->term_hwnd) || placement.showCmd == SW_SHOWMAXIMIZED);
+    char *error = NULL;
+    if (conf_get_bool(wgs->conf, CONF_saveonexit)) error = save_settings(name, wgs->conf);
+    else {
+        settings_w *writer = open_settings_w(name, &error);
+        if (writer) {
+            write_setting_i(writer, "TermXPos", position.left);
+            write_setting_i(writer, "TermYPos", position.top);
+            write_setting_i(writer, "WindowState", conf_get_bool(wgs->conf, CONF_windowstate));
+            close_settings_w(writer);
+        }
+    }
+    if (error) { MessageBox(wgs->term_hwnd, error, "KiTTY-NG", MB_OK | MB_ICONERROR); sfree(error); }
+}
+
+static int kr_test_clipboard_writes;
+static void kr_test_clipboard(TermWin *tw, const char *encoded)
+{
+    wchar_t *text = kr_clipboard_text(encoded);
+    if (text) {
+        if (wcscmp(text, L"Hello")) cleanup_exit(ERROR_INVALID_DATA);
+        kr_test_clipboard_writes++; sfree(text);
+    }
+}
+
+static void kr_extension_ui_test(WinGuiSeat *wgs)
+{
+#define EXTENSION_CHECK(value) do { if (!(value)) cleanup_exit(ERROR_INVALID_DATA); } while (0)
+    if (!wgs->backend || !backend_sendok(wgs->backend) || !wgs->kr_commands_started || wgs->kr_commands) return;
+    KillTimer(wgs->term_hwnd, KR_EXTENSION_TEST_TIMER);
+    HWND hwnd = wgs->term_hwnd;
+    bool top = (GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0;
+    SendMessage(hwnd, WM_SYSCOMMAND, IDM_KR_TOP, 0);
+    EXTENSION_CHECK(((GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0) != top);
+    SendMessage(hwnd, WM_SYSCOMMAND, IDM_KR_TOP, 0);
+    EXTENSION_CHECK(((GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST) != 0) == top);
+    BYTE original[256], pressed[256] = {0}; GetKeyboardState(original);
+    pressed[VK_CONTROL] = 0x80; SetKeyboardState(pressed);
+    SendMessage(hwnd, WM_KEYDOWN, VK_F9, 1);
+    EXTENSION_CHECK(wgs->kr_input_locked);
+    const char *mouse_mode = "\033[?1003h";
+    seat_stdout(&wgs->seat, mouse_mode, strlen(mouse_mode));
+    EXTENSION_CHECK(wgs->send_raw_mouse);
+    SendMessage(hwnd, WM_MOUSEMOVE, 0, MAKELPARAM(20, 20));
+    SendMessage(hwnd, WM_MOUSEWHEEL, MAKEWPARAM(0, WHEEL_DELTA), MAKELPARAM(20, 20));
+    mouse_mode = "\033[?1003l";
+    seat_stdout(&wgs->seat, mouse_mode, strlen(mouse_mode));
+    SendMessage(hwnd, WM_CHAR, 'X', 1);
+    SendMessage(hwnd, WM_KEYDOWN, 'X', 1);
+    SendMessage(hwnd, WM_GOT_CLIPDATA, TRUE, 1); /* Never dereferenced while protected. */
+    SendMessage(hwnd, WM_KEYDOWN, VK_F9, 1);
+    EXTENSION_CHECK(!wgs->kr_input_locked);
+    memset(pressed, 0, sizeof(pressed)); pressed[VK_SHIFT] = 0x80; SetKeyboardState(pressed);
+    SendMessage(hwnd, WM_KEYDOWN, VK_F10, 1); SetKeyboardState(original);
+    TermWinVtable temporary = *wgs->termwin.vt;
+    const TermWinVtable *saved = wgs->termwin.vt;
+    temporary.remote_clipboard = kr_test_clipboard; wgs->termwin.vt = &temporary;
+    bool allowed = conf_get_bool(wgs->term->conf, CONF_kr_remote_clipboard);
+    conf_set_bool(wgs->term->conf, CONF_kr_remote_clipboard, false);
+    const char *sequence = "\033]52;c;SGVsbG8=\007";
+    seat_stdout(&wgs->seat, sequence, strlen(sequence)); EXTENSION_CHECK(!kr_test_clipboard_writes);
+    EXTENSION_CHECK(!bufchain_size(&wgs->term->inbuf));
+    conf_set_bool(wgs->term->conf, CONF_kr_remote_clipboard, true);
+    for (size_t i = 0; i < strlen(sequence); i++) seat_stdout(&wgs->seat, sequence+i, 1);
+    EXTENSION_CHECK(kr_test_clipboard_writes == 1);
+    sequence = "\033]52;c;?\007\033]52;c;!!!!\007";
+    seat_stdout(&wgs->seat, sequence, strlen(sequence)); EXTENSION_CHECK(kr_test_clipboard_writes == 1);
+    strbuf *oversized = strbuf_new(); put_dataz(oversized, "\033]52;c;");
+    for (int i = 0; i < 17500; i++) put_dataz(oversized, "QUFB");
+    put_byte(oversized, '\007');
+    seat_stdout(&wgs->seat, oversized->s, oversized->len); strbuf_free(oversized);
+    EXTENSION_CHECK(kr_test_clipboard_writes == 1);
+    EXTENSION_CHECK(!bufchain_size(&wgs->term->inbuf));
+    conf_set_bool(wgs->term->conf, CONF_kr_remote_clipboard, allowed); wgs->termwin.vt = saved;
+    SetWindowPos(hwnd, NULL, 40, 60, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+    term_keyinputw(wgs->term, L"UI_PROBE_OK\r", 12);
+#undef EXTENSION_CHECK
+}
+
 static void start_backend(WinGuiSeat *wgs)
 {
     const struct BackendVtable *vt;
@@ -372,6 +647,12 @@ static void start_backend(WinGuiSeat *wgs)
     wgs->session_closed = false;
     wgs->kr_saved_password_tried = false;
     wgs->kr_session_started = wgs->kr_retryable = false;
+    kr_cancel_commands(wgs); wgs->kr_commands_started = false;
+    if (conf_get_int(wgs->conf, CONF_protocol) == PROT_SSH &&
+        (*conf_get_str(wgs->conf, CONF_autocommand) || *conf_get_str(wgs->conf, CONF_scriptfilecontent) ||
+         !filename_is_null(conf_get_filename(wgs->conf, CONF_kr_script_file))))
+        SetTimer(wgs->term_hwnd, KR_COMMAND_TIMER, 100, NULL);
+    if (kr_test_extensions) SetTimer(wgs->term_hwnd, KR_EXTENSION_TEST_TIMER, 100, NULL);
 }
 
 static void close_session(void *vctx)
@@ -381,6 +662,7 @@ static void close_session(void *vctx)
     int i;
 
     wgs->session_closed = true;
+    kr_cancel_commands(wgs);
     int delay = conf_get_int(wgs->conf, CONF_kr_reconnect_delay);
     if (delay > 0 && wgs->kr_retryable)
         SetTimer(wgs->term_hwnd, KR_RECONNECT_TIMER,
@@ -804,6 +1086,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             kr_append_menu(m, MF_ENABLED, IDM_KR_TRAY, "Send to tray");
             kr_append_menu(m, MF_ENABLED, IDM_KR_UPLOAD, "Send files...");
             kr_append_menu(m, MF_ENABLED, IDM_KR_DOWNLOAD, "Receive file...");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_COMMAND, "Send automatic command");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_SCRIPT, "Run script file...");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_TOP, "Always on top");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_PROTECT, "Protect terminal input");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_AGENT, "Start Kageant");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_KEYGEN, "Start KiTTYgen");
             AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR)wgs->savedsess_menu,
                        "Sa&ved Sessions");
             kr_append_menu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
@@ -840,8 +1128,37 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Finally show the window!
      */
     ShowWindow(wgs->term_hwnd, show);
+    kr_load_bindings(wgs);
+    if (conf_get_bool(wgs->conf, CONF_save_windowpos)) {
+        RECT rectangle; GetWindowRect(wgs->term_hwnd, &rectangle);
+        int width = rectangle.right-rectangle.left, height = rectangle.bottom-rectangle.top;
+        rectangle.left = max(-1000000, min(1000000, conf_get_int(wgs->conf, CONF_xpos)));
+        rectangle.top = max(-1000000, min(1000000, conf_get_int(wgs->conf, CONF_ypos)));
+        rectangle.right = rectangle.left + width; rectangle.bottom = rectangle.top + height;
+        MONITORINFO info = { .cbSize = sizeof(info) };
+        if (GetMonitorInfoW(MonitorFromRect(&rectangle, MONITOR_DEFAULTTONEAREST), &info)) {
+            int x = max(info.rcWork.left, min(rectangle.left, info.rcWork.right-min(width, info.rcWork.right-info.rcWork.left)));
+            int y = max(info.rcWork.top, min(rectangle.top, info.rcWork.bottom-min(height, info.rcWork.bottom-info.rcWork.top)));
+            SetWindowPos(wgs->term_hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+        }
+    }
+    if (conf_get_bool(wgs->conf, CONF_fullscreen) && conf_get_int(wgs->conf, CONF_resize_action) != RESIZE_DISABLED)
+        make_full_screen(wgs);
+    else if (conf_get_bool(wgs->conf, CONF_maximize) ||
+             (conf_get_bool(wgs->conf, CONF_save_windowpos) && conf_get_bool(wgs->conf, CONF_windowstate)))
+        ShowWindow(wgs->term_hwnd, SW_MAXIMIZE);
+    if (conf_get_bool(wgs->conf, CONF_kr_always_on_top))
+        SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TOP, 0);
+    const Filename *icon = conf_get_filename(wgs->conf, CONF_kr_icon_file);
+    size_t icon_length = wcslen(icon->wpath);
+    if (icon_length >= 4 && !_wcsicmp(icon->wpath+icon_length-4, L".ico")) {
+        wgs->kr_icons[0] = LoadImageW(NULL, icon->wpath, IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_LOADFROMFILE);
+        wgs->kr_icons[1] = LoadImageW(NULL, icon->wpath, IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_LOADFROMFILE);
+        for (int i = 0; i < 2; i++) if (wgs->kr_icons[i]) SendMessage(wgs->term_hwnd, WM_SETICON, i ? ICON_SMALL : ICON_BIG, (LPARAM)wgs->kr_icons[i]);
+    }
     kr_apply_transparency(wgs->term_hwnd, wgs->conf);
     SetForegroundWindow(wgs->term_hwnd);
+    if (conf_get_bool(wgs->conf, CONF_sendtotray)) SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TRAY, 0);
 
     term_set_focus(wgs->term, GetForegroundWindow() == wgs->term_hwnd);
     UpdateWindow(wgs->term_hwnd);
@@ -928,6 +1245,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 static void wgs_cleanup(WinGuiSeat *wgs)
 {
+    kr_save_window(wgs);
+    kr_cancel_commands(wgs); kr_free_bindings(wgs);
+    for (int i = 0; i < 2; i++) if (wgs->kr_icons[i]) DestroyIcon(wgs->kr_icons[i]);
     KillTimer(wgs->term_hwnd, KR_RECONNECT_TIMER);
     kr_tray_icon(wgs->term_hwnd, false);
     deinit_fonts(wgs);
@@ -1228,7 +1548,7 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg)
     /* Retry only a lost established session, never failed authentication
      * or a rejected host key. Normal shell exits do not reach this hook. */
     wgs->kr_retryable = wgs->kr_session_started &&
-        conf_get_int(wgs->conf, CONF_kr_reconnect_delay) > 0;
+        (conf_get_int(wgs->conf, CONF_kr_reconnect_delay) > 0 || conf_get_bool(wgs->conf, CONF_wakeup_reconnect));
     logevent(wgs->logctx, msg);
     logflush(wgs->logctx);
     show_mouseptr(wgs, true);
@@ -2269,7 +2589,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_CREATE:
         kr_taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
         break;
+      case WM_POWERBROADCAST:
+        if ((wParam == PBT_APMRESUMESUSPEND || wParam == PBT_APMRESUMEAUTOMATIC) &&
+            conf_get_bool(wgs->conf, CONF_wakeup_reconnect) && wgs->kr_retryable && wgs->session_closed)
+            PostMessage(hwnd, WM_SYSCOMMAND, IDM_RESTART, 0);
+        return TRUE;
       case WM_TIMER:
+        if (wParam == KR_EXTENSION_TEST_TIMER) { kr_extension_ui_test(wgs); return 0; }
+        if (wParam == KR_COMMAND_TIMER) { kr_command_tick(wgs); return 0; }
         if (wParam == KR_TRANSFER_TEST_TIMER) {
             if (wgs->backend && backend_sendok(wgs->backend)) {
                 KillTimer(hwnd, KR_TRANSFER_TEST_TIMER);
@@ -2311,6 +2638,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         }
         return 0;
       case WM_DROPFILES:
+        if (wgs->kr_input_locked) { DragFinish((HDROP)wParam); return 0; }
         kr_transfer_drop(hwnd, wgs->conf, wgs->backend, (HDROP)wParam);
         return 0;
       case WM_KR_TRANSFER_FINISHED:
@@ -2342,6 +2670,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         return 0;
       }
       case WM_DESTROY:
+        kr_save_window(wgs); kr_cancel_commands(wgs);
         kr_transfer_cancel_query(hwnd, false);
         KillTimer(hwnd, KR_TRANSFER_TEST_TIMER);
         KillTimer(hwnd, KR_RECONNECT_TIMER);
@@ -2362,6 +2691,42 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_COMMAND:
       case WM_SYSCOMMAND:
         switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
+          case IDM_KR_TOP: {
+            bool top = !(GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST);
+            SetWindowPos(hwnd, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            conf_set_bool(wgs->conf, CONF_kr_always_on_top, top);
+            for (size_t i = 0; i < lenof(wgs->popup_menus); i++)
+                CheckMenuItem(wgs->popup_menus[i].menu, IDM_KR_TOP, MF_BYCOMMAND | (top ? MF_CHECKED : MF_UNCHECKED));
+            break;
+          }
+          case IDM_KR_PROTECT:
+            wgs->kr_input_locked = !wgs->kr_input_locked;
+            for (size_t i = 0; i < lenof(wgs->popup_menus); i++)
+                CheckMenuItem(wgs->popup_menus[i].menu, IDM_KR_PROTECT, MF_BYCOMMAND | (wgs->kr_input_locked ? MF_CHECKED : MF_UNCHECKED));
+            break;
+          case IDM_KR_COMMAND:
+            if (!wgs->kr_input_locked && wgs->backend && backend_sendok(wgs->backend)) {
+                kr_cancel_commands(wgs); wgs->kr_commands_started = false;
+                SetTimer(hwnd, KR_COMMAND_TIMER, 10, NULL);
+            }
+            break;
+          case IDM_KR_SCRIPT: {
+            if (wgs->kr_input_locked || !wgs->backend || !backend_sendok(wgs->backend)) break;
+            Filename *file = request_file(hwnd, "Select script to run remotely", NULL, false, NULL, true, FILTER_ALL_FILES);
+            if (!file) break;
+            wchar_t *script = kr_read_script(file); filename_free(file);
+            if (!script) { MessageBox(hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR); break; }
+            kr_cancel_commands(wgs); wgs->kr_commands = script; wgs->kr_commands_started = true;
+            wgs->kr_command_due = GetTickCount64(); SetTimer(hwnd, KR_COMMAND_TIMER, 10, NULL);
+            break;
+          }
+          case IDM_KR_AGENT:
+          case IDM_KR_KEYGEN: {
+            DWORD error, status;
+            if (!kr_launch_companion((wParam & ~0xF) == IDM_KR_AGENT ? "pageant" : "puttygen", L"", false, &status, &error))
+                MessageBox(hwnd, "Unable to launch the matching-architecture utility.", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            break;
+          }
           case SC_VSCROLL:
           case SC_HSCROLL:
             if (message == WM_SYSCOMMAND) {
@@ -2478,9 +2843,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 ShowWindow(hwnd, SW_HIDE);
             break;
           case IDM_KR_UPLOAD:
+            if (wgs->kr_input_locked) break;
             kr_transfer_choose_upload(hwnd, wgs->conf, wgs->backend);
             break;
           case IDM_KR_DOWNLOAD:
+            if (wgs->kr_input_locked) break;
             kr_transfer_choose_download(hwnd, wgs->conf);
             break;
           case IDM_RECONF: {
@@ -2523,6 +2890,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             /* Pass new config data to the logging module */
             kr_apply_transparency(hwnd, wgs->conf);
+            kr_load_bindings(wgs);
+            bool top = conf_get_bool(wgs->conf, CONF_kr_always_on_top);
+            SetWindowPos(hwnd, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
+            for (size_t i = 0; i < lenof(wgs->popup_menus); i++)
+                CheckMenuItem(wgs->popup_menus[i].menu, IDM_KR_TOP, MF_BYCOMMAND | (top ? MF_CHECKED : MF_UNCHECKED));
             if (conf_get_int(wgs->conf, CONF_kr_reconnect_delay) <= 0)
                 KillTimer(hwnd, KR_RECONNECT_TIMER);
             log_reconfig(wgs->logctx, wgs->conf);
@@ -2672,6 +3044,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             term_request_copy(wgs->term, clips_system, lenof(clips_system));
             break;
           case IDM_PASTE:
+            if (wgs->kr_input_locked) break;
             term_request_paste(wgs->term, CLIP_SYSTEM);
             break;
           case IDM_CLRSB:
@@ -2840,6 +3213,29 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 }
             }
 
+            if (press && button == MBT_LEFT && (wParam & MK_CONTROL) &&
+                conf_get_bool(wgs->conf, CONF_kr_hyperlinks)) {
+                int x = TO_CHR_X(X_POS(lParam)), y = TO_CHR_Y(Y_POS(lParam));
+                if (x >= 0 && y >= 0 && x < wgs->term->cols && y < wgs->term->rows) {
+                    termline *line = term_get_line(wgs->term, wgs->term->disptop + y);
+                    if (line) {
+                        char *text = snewn(line->cols+1, char);
+                        for (int i = 0; i < line->cols; i++) {
+                            unsigned long c = line->chars[i].chr;
+                            if ((c & CSET_MASK) == CSET_ASCII) c &= 0xFF;
+                            text[i] = c >= 32 && c < 127 ? c : ' ';
+                        }
+                        text[line->cols] = 0;
+                        char *url = kr_url_at(text, x); sfree(text); term_release_line(line);
+                        if (url) {
+                            wchar_t *wide = dup_mb_to_wc(CP_UTF8, url);
+                            ShellExecuteW(hwnd, L"open", wide, NULL, NULL, SW_SHOWNORMAL);
+                            sfree(wide); sfree(url); return 0;
+                        }
+                    }
+                }
+            }
+            if (wgs->kr_input_locked && wgs->send_raw_mouse) return 0;
             if (press) {
                 click(wgs, button,
                       TO_CHR_X(X_POS(lParam)), TO_CHR_Y(Y_POS(lParam)),
@@ -2857,6 +3253,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         }
         return 0;
       case WM_MOUSEMOVE:
+        if (wgs->kr_input_locked && wgs->send_raw_mouse) return 0;
         /*
          * Windows seems to like to occasionally send MOUSEMOVE
          * events even if the mouse hasn't moved. Don't unhide
@@ -3363,6 +3760,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSKEYDOWN:
       case WM_KEYUP:
       case WM_SYSKEYUP:
+        if ((message == WM_KEYDOWN || message == WM_SYSKEYDOWN) &&
+            (wgs->kr_input_locked || conf_get_bool(wgs->conf, CONF_kr_shortcuts)) && kr_shortcut(wgs, wParam, !(lParam & (1UL << 30)))) return 0;
+        if (wgs->kr_input_locked) return 0;
         /*
          * Add the scan code and keypress timing to the random
          * number noise.
@@ -3423,6 +3823,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         break;
       }
       case WM_IME_COMPOSITION: {
+        if (wgs->kr_input_locked) return 0;
         HIMC hIMC;
         int n;
         char *buff;
@@ -3485,6 +3886,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         return (0);
       case WM_CHAR:
       case WM_SYSCHAR:
+        if (wgs->kr_input_locked) return 0;
         /*
          * Nevertheless, we are prepared to deal with WM_CHAR
          * messages, should they crop up. So if someone wants to
@@ -3526,6 +3928,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       default:
         if (message == wm_mousewheel || message == WM_MOUSEWHEEL
                                                 || message == WM_MOUSEHWHEEL) {
+            if (wgs->kr_input_locked && wgs->send_raw_mouse) return 0;
             bool shift_pressed = false, control_pressed = false;
 
             if (message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL) {
@@ -3574,7 +3977,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     /* trigger a scroll */
                     term_scroll(wgs->term, 0,
                                 b == MBT_WHEEL_UP ?
-                                -wgs->term->rows / 2 : wgs->term->rows / 2);
+                                -kr_scroll_lines(conf_get_int(wgs->conf, CONF_scrolllines), wgs->term->rows) :
+                                 kr_scroll_lines(conf_get_int(wgs->conf, CONF_scrolllines), wgs->term->rows));
                 }
             }
             return 0;
@@ -4399,6 +4803,7 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
         left_alt = true;
 
     key_down = ((HIWORD(lParam) & KF_UP) == 0);
+    if (conf_get_bool(wgs->conf, CONF_disablealtgr)) keystate[VK_RMENU] = 0;
 
     /* Make sure Ctrl-ALT is not the same as AltGr for ToAscii unless told. */
     if (left_alt && (keystate[VK_CONTROL] & 0x80)) {
@@ -5555,6 +5960,7 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
 
 static void process_clipdata(WinGuiSeat *wgs, HGLOBAL clipdata, bool unicode)
 {
+    if (wgs->kr_input_locked) return;
     wchar_t *clipboard_contents = NULL;
     size_t clipboard_length = 0;
 
@@ -5615,6 +6021,28 @@ static void wintw_clip_request_paste(TermWin *tw, int clipboard)
                                   wgs->term_hwnd, 0, &in_threadid);
     if (hThread)
         CloseHandle(hThread);          /* we don't need the thread handle */
+}
+
+static void wintw_remote_clipboard(TermWin *tw, const char *encoded)
+{
+    WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
+    if (!wgs->backend || !backend_sendok(wgs->backend) || !wgs->kr_session_started) return;
+    wchar_t *text = kr_clipboard_text(encoded);
+    if (!text) return;
+    size_t bytes = (wcslen(text)+1)*sizeof(wchar_t);
+    HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+    if (memory) {
+        void *locked = GlobalLock(memory);
+        if (locked) {
+            memcpy(locked, text, bytes); GlobalUnlock(memory);
+            if (OpenClipboard(wgs->term_hwnd)) {
+                if (EmptyClipboard() && SetClipboardData(CF_UNICODETEXT, memory)) memory = NULL;
+                CloseClipboard();
+            }
+        }
+        if (memory) GlobalFree(memory);
+    }
+    sfree(text);
 }
 
 /*
@@ -5736,6 +6164,11 @@ static void flash_window(WinGuiSeat *wgs, int mode)
 static void wintw_bell(TermWin *tw, int mode)
 {
     WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
+    if (conf_get_bool(wgs->conf, CONF_foreground_on_bell)) {
+        kr_tray_icon(wgs->term_hwnd, false);
+        if (IsIconic(wgs->term_hwnd) || !IsWindowVisible(wgs->term_hwnd)) ShowWindow(wgs->term_hwnd, SW_RESTORE);
+        SetForegroundWindow(wgs->term_hwnd);
+    }
     if (mode == BELL_DEFAULT) {
         /*
          * For MessageBeep style bells, we want to be careful of

@@ -29,7 +29,7 @@ def callargs(text, start):
     raise ValueError("unbalanced source call")
 
 labels = set()
-for filename in ["config.c", "windows/config.c", "windows/kittyng-language.c", "ssh/ca-config.c"]:
+for filename in ["config.c", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c"]:
     text = re.sub(r'/\*.*?\*/', '', (root / filename).read_text(), flags=re.S)
     for match in re.finditer(r'\b(ctrl_[a-z_]+)\s*\(', text):
         name = match.group(1)

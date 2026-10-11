@@ -234,7 +234,7 @@ def main():
             cmake = args.cmake.resolve() if args.cmake else wheels / "cmake/data/bin/cmake.exe"
             ninja = args.ninja.resolve() if args.ninja else next(wheels.glob("ninja-*.data/scripts/ninja.exe"))
             report["bootstrap"] = wheel_info
-            check("translations", {"config.c", "windows/config.c", "windows/kittyng-language.c", "ssh/ca-config.c",
+            check("translations", {"config.c", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c",
                   "locale/ru.json", "tools/check-translations.py"},
                   [([PYTHON, "tools/check-translations.py"], None)])
             check("utility-translations", {"windows/puttygen.c", "windows/pageant.c",
@@ -260,6 +260,10 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
+                        ("extensions", "test_extensions", ["test/extensions.py"],
+                         [PYTHON, "test/extensions.py", directory / "test_extensions.exe"]),
+                        ("extensions-assets", "test_key_paths", ["test/extensions_assets.py"],
+                         [PYTHON, "test/extensions_assets.py", directory / "test_key_paths.exe"]),
                         ("profile-update", "test_key_paths", ["test/profile_update.py"],
                          [PYTHON, "test/profile_update.py", directory / "test_key_paths.exe"]),
                         ("portable-key-paths", "test_key_paths", ["test/portable_key_paths.py"],
@@ -357,6 +361,15 @@ def main():
                         environment = ssh_environment(work)
                     check(key, files,
                           [([PYTHON, "test/file_transfer.py", directory / executable, "portable-key"], environment)],
+                          compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable])
+                    files.update({"test/extensions_runtime.py", "test/kittyng-password-vector.json"})
+                    key = arch + "/extensions-runtime"
+                    environment = None
+                    entry = cache.get(key, {})
+                    if args.force_tests or entry.get("fingerprint") != digest_files(files) or entry.get("compiler") != compiler:
+                        environment = ssh_environment(work)
+                    check(key, files, [([PYTHON, "test/extensions_runtime.py", directory / executable], environment)],
                           compiler=compiler)
                 run([PYTHON, "tools/package-release.py", arch, directory, "--output", staged], "package-" + arch)
                 archive = staged / f"kitty-ng-{report['version']}-{arch}.zip"

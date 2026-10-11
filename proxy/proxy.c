@@ -12,6 +12,9 @@
 #include "putty.h"
 #include "network.h"
 #include "proxy.h"
+#ifdef _WIN32
+#include "kittyng.h"
+#endif
 
 #define do_proxy_dns(conf) \
     (conf_get_int(conf, CONF_proxy_dns) == FORCE_ON || \
@@ -511,6 +514,13 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
                        Plug *plug, Conf *conf, Interactor *itr)
 {
     int type = conf_get_int(conf, CONF_proxy_type);
+#ifdef _WIN32
+    const char *profile_error = conf_get_str(conf, CONF_kr_proxy_error);
+    if (*profile_error) {
+        sk_addr_free(addr);
+        return new_error_socket_fmt(plug, "%s", kr_translate(profile_error));
+    }
+#endif
 
     if (type != PROXY_NONE &&
         proxy_for_destination(addr, hostname, port, conf)) {

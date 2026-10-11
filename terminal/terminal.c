@@ -3200,6 +3200,11 @@ static void do_osc(Terminal *term)
       case OSCLIKE_OSC:
         term->osc_string[term->osc_strlen] = '\0';
         switch (term->esc_args[0]) {
+          case 52:
+            if (conf_get_bool(term->conf, CONF_kr_remote_clipboard) &&
+                term->osc_strlen < OSC_STR_MAX && term->win->vt->remote_clipboard)
+                term->win->vt->remote_clipboard(term->win, term->osc_string);
+            break;
           case 0:
           case 1:
             if (!term->no_remote_wintitle) {

@@ -23,9 +23,12 @@ static bool session_browser_match(const char *name, const char *query)
 {
     if (!*query) return true;
 #ifdef _WIN32
-    /* These are storage identifiers and edit-box text, both in CP_ACP. */
-    wchar_t *haystack = dup_mb_to_wc(CP_ACP, name);
-    wchar_t *needle = dup_mb_to_wc(CP_ACP, query);
+    /* Portable identifiers and new edit-box text are UTF-8; retain support
+     * for existing registry identifiers in the Windows legacy code page. */
+    UINT name_cp = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name, -1, NULL, 0) ? CP_UTF8 : CP_ACP;
+    UINT query_cp = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, query, -1, NULL, 0) ? CP_UTF8 : CP_ACP;
+    wchar_t *haystack = dup_mb_to_wc(name_cp, name);
+    wchar_t *needle = dup_mb_to_wc(query_cp, query);
     size_t hn = wcslen(haystack), nn = wcslen(needle);
     bool found = false;
     for (size_t i = 0; nn <= hn && i <= hn - nn; i++) {

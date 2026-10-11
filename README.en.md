@@ -6,7 +6,7 @@ SSH, Telnet and serial terminal for Windows, based on PuTTY 0.85, with English a
 
 <img src="icons/kitty-ng.png" width="192" alt="Two connected terminals">
 
-**Release: 0.85-1.** Migration of KiTTY extensions is ongoing. This release uses a modern PuTTY codebase with selected KiTTY features; it does not yet include every feature of the original KiTTY. The [migration report](docs/migration.md) describes the current scope in Russian.
+**Published release: 0.85-1.** KiTTY extension migration is complete in the current source: useful features were ported and the remaining extensions have explicit replacement or retirement decisions. The latest changes have not been published as a separate release. See the [migration report](docs/migration.md) (Russian) and [decision matrix](docs/kitty-migration-decisions.json) for compatibility limits.
 
 ## Download and run
 
@@ -82,12 +82,26 @@ The client supports legacy `Key\value\` session files, `%XX` encoding, nested di
 
 Saved passwords are read from the legacy `Password` field using `cryptsalt`. This includes root login, SSH password authentication and keyboard-interactive password prompts. The format remains compatible with KiTTY and is reversible: **it is not a secure secrets vault**. Someone with access to a session file can recover its password. Do not publish personal `Sessions`, `kitty.ini` files or private keys.
 
-Entire profiles encrypted with a master password are not yet supported. If a legacy password cannot be decoded, its original value is preserved; enter the password manually to replace it. Background images, Zmodem, FAR2L integration, RuTTY/scripts, port knocking and other legacy extensions still require migration.
+Entire profiles encrypted with a master password are unsupported; export them to ordinary files using the original KiTTY first. Unrecognised non-empty profiles are not overwritten. If a legacy session password cannot be decoded, its original value is preserved; enter the password manually to replace it.
 
 When a portable session is saved, SSH keys and detached SSH certificates inside the portable directory are stored as relative paths, such as `SSH-Keys\client.ppk`. Loading resolves them against the portable directory, independent of the working directory. Move the directory together with its keys: the client, Klink, Kscp and Ksftp continue using the saved references. External keys retain absolute paths. The root defaults to the executable directory; `--portable-dir` or `KITTY_NG_PORTABLE_DIR` selects another portable root. KiTTY file syntax and `%XX` encoding are retained. KiTTYgen and Kageant do not persist key references in sessions; their normal file-opening and file-saving operations keep standard behavior.
 
 The “Update profiles to latest version” button below Delete processes all saved portable sessions, including nested folders. It converts internal absolute key and certificate paths to relative references, preserves all other profile lines, and reports updates and errors. Existing relative references and external keys remain unchanged.
 
+
+## Additions in the current source
+
+- Startup commands and UTF-8 scripts after SSH authentication, with configurable delays: **Connection → Automation**.
+- Shared profiles from `Proxies`: **Connection → Proxy profiles**. A missing or invalid selected proxy blocks the connection.
+- Shortcuts, input protection, always on top, initial tray/fullscreen state, window position/settings persistence, ICO and scrolling: **Window → Extensions**. Comments: **Session → Notes**.
+- Ctrl+click opens HTTP/HTTPS. Optional OSC 52 supports clipboard writes without remote clipboard reads.
+- Portable script/icon references, migration of legacy file-based startup commands, and Unicode saved sessions in Kageant.
+
+Legacy FARTTY is replaced by PuTTY's standard TTY support for FAR2L. Conditional RuTTY expect, Zmodem, port knocking, background slideshows and hidden functions were retired. Compatibility limits and reasons are listed in the [migration report](docs/migration.md).
+
+![Startup automation](docs/screenshots/automation-en.png)
+
+![Window extensions](docs/screenshots/extensions-en.png)
 
 ## Versions
 

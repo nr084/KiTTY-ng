@@ -9,7 +9,12 @@ directory = Path(sys.argv[1]).resolve()
 arch = sys.argv[2]
 with tempfile.TemporaryDirectory(prefix='kitty-ng-kageant-language-') as temporary:
     env = os.environ.copy()
-    env['KITTY_NG_PORTABLE_DIR'] = str(Path(temporary) / 'preferences')
+    preferences = Path(temporary) / 'preferences'
+    (preferences / 'Sessions/Folder').mkdir(parents=True)
+    (preferences / 'Sessions/Folder/Сеанс').write_text('HostName\\example.invalid\\\n')
+    (preferences / 'Sessions/Language').write_text('HostName\\example.invalid\\\n')
+    (preferences / 'Sessions/Default%20Settings').write_text('HostName\\\\\n')
+    env['KITTY_NG_PORTABLE_DIR'] = str(preferences)
     result = subprocess.run([str(directory / f'kageant-{arch}.exe'), '-test-language-menu'],
                             env=env, capture_output=True, timeout=25)
     assert result.returncode == 0, (result.returncode, result.stderr)

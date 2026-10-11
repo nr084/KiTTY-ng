@@ -46,7 +46,9 @@ settings_w *open_settings_w(const char *sessionname, char **errmsg)
 
     HKEY sesskey = create_regkey(HKEY_CURRENT_USER, puttystr, sb->s);
     if (!sesskey) {
-        *errmsg = dupprintf("Unable to create registry key\n"
+        if (kr_portable())
+            *errmsg = dupprintf("Unable to write portable profile. Check permissions and file format; encrypted or unrecognised files are not overwritten.");
+        else *errmsg = dupprintf("Unable to create registry key\n"
                             "HKEY_CURRENT_USER\\%s\\%s", puttystr, sb->s);
         strbuf_free(sb);
         return NULL;
@@ -175,7 +177,7 @@ Filename *read_setting_filename(settings_r *handle, const char *name)
 {
     char *tmp = read_setting_s(handle, name);
     if (tmp) {
-        Filename *ret = kr_file_key(handle->sesskey) && kr_key_path_setting(name) ?
+        Filename *ret = kr_file_key(handle->sesskey) && kr_portable_path_setting(name) ?
             kr_portable_load_key_path(tmp) : filename_from_str(tmp);
         sfree(tmp);
         return ret;
@@ -202,7 +204,7 @@ void write_setting_filename(settings_w *handle,
      * completely fresh storage representation that fixes as many
      * other legacy problems as possible at the same time.
      */
-    char *portable = kr_file_key(handle->sesskey) && kr_key_path_setting(name) ?
+    char *portable = kr_file_key(handle->sesskey) && kr_portable_path_setting(name) ?
         kr_portable_save_key_path(result) : NULL;
     write_setting_s(handle, name, portable ? portable : result->cpath);
     sfree(portable);

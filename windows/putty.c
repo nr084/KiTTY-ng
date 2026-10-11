@@ -14,6 +14,7 @@ extern const char *kr_demo_panel;
 extern void kr_demo_about(Filename *filename);
 static strbuf *demo_terminal_data = NULL;
 static Filename *terminal_demo_screenshot_filename;
+bool kr_test_extensions;
 
 const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG |
@@ -151,6 +152,24 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                 /* Keep failures scriptable; do not replace a missing helper
                  * with a PATH search or another architecture. */
                 cleanup_exit(success ? status : error);
+            } else if (!strcmp(p, "-autocommand")) {
+                if (!nextarg) cmdline_error("%s requires a command", p);
+                conf_set_str(conf, CONF_autocommand, cmdline_arg_to_utf8(arglist->args[arglistpos++]));
+            } else if (!strcmp(p, "-startup-script")) {
+                if (!nextarg) cmdline_error("%s requires a script filename", p);
+                Filename *script = cmdline_arg_to_filename(arglist->args[arglistpos++]);
+                conf_set_filename(conf, CONF_kr_script_file, script); filename_free(script);
+            } else if (!strcmp(p, "-fullscreen")) {
+                conf_set_bool(conf, CONF_fullscreen, true);
+            } else if (!strcmp(p, "-maximized")) {
+                conf_set_bool(conf, CONF_maximize, true);
+            } else if (!strcmp(p, "-top")) {
+                conf_set_bool(conf, CONF_kr_always_on_top, true);
+            } else if (!strcmp(p, "-tray")) {
+                conf_set_bool(conf, CONF_sendtotray, true);
+            } else if (!strcmp(p, "-test-extensions")) {
+                if (!GetEnvironmentVariableW(L"KITTY_NG_PORTABLE_DIR", NULL, 0)) cmdline_error("test requires isolated portable preferences");
+                kr_test_extensions = true;
             } else if (!strcmp(p, "-demo-about")) {
                 if (!nextarg) cmdline_error("%s expects an output filename", p);
                 kr_demo_about(cmdline_arg_to_filename(nextarg));

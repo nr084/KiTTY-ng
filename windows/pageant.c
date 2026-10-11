@@ -80,8 +80,6 @@ static filereq_saved_dir *keypath = NULL;
 #define IDM_NO_SESSIONS        0x00C0
 #define IDM_SESSIONS_BASE      0x1000
 #define IDM_SESSIONS_MAX       0x2000
-#define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
-#define PUTTY_DEFAULT     "Default%20Settings"
 static int initial_menuitems_count;
 
 /*
@@ -896,61 +894,34 @@ static BOOL AddTrayIcon(HWND hwnd)
     return result;
 }
 
-/* Update the saved-sessions menu. */
+/* Profiles come from the same registry/portable backend as KiTTY-NG. */
 static void update_sessions(void)
 {
-    int num_entries;
-    HKEY hkey;
-    TCHAR buf[MAX_PATH + 1];
-    MENUITEMINFO mii;
-    strbuf *sb;
-
-    int index_key, index_menu;
-
-    if (!putty_path)
-        return;
-
-    if (ERROR_SUCCESS != RegOpenKey(HKEY_CURRENT_USER, PUTTY_REGKEY, &hkey))
-        return;
-
-    for (num_entries = GetMenuItemCount(session_menu);
-        num_entries > initial_menuitems_count;
-        num_entries--)
+    if (!putty_path) return;
+    while (GetMenuItemCount(session_menu) > initial_menuitems_count)
         RemoveMenu(session_menu, 0, MF_BYPOSITION);
-
-    index_key = 0;
-    index_menu = 0;
-
-    sb = strbuf_new();
-    while (ERROR_SUCCESS == RegEnumKey(hkey, index_key, buf, MAX_PATH)) {
-        if (strcmp(buf, PUTTY_DEFAULT) != 0) {
-            strbuf_clear(sb);
-            unescape_registry_key(buf, sb);
-
-            memset(&mii, 0, sizeof(mii));
-            mii.cbSize = sizeof(mii);
-            mii.fMask = MIIM_TYPE | MIIM_STATE | MIIM_ID;
-            mii.fType = MFT_STRING;
-            mii.fState = MFS_ENABLED;
-            mii.wID = (index_menu * 16) + IDM_SESSIONS_BASE;
-            mii.dwTypeData = sb->s;
-            InsertMenuItem(session_menu, index_menu, true, &mii);
-            index_menu++;
+    HKEY key = open_regkey_ro(HKEY_CURRENT_USER, PUTTY_REG_POS "\\Sessions");
+    int index = 0;
+    for (int source = 0; key && index < (IDM_SESSIONS_MAX-IDM_SESSIONS_BASE)/16; source++) {
+        char *encoded = enum_regkey(key, source); if (!encoded) break;
+        strbuf *name = strbuf_new(); unescape_registry_key(encoded, name); sfree(encoded);
+        if (strcmp(name->s, "Default Settings")) {
+            UINT cp = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, name->s, -1, NULL, 0) ? CP_UTF8 : CP_ACP;
+            wchar_t *wide = dup_mb_to_wc(cp, name->s);
+            MENUITEMINFOW item = {0}; item.cbSize = sizeof(item);
+            item.fMask = MIIM_STRING | MIIM_STATE | MIIM_ID;
+            item.fState = MFS_ENABLED; item.wID = IDM_SESSIONS_BASE + index*16;
+            item.dwTypeData = wide; InsertMenuItemW(session_menu, index++, TRUE, &item); sfree(wide);
         }
-        index_key++;
+        strbuf_free(name);
     }
-    strbuf_free(sb);
-
-    RegCloseKey(hkey);
-
-    if (index_menu == 0) {
-        wchar_t *label = dup_mb_to_wc(CP_UTF8, kr_translate("(No sessions)"));
-        MENUITEMINFOW empty = {0}; empty.cbSize = sizeof(empty);
-        empty.fMask = MIIM_STRING | MIIM_STATE | MIIM_ID;
-        empty.fState = MFS_GRAYED; empty.wID = IDM_NO_SESSIONS;
-        empty.dwTypeData = label;
-        InsertMenuItemW(session_menu, index_menu, true, &empty);
-        sfree(label);
+    if (key) close_regkey(key);
+    if (!index) {
+        wchar_t *wide = dup_mb_to_wc(CP_UTF8, kr_translate("(No sessions)"));
+        MENUITEMINFOW item = {0}; item.cbSize = sizeof(item);
+        item.fMask = MIIM_STRING | MIIM_STATE | MIIM_ID;
+        item.fState = MFS_GRAYED; item.wID = IDM_NO_SESSIONS; item.dwTypeData = wide;
+        InsertMenuItemW(session_menu, 0, TRUE, &item); sfree(wide);
     }
 }
 
@@ -1451,21 +1422,15 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             break;
           default: {
             if (wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
-                MENUITEMINFO mii;
-                TCHAR buf[MAX_PATH + 1];
-                TCHAR param[MAX_PATH + 1];
-                memset(&mii, 0, sizeof(mii));
-                mii.cbSize = sizeof(mii);
-                mii.fMask = MIIM_TYPE;
-                mii.cch = MAX_PATH;
-                mii.dwTypeData = buf;
-                GetMenuItemInfo(session_menu, wParam, false, &mii);
-                param[0] = '\0';
-                if (restrict_putty_acl)
-                    strcat(param, "&R");
-                strcat(param, "@");
-                strcat(param, mii.dwTypeData);
-                wchar_t *arguments = dup_mb_to_wc(CP_ACP, param);
+                wchar_t name[32768] = {0};
+                MENUITEMINFOW item = {0}; item.cbSize = sizeof(item);
+                item.fMask = MIIM_STRING; item.cch = lenof(name); item.dwTypeData = name;
+                if (!GetMenuItemInfoW(session_menu, wParam, FALSE, &item)) break;
+                char *utf8 = dup_wc_to_mb(CP_UTF8, name, "");
+                strbuf *command = strbuf_new();
+                if (restrict_putty_acl) put_dataz(command, "&R ");
+                put_dataz(command, "-load "); kr_quote_companion_argument(command, utf8); sfree(utf8);
+                wchar_t *arguments = dup_mb_to_wc(CP_UTF8, command->s); strbuf_free(command);
                 DWORD error, status;
                 bool launched = kr_launch_companion("kitty-ng", arguments, false, &status, &error);
                 sfree(arguments);
@@ -1552,6 +1517,15 @@ static int test_tray_language(void)
         LANGUAGE_CHECK(!strcmp(display.info->s, kr_translate("(encrypted)")));
         LANGUAGE_CHECK(GetMenuDefaultItem(systray_menu, FALSE, 0) == IDM_VIEWKEYS);
     }
+    update_sessions();
+    LANGUAGE_CHECK(GetMenuItemCount(session_menu) == 2);
+    bool found_unicode = false, found_literal = false;
+    for (int i = 0; i < GetMenuItemCount(session_menu); i++) {
+        GetMenuStringW(session_menu, i, text, lenof(text), MF_BYPOSITION);
+        found_literal |= !wcscmp(text, L"Language");
+        found_unicode |= !wcscmp(text, L"Folder/\x0421\x0435\x0430\x043d\x0441");
+    }
+    LANGUAGE_CHECK(found_unicode && found_literal);
     strbuf_free(display.info); strbuf_free(display.comment);
     DestroyWindow(keylist); keylist = NULL; DestroyWindow(owner);
     kr_utility_free_menu(systray_menu); DestroyMenu(systray_menu);

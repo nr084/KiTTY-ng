@@ -28,6 +28,10 @@ int main(void)
     char *lower = dup_wc_to_mb(CP_ACP, L"\x0441\x0435\x0440\x0432\x0435\x0440", "");
     CHECK(session_browser_match(upper, lower));
     sfree(upper); sfree(lower);
+    upper = dup_wc_to_mb(CP_UTF8, L"\x0421\x0415\x0420\x0412\x0415\x0420", "");
+    lower = dup_wc_to_mb(CP_UTF8, L"\x0441\x0435\x0440\x0432\x0435\x0440", "");
+    CHECK(session_browser_match(upper, lower));
+    sfree(upper); sfree(lower);
     CHECK(kr_portable());
     bool empty = false, nested = false, encoded = false;
     for (int i = 0; ; i++) {

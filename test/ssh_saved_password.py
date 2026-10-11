@@ -98,7 +98,7 @@ for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
                 f"HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nUserName\\root\\\n"
                 f"Protocol\\ssh\\\nTermType\\xterm\\\nPassword\\{encoded}\\\n"
                 "CloseOnExit\\2\\\nRemoteCommand\\synthetic-test\\\n"
-                "KiTTYRUSReconnectDelay\\1\\\n"
+                "ReconnectDelay\\1\\\n"
                 "AuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\n", encoding="ascii")
             args = [str(binary), "--portable-dir", directory, "-load", "root-test", "-hostkey", fingerprint]
             args += ["-sshlog", str(root / "ssh.log")]

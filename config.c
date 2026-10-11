@@ -13,9 +13,13 @@
 #define dupprintf kr_printf
 #define ui_listbox_add kr_listbox_add_label
 #define session_list_add kr_listbox_addwithid_raw
+#define session_editbox_set(c, d, t) (kr_portable() && MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, t, -1, NULL, 0) ? dlg_editbox_set_utf8(c, d, t) : dlg_editbox_set(c, d, t))
+#define session_editbox_get(c, d) (kr_portable() ? dlg_editbox_get_utf8(c, d) : dlg_editbox_get(c, d))
 #else
 #define ui_listbox_add dlg_listbox_add
 #define session_list_add dlg_listbox_addwithid
+#define session_editbox_set dlg_editbox_set
+#define session_editbox_get dlg_editbox_get
 #endif
 #include "dialog.h"
 #include "storage.h"
@@ -889,9 +893,9 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
 
     if (event == EVENT_REFRESH) {
         if (ctrl == ssd->editbox) {
-            dlg_editbox_set(ctrl, dlg, ssd->savedsession);
+            session_editbox_set(ctrl, dlg, ssd->savedsession);
         } else if (ctrl == ssd->filterbox) {
-            dlg_editbox_set(ctrl, dlg, ssd->filter);
+            session_editbox_set(ctrl, dlg, ssd->filter);
         } else if (ctrl == ssd->folderbox) {
             for (int i = 0; i < ssd->nfolders; i++) sfree(ssd->folders[i]);
             sfree(ssd->folders);
@@ -964,7 +968,7 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
     } else if (event == EVENT_VALCHANGE || event == EVENT_SELCHANGE) {
         int top, bottom, halfway, i;
         if (ctrl == ssd->filterbox) {
-            sfree(ssd->filter); ssd->filter = dlg_editbox_get(ctrl, dlg);
+            sfree(ssd->filter); ssd->filter = session_editbox_get(ctrl, dlg);
             dlg_refresh(ssd->listbox, dlg);
         } else if (ctrl == ssd->folderbox) {
             int row = dlg_listbox_index(ctrl, dlg);
@@ -977,7 +981,7 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
             }
         } else if (ctrl == ssd->editbox) {
             sfree(ssd->savedsession);
-            ssd->savedsession = dlg_editbox_get(ctrl, dlg);
+            ssd->savedsession = session_editbox_get(ctrl, dlg);
             top = ssd->sesslist.nsessions;
             bottom = -1;
             while (top-bottom > 1) {

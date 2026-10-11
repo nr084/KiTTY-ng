@@ -1651,6 +1651,8 @@ struct TermWinVtable {
     void (*clip_write)(TermWin *, int clipboard, wchar_t *text, int *attrs,
                        truecolour *colours, int len, bool must_deselect);
     void (*clip_request_paste)(TermWin *, int clipboard);
+    /* Optional front-end handler for explicitly enabled OSC 52 writes. */
+    void (*remote_clipboard)(TermWin *, const char *encoded);
 
     void (*refresh)(TermWin *);
 

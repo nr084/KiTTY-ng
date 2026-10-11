@@ -8,6 +8,11 @@ bool kr_key_path_setting(const char *name)
     return !strcmp(name, "PublicKeyFile") || !strcmp(name, "DetachedCertificate");
 }
 
+bool kr_portable_path_setting(const char *name)
+{
+    return kr_key_path_setting(name) || !strcmp(name, "Scriptfile") || !strcmp(name, "IconeFile");
+}
+
 static wchar_t *full_path(const wchar_t *path)
 {
     wchar_t *input = dupwcs(path);

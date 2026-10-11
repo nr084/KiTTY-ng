@@ -9,6 +9,7 @@
 #include "putty.h"
 #ifdef _WIN32
 #include "kittyng-companions.h"
+#include "kittyng-portable.h"
 #endif
 
 /*
@@ -452,7 +453,13 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
         RETURN(2);
         /* This parameter must be processed immediately rather than being
          * saved. */
+#ifdef _WIN32
+        const char *name = kr_portable() ? value_utf8 : value;
+        bool found = do_defaults(name, conf);
+        if (!found && strcmp(value, value_utf8)) do_defaults(kr_portable() ? value : value_utf8, conf);
+#else
         do_defaults(value, conf);
+#endif
         loaded_session = true;
         return 2;
     }

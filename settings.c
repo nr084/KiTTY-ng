@@ -8,6 +8,7 @@
 #include "putty.h"
 #ifdef _WIN32
 #include "kittyng.h"
+#include "kittyng-extensions.h"
 #endif
 #include "storage.h"
 #ifndef NO_GSSAPI
@@ -534,6 +535,7 @@ char *save_settings(const char *section, Conf *conf)
         return errmsg;
     save_open_settings(sesskey, conf);
     close_settings_w(sesskey);
+    conf_set_str(conf, CONF_kr_session_name, section && *section ? section : "Default Settings");
     return NULL;
 }
 
@@ -705,6 +707,7 @@ bool load_settings(const char *section, Conf *conf)
     sesskey = open_settings_r(section);
     bool exists = (sesskey != NULL);
     load_open_settings(sesskey, conf);
+    conf_set_str(conf, CONF_kr_session_name, section ? section : "");
     close_settings_r(sesskey);
 
     if (exists && conf_launchable(conf))
@@ -1057,7 +1060,31 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
         }
     }
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
+    gppi(sesskey, "ReconnectDelay", 0, conf, CONF_kr_reconnect_delay);
 #ifdef _WIN32
+    int reconnect = read_setting_i(sesskey, "ReconnectDelay", -1);
+    if (reconnect < 0) {
+        char *enabled = kr_ini_string("KiTTY", "autoreconnect", "yes");
+        bool disabled = !_stricmp(enabled, "no") || !strcmp(enabled, "0"); sfree(enabled);
+        reconnect = !disabled && read_setting_i(sesskey, "FailureReconnect", 0) ? kr_ini_int("ReconnectDelay", 5) : 0;
+        if (disabled) conf_set_bool(conf, CONF_wakeup_reconnect, false);
+    }
+    conf_set_int(conf, CONF_kr_reconnect_delay, max(0, min(reconnect, 86400)));
+    const struct { const char *stored, *ini; int option, fallback; } delays[] = {
+        {"InitDelay", "initdelay", CONF_initdelay, 2000},
+        {"CommandDelay", "commanddelay", CONF_kr_command_delay, 5},
+        {"BCDelay", "bcdelay", CONF_bcdelay, 0}
+    };
+    for (size_t i = 0; i < lenof(delays); i++) {
+        int delay = read_setting_i(sesskey, delays[i].stored, -1);
+        if (delay < 0) delay = kr_ini_milliseconds(delays[i].ini, delays[i].fallback);
+        conf_set_int(conf, delays[i].option, min(delay, delays[i].option == CONF_bcdelay ? 1000 : 60000));
+    }
+    if (read_setting_i(sesskey, "EnableShortcuts", -1) < 0) {
+        char *enabled = kr_ini_string("KiTTY", "shortcuts", "no");
+        conf_set_bool(conf, CONF_kr_shortcuts, !_stricmp(enabled, "yes") || !strcmp(enabled, "1")); sfree(enabled);
+    }
+    kr_load_proxy(conf);
     kr_load_password(conf);
 #endif
 }

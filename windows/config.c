@@ -10,6 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 #include "kittyng.h"
+#include "kittyng-extensions.h"
 #define dupprintf kr_printf
 
 static void password_handler(dlgcontrol *ctrl, dlgparam *dlg,
@@ -123,6 +124,49 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     ctrl_editbox(s, "Reconnect delay in seconds (0 disables)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_kr_reconnect_delay), ED_INT);
+    ctrl_checkbox(s, "Reconnect after waking from sleep", NO_SHORTCUT, HELPCTX(no_help),
+                  conf_checkbox_handler, I(CONF_wakeup_reconnect));
+
+    ctrl_settitle(b, "Connection/Automation", "Commands after SSH login");
+    ctrl_settitle(b, "Connection/Proxy profiles", "Shared proxy profiles");
+    s = ctrl_getset(b, "Connection/Proxy profiles", "profiles", "Shared proxy profiles");
+    kr_add_proxy_selector(b, s);
+    ctrl_text(s, "Use an existing proxy profile from the Proxies directory or current registry.", HELPCTX(no_help));
+    s = ctrl_getset(b, "Connection/Automation", "commands", "Automatic commands");
+    ctrl_editbox(s, "Command (use \\n between lines)", NO_SHORTCUT, 100, HELPCTX(no_help),
+                 transfer_string_handler, I(CONF_autocommand), P(NULL));
+    ctrl_filesel(s, "Startup script (UTF-8 text, optional)", NO_SHORTCUT, FILTER_ALL_FILES, false,
+                 "Select startup script", HELPCTX(no_help), conf_filesel_handler, I(CONF_kr_script_file));
+    ctrl_editbox(s, "Initial delay after login (milliseconds)", NO_SHORTCUT, 30, HELPCTX(no_help),
+                 conf_editbox_handler, I(CONF_initdelay), ED_INT);
+    ctrl_editbox(s, "Delay between lines (milliseconds)", NO_SHORTCUT, 30, HELPCTX(no_help),
+                 conf_editbox_handler, I(CONF_kr_command_delay), ED_INT);
+    ctrl_editbox(s, "Delay between characters (milliseconds)", NO_SHORTCUT, 30, HELPCTX(no_help),
+                 conf_editbox_handler, I(CONF_bcdelay), ED_INT);
+    ctrl_text(s, "Commands run in the remote session after authentication.", HELPCTX(no_help));
+
+    ctrl_settitle(b, "Window/Extensions", "KiTTY-NG window options");
+    s = ctrl_getset(b, "Window/Extensions", "startup", "Window startup");
+    ctrl_checkbox(s, "Always on top", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_kr_always_on_top));
+    ctrl_checkbox(s, "Start maximized", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_maximize));
+    ctrl_checkbox(s, "Start full screen", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_fullscreen));
+    ctrl_checkbox(s, "Start in system tray", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_sendtotray));
+    ctrl_checkbox(s, "Remember window position", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_save_windowpos));
+    ctrl_checkbox(s, "Save session settings on exit", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_saveonexit));
+    ctrl_checkbox(s, "Bring window forward on bell", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_foreground_on_bell));
+    s = ctrl_getset(b, "Window/Extensions", "input", "Input and links");
+    ctrl_checkbox(s, "Enable KiTTY keyboard shortcuts", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_kr_shortcuts));
+    ctrl_checkbox(s, "Disable AltGr", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_disablealtgr));
+    ctrl_checkbox(s, "Open HTTP(S) links with Ctrl+click", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_kr_hyperlinks));
+    ctrl_checkbox(s, "Allow remote clipboard writes (OSC 52)", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_kr_remote_clipboard));
+    ctrl_editbox(s, "Wheel lines (-1 half screen, -2 full screen)", NO_SHORTCUT, 30, HELPCTX(no_help),
+                 conf_editbox_handler, I(CONF_scrolllines), ED_INT);
+    ctrl_filesel(s, "Session icon (.ico, optional)", NO_SHORTCUT, FILTER_ALL_FILES, false,
+                 "Select session icon", HELPCTX(no_help), conf_filesel_handler, I(CONF_kr_icon_file));
+
+    ctrl_settitle(b, "Session/Notes", "Session notes");
+    s = ctrl_getset(b, "Session/Notes", "notes", "Session notes");
+    ctrl_editbox(s, "Comment", NO_SHORTCUT, 100, HELPCTX(no_help), transfer_string_handler, I(CONF_comment), P(NULL));
 
     if (!midsession) {
         /*

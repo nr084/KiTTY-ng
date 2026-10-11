@@ -1301,7 +1301,8 @@ CONF_OPTION(transparencynumber,
 CONF_OPTION(kr_reconnect_delay,
     VALUE_TYPE(INT),
     DEFAULT_INT(0),
-    SAVE_KEYWORD("KiTTYRUSReconnectDelay"),
+    SAVE_KEYWORD("ReconnectDelay"),
+    LOAD_CUSTOM,
 )
 CONF_OPTION(password,
     VALUE_TYPE(STR),
@@ -1344,3 +1345,30 @@ CONF_OPTION(kr_transfer_utf8,
 CONF_OPTION(kr_transfer_hide,
     VALUE_TYPE(BOOL), DEFAULT_BOOL(false), NOT_SAVED,
 )
+CONF_OPTION(autocommand, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("Autocommand"),)
+CONF_OPTION(scriptfilecontent, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("ScriptfileContent"),)
+CONF_OPTION(kr_script_file, VALUE_TYPE(FILENAME), SAVE_KEYWORD("Scriptfile"),)
+CONF_OPTION(kr_icon_file, VALUE_TYPE(FILENAME), SAVE_KEYWORD("IconeFile"),)
+CONF_OPTION(initdelay, VALUE_TYPE(INT), DEFAULT_INT(2000), SAVE_KEYWORD("InitDelay"),)
+CONF_OPTION(bcdelay, VALUE_TYPE(INT), DEFAULT_INT(0), SAVE_KEYWORD("BCDelay"),)
+CONF_OPTION(kr_command_delay, VALUE_TYPE(INT), DEFAULT_INT(5), SAVE_KEYWORD("CommandDelay"),)
+CONF_OPTION(maximize, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("Maximize"),)
+CONF_OPTION(fullscreen, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("Fullscreen"),)
+CONF_OPTION(sendtotray, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("SendToTray"),)
+CONF_OPTION(save_windowpos, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("SaveWindowPos"),)
+CONF_OPTION(saveonexit, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("SaveOnExit"),)
+CONF_OPTION(xpos, VALUE_TYPE(INT), DEFAULT_INT(0), SAVE_KEYWORD("TermXPos"),)
+CONF_OPTION(ypos, VALUE_TYPE(INT), DEFAULT_INT(0), SAVE_KEYWORD("TermYPos"),)
+CONF_OPTION(windowstate, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("WindowState"),)
+CONF_OPTION(foreground_on_bell, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("ForegroundOnBell"),)
+CONF_OPTION(disablealtgr, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("DisableAltGr"),)
+CONF_OPTION(scrolllines, VALUE_TYPE(INT), DEFAULT_INT(-1), SAVE_KEYWORD("LinesAtAScroll"),)
+CONF_OPTION(comment, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("Comment"),)
+CONF_OPTION(wakeup_reconnect, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("WakeupReconnect"),)
+CONF_OPTION(kr_always_on_top, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("AlwaysOnTop"),)
+CONF_OPTION(kr_shortcuts, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("EnableShortcuts"),)
+CONF_OPTION(kr_hyperlinks, VALUE_TYPE(BOOL), DEFAULT_BOOL(true), SAVE_KEYWORD("EnableHyperlinks"),)
+CONF_OPTION(kr_remote_clipboard, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("RemoteClipboardWrite"),)
+CONF_OPTION(kr_session_name, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
+CONF_OPTION(proxyselection, VALUE_TYPE(STR), DEFAULT_STR("- Session defined proxy -"), SAVE_KEYWORD("ProxySelection"),)
+CONF_OPTION(kr_proxy_error, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)

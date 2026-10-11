@@ -6,6 +6,7 @@ add_sources_from_current_dir(utils
   kittyng-companions.c
   kittyng-portable.c
   kittyng-keypaths.c
+  kittyng-extensions.c
   kittyng-legacy-crypt.c
   utils/agent_mutex_name.c
   utils/agent_named_pipe_name.c
@@ -53,6 +54,8 @@ add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
 add_executable(test_key_paths ${CMAKE_SOURCE_DIR}/test/test_key_paths.c storage.c)
 target_link_libraries(test_key_paths utils ${platform_libraries})
+add_executable(test_extensions ${CMAKE_SOURCE_DIR}/test/test_extensions.c ${CMAKE_SOURCE_DIR}/stubs/no-gss.c)
+target_link_libraries(test_extensions settings utils ${platform_libraries})
 add_executable(test_session_browser ${CMAKE_SOURCE_DIR}/test/test_session_browser.c)
 target_link_libraries(test_session_browser utils ${platform_libraries})
 add_executable(test_utility_ui ${CMAKE_SOURCE_DIR}/test/test_utility_ui.c)
@@ -93,7 +96,7 @@ add_sources_from_current_dir(otherbackends
 add_sources_from_current_dir(agent
   agent-client.c)
 add_sources_from_current_dir(guiterminal
-  dialog.c controls.c config.c printing.c jump-list.c sizetip.c kittyng-transfer.c kittyng-language.c)
+  dialog.c controls.c config.c printing.c jump-list.c sizetip.c kittyng-transfer.c kittyng-language.c kittyng-proxy-ui.c)
 add_dependencies(guiterminal generated_licence_h) # dialog.c uses licence.h
 
 # This object awkwardly needs to live in the network library as well
