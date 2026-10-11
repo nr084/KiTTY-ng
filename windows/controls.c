@@ -558,11 +558,14 @@ void staticbtn(struct ctlpos *cp, const char *stext, int sid,
 void button(struct ctlpos *cp, const char *btext, int bid, bool defbtn)
 {
     RECT r;
+    int height = PUSHBTNHEIGHT;
+    for (const char *p = kr_translate(btext ? btext : ""); *p; p++)
+        if (*p == '\n') height += STATICHEIGHT;
 
     r.left = GAPBETWEEN;
     r.top = cp->ypos;
     r.right = cp->width;
-    r.bottom = PUSHBTNHEIGHT;
+    r.bottom = height;
 
     /* Q67655: the _dialog box_ must know which button is default
      * as well as the button itself knowing */
@@ -571,10 +574,11 @@ void button(struct ctlpos *cp, const char *btext, int bid, bool defbtn)
 
     doctl(cp, r, "BUTTON",
           BS_NOTIFY | WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-          (defbtn ? BS_DEFPUSHBUTTON : 0) | BS_PUSHBUTTON,
+          (defbtn ? BS_DEFPUSHBUTTON : 0) | BS_PUSHBUTTON |
+          (height > PUSHBTNHEIGHT ? BS_MULTILINE : 0),
           0, btext, bid);
 
-    cp->ypos += PUSHBTNHEIGHT + GAPBETWEEN;
+    cp->ypos += height + GAPBETWEEN;
 }
 
 /*

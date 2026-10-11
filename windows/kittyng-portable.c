@@ -2,6 +2,7 @@
 #include "putty.h"
 #include "kittyng-portable.h"
 #include "kittyng.h"
+#include "kittyng-keypaths.h"
 #include <shellapi.h>
 
 typedef struct FileKey FileKey;
@@ -487,6 +488,131 @@ char *kr_session_folder_enum(int index)
     unescape_registry_key(encoded, decoded);
     sfree(encoded);
     return strbuf_to_str(decoded);
+}
+
+/* Patch only key references: retain every other byte, including unknown
+ * KiTTY options, encrypted passwords, comments and original line endings. */
+static int update_profile(const wchar_t *path)
+{
+    FILE *fp = _wfopen(path, L"rb");
+    if (!fp) return -1;
+    strbuf *input = strbuf_new(), *output = strbuf_new();
+    char chunk[4096]; size_t count;
+    while ((count = fread(chunk, 1, sizeof(chunk), fp)) != 0)
+        put_data(input, chunk, count);
+    bool ok = !ferror(fp), changed = false;
+    if (fclose(fp)) ok = false;
+    if (!ok) { strbuf_free(input); strbuf_free(output); return -1; }
+    size_t begin = 0;
+    while (begin < input->len) {
+        size_t end = begin;
+        while (end < input->len && input->s[end] != '\n') end++;
+        if (end < input->len) end++;
+        size_t content = end;
+        while (content > begin && (input->s[content-1] == '\r' ||
+                                   input->s[content-1] == '\n')) content--;
+        char *line = snewn(content - begin + 1, char);
+        memcpy(line, input->s + begin, content - begin);
+        line[content - begin] = 0;
+        char *split = strchr(line, '\\');
+        bool replaced = false;
+        if (split && content > begin && input->s[content-1] == '\\' &&
+            !memchr(input->s + begin, 0, content - begin)) {
+            *split++ = 0;
+            line[content - begin - 1] = 0;
+            if (kr_key_path_setting(line)) {
+                strbuf *value = percent_decode_sb(ptrlen_from_asciz(split));
+                /* Never reinterpret existing relative paths from the CWD. */
+                if (!memchr(value->s, 0, value->len) &&
+                    (value->s[0] == '\\' || value->s[0] == '/' ||
+                     (value->len > 1 && value->s[1] == ':'))) {
+                    Filename *key = filename_from_str(value->s);
+                    char *relative = kr_portable_save_key_path(key);
+                    if (*relative && relative[0] != '\\' && relative[0] != '/' &&
+                        !(relative[1] == ':')) {
+                        put_fmt(output, "%s\\", line);
+                        for (const unsigned char *p = (const unsigned char *)relative; *p; p++) {
+                            if (*p <= 32 || *p > 126 || strchr("\\*?:/\"<>|%", *p) ||
+                                (*p == '.' && p == (const unsigned char *)relative))
+                                put_fmt(output, "%%%02X", *p);
+                            else put_byte(output, *p);
+                        }
+                        put_byte(output, '\\');
+                        put_data(output, input->s + content, end - content);
+                        replaced = changed = true;
+                    }
+                    sfree(relative); filename_free(key);
+                }
+                strbuf_free(value);
+            }
+        }
+        if (!replaced) put_data(output, input->s + begin, end - begin);
+        sfree(line); begin = end;
+    }
+    strbuf_free(input);
+    if (!changed) { strbuf_free(output); return 0; }
+    wchar_t *parent = dupwcs(path), tmp[MAX_PATH];
+    wchar_t *slash = wcsrchr(parent, L'\\');
+    if (slash) *slash = 0;
+    ok = slash && GetTempFileNameW(parent, L"kng", 0, tmp);
+    sfree(parent);
+    if (ok) {
+        fp = _wfopen(tmp, L"wb");
+        ok = fp && fwrite(output->s, 1, output->len, fp) == output->len;
+        if (fp && fclose(fp)) ok = false;
+        if (ok) ok = MoveFileExW(tmp, path,
+                        MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != FALSE;
+        if (!ok) DeleteFileW(tmp);
+    }
+    strbuf_free(output);
+    return ok ? 1 : -1;
+}
+
+static void update_error(kr_profile_update *result, const wchar_t *path)
+{
+    result->failed++;
+    if (!result->first_error) result->first_error = dup_wc_to_mb(CP_UTF8, path, "");
+}
+
+static void update_directory(const wchar_t *directory, kr_profile_update *result)
+{
+    wchar_t *pattern = join(directory, L"*");
+    WIN32_FIND_DATAW data;
+    HANDLE search = FindFirstFileW(pattern, &data);
+    sfree(pattern);
+    if (search == INVALID_HANDLE_VALUE) {
+        DWORD error = GetLastError();
+        /* A package without saved profiles is an empty update. */
+        if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND)
+            update_error(result, directory);
+        return;
+    }
+    do {
+        if (!wcscmp(data.cFileName, L".") || !wcscmp(data.cFileName, L"..") ||
+            (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) continue;
+        wchar_t *path = join(directory, data.cFileName);
+        size_t n = wcslen(data.cFileName), suffix = wcslen(session_suffix);
+        if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            update_directory(path, result);
+        } else if (!(n >= 4 && !wcscmp(data.cFileName + n - 4, L".tmp")) &&
+                   (!suffix || (n >= suffix && !wcscmp(data.cFileName + n - suffix, session_suffix)))) {
+            int status = update_profile(path);
+            if (status > 0) result->updated++;
+            else if (!status) result->unchanged++;
+            else update_error(result, path);
+        }
+        sfree(path);
+    } while (FindNextFileW(search, &data));
+    DWORD error = GetLastError();
+    FindClose(search);
+    if (error != ERROR_NO_MORE_FILES) update_error(result, directory);
+}
+
+kr_profile_update kr_update_portable_profiles(void)
+{
+    kr_profile_update result = {0};
+    if (kr_portable()) update_directory(sessions_directory, &result);
+    return result;
 }
 
 void kr_file_delete(HKEY key, const char *name)

@@ -45,9 +45,21 @@ static int registry_test(const char *path)
 
 int main(int argc, char **argv)
 {
+    if (argc == 2 && !strcmp(argv[1], "update-registry")) {
+        CHECK(!kr_portable());
+        kr_profile_update result = kr_update_portable_profiles();
+        CHECK(!result.updated && !result.unchanged && !result.failed && !result.first_error);
+        return 0;
+    }
     if (argc == 3 && !strcmp(argv[1], "--registry")) return registry_test(argv[2]);
     CHECK(kr_portable());
     const char *mode = argv[argc - 1];
+    if (!strcmp(mode, "update-profiles")) {
+        kr_profile_update result = kr_update_portable_profiles();
+        printf("%u %u %u\n", result.updated, result.unchanged, result.failed);
+        sfree(result.first_error);
+        return 0;
+    }
     if (!strcmp(mode, "transfer-key")) {
         char *error = NULL; settings_w *w = open_settings_w("transfer", &error); CHECK(w && !error);
         Filename *key = root_file(L"\\SSH-Keys\\client.ppk");

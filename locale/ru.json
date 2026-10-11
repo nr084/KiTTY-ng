@@ -1347,5 +1347,9 @@
   "reget: restarting at file position %llu\n": "reget: продолжение с позиции %llu\n",
   "reget: restarting at file position %I64u\n": "reget: продолжение с позиции %I64u\n",
   "reput: restarting at file position %llu\n": "reput: продолжение с позиции %llu\n",
-  "reput: restarting at file position %I64u\n": "reput: продолжение с позиции %I64u\n"
+  "reput: restarting at file position %I64u\n": "reput: продолжение с позиции %I64u\n",
+  "Update profiles\nto latest\nversion": "Обновить\nпрофили до\nпоследней\nверсии",
+  "Profile updates require portable mode.": "Обновление профилей доступно в портативном режиме.",
+  "Profiles updated: %u\nUnchanged: %u\nErrors: %u": "Обновлено профилей: %u\nБез изменений: %u\nОшибок: %u",
+  "%s\n\nFirst error: %s": "%s\n\nПервая ошибка: %s"
 }

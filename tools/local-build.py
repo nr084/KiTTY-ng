@@ -260,6 +260,8 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
+                        ("profile-update", "test_key_paths", ["test/profile_update.py"],
+                         [PYTHON, "test/profile_update.py", directory / "test_key_paths.exe"]),
                         ("portable-key-paths", "test_key_paths", ["test/portable_key_paths.py"],
                          [PYTHON, "test/portable_key_paths.py", directory / "test_key_paths.exe"]),
                         ("session-browser", "test_session_browser", ["test/session_browser.py"],

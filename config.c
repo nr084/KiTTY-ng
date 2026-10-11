@@ -792,6 +792,7 @@ static void sshbug_handler_manual_only(dlgcontrol *ctrl, dlgparam *dlg,
 
 struct sessionsaver_data {
     dlgcontrol *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
+    dlgcontrol *updatebutton;
     dlgcontrol *okbutton, *cancelbutton;
     struct sesslist sesslist;
     bool midsession;
@@ -994,6 +995,23 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
             select_session_id(ssd, dlg, top);
         }
     } else if (event == EVENT_ACTION) {
+#ifdef _WIN32
+        if (ssd->updatebutton && ctrl == ssd->updatebutton) {
+            if (!kr_portable()) {
+                dlg_error_msg(dlg, "Profile updates require portable mode.");
+                return;
+            }
+            kr_profile_update result = kr_update_portable_profiles();
+            char *summary = dupprintf("Profiles updated: %u\nUnchanged: %u\nErrors: %u",
+                                     result.updated, result.unchanged, result.failed);
+            char *message = result.first_error ? dupprintf("%s\n\nFirst error: %s",
+                                                        summary, result.first_error) : dupstr(summary);
+            kr_messagebox(GetActiveWindow(), message, "KiTTY-NG",
+                          MB_OK | (result.failed ? MB_ICONWARNING : MB_ICONINFORMATION));
+            sfree(result.first_error); sfree(summary); sfree(message);
+            return;
+        }
+#endif
         bool mbl = false;
         if ((ctrl == ssd->listbox || ctrl == ssd->loadbutton) &&
             navigate_session_folder(ssd, dlg)) return;
@@ -2089,9 +2107,17 @@ void setup_config_box(struct controlbox *b, bool midsession,
                                          HELPCTX(session_saved),
                                          sessionsaver_handler, P(ssd));
         ssd->delbutton->column = 1;
+#ifdef _WIN32
+        ssd->updatebutton = ctrl_pushbutton(s, "Update profiles\nto latest\nversion", NO_SHORTCUT,
+                                            HELPCTX(session_saved), sessionsaver_handler, P(ssd));
+        ssd->updatebutton->column = 1;
+#else
+        ssd->updatebutton = NULL;
+#endif
     } else {
         /* Disable the Delete button mid-session too, for UI consistency. */
         ssd->delbutton = NULL;
+        ssd->updatebutton = NULL;
     }
     ctrl_columns(s, 1, 100);
 
