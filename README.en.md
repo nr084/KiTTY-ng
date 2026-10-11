@@ -52,7 +52,7 @@ Transfers inherit the current session's SSH port, proxy, keys and saved root pas
 
 ## Interface language
 
-Open **Window → Appearance → Interface language** and select **English** or **Русский** from the dropdown. The choice is saved and the interface updates immediately. You can also run `kitty-ng-x64.exe --language en` or `--language ru`.
+Open **Window → Appearance → Interface language** and select **English** or **Русский** from the dropdown. Click **Apply** beside the dropdown to save the language and immediately update the interface, keeping the current panel open. You can also run `kitty-ng-x64.exe --language en` or `--language ru`.
 
 Configuration panels, menus, standard dialogs and client messages are translated. Session names, host keys, protocol identifiers and remote terminal output retain their original content. License texts remain in their original language.
 

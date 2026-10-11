@@ -4,6 +4,9 @@
 /* UI strings are UTF-8; terminal data and session identifiers are untouched. */
 int kr_language(void);
 bool kr_set_language(int language);
+struct controlbox;
+struct controlset;
+void kr_add_language_controls(struct controlbox *box, struct controlset *set);
 const char *kr_translate(const char *english);
 char *kr_printf(const char *format, ...);
 BOOL kr_set_text(HWND hwnd, const char *text);

@@ -12,38 +12,6 @@
 #include "kittyng.h"
 #define dupprintf kr_printf
 
-static void language_handler(dlgcontrol *ctrl, dlgparam *dlg,
-                             void *data, int event)
-{
-    if (event == EVENT_REFRESH) {
-        /* Keep language IDs independent of their positions in the list. */
-        static const struct { int id; const char *name; } languages[] = {
-            { 0, "English" },
-            { 1, "\320\240\321\203\321\201\321\201\320\272\320\270\320\271" },
-        };
-        dlg_update_start(ctrl, dlg);
-        dlg_listbox_clear(ctrl, dlg);
-        for (size_t i = 0; i < lenof(languages); i++) {
-            dlg_listbox_addwithid(ctrl, dlg, languages[i].name,
-                                 languages[i].id);
-            if (languages[i].id == kr_language())
-                dlg_listbox_select(ctrl, dlg, i);
-        }
-        dlg_update_done(ctrl, dlg);
-    } else if (event == EVENT_VALCHANGE) {
-        int row = dlg_listbox_index(ctrl, dlg);
-        if (row < 0)
-            return;
-        int language = dlg_listbox_getid(ctrl, dlg, row);
-        if (language != kr_language()) {
-            if (kr_set_language(language))
-                dlg_end(dlg, 2); /* Rebuild the dialog with the same Conf. */
-            else
-                dlg_error_msg(dlg, "Unable to save interface language");
-        }
-    }
-}
-
 static void password_handler(dlgcontrol *ctrl, dlgparam *dlg,
                              void *data, int event)
 {
@@ -147,8 +115,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                  HELPCTX(no_help), transfer_string_handler, I(CONF_sftpconnect), P(NULL));
 
     s = ctrl_getset(b, "Window/Appearance", "kittyng", "KiTTY-NG");
-    ctrl_droplist(s, "Interface language", NO_SHORTCUT, 50,
-                  HELPCTX(no_help), language_handler, P(NULL));
+    kr_add_language_controls(b, s);
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_transparencynumber), ED_INT);

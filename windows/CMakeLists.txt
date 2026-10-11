@@ -49,6 +49,16 @@ target_link_libraries(utils PUBLIC bcrypt)
 
 add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
+add_executable(test_language_controls ${CMAKE_SOURCE_DIR}/test/test_language_controls.c
+  kittyng-language.c ${CMAKE_SOURCE_DIR}/dialog.c)
+target_link_libraries(test_language_controls utils ${platform_libraries})
+if(MSVC)
+  target_compile_options(test_language_controls PRIVATE /Gy)
+  target_link_options(test_language_controls PRIVATE /OPT:REF)
+else()
+  target_compile_options(test_language_controls PRIVATE -ffunction-sections -fdata-sections)
+  target_link_options(test_language_controls PRIVATE -Wl,--gc-sections)
+endif()
 add_executable(test_companion_probe WIN32 ${CMAKE_SOURCE_DIR}/test/test_companion_probe.c)
 target_link_libraries(test_companion_probe PRIVATE shell32)
 add_executable(test_kittyng_legacy
@@ -75,7 +85,7 @@ add_sources_from_current_dir(otherbackends
 add_sources_from_current_dir(agent
   agent-client.c)
 add_sources_from_current_dir(guiterminal
-  dialog.c controls.c config.c printing.c jump-list.c sizetip.c kittyng-transfer.c)
+  dialog.c controls.c config.c printing.c jump-list.c sizetip.c kittyng-transfer.c kittyng-language.c)
 add_dependencies(guiterminal generated_licence_h) # dialog.c uses licence.h
 
 # This object awkwardly needs to live in the network library as well

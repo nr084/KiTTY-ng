@@ -234,7 +234,7 @@ def main():
             cmake = args.cmake.resolve() if args.cmake else wheels / "cmake/data/bin/cmake.exe"
             ninja = args.ninja.resolve() if args.ninja else next(wheels.glob("ninja-*.data/scripts/ninja.exe"))
             report["bootstrap"] = wheel_info
-            check("translations", {"config.c", "windows/config.c", "ssh/ca-config.c",
+            check("translations", {"config.c", "windows/config.c", "windows/kittyng-language.c", "ssh/ca-config.c",
                   "locale/ru.json", "tools/check-translations.py"},
                   [([PYTHON, "tools/check-translations.py"], None)])
             staged = work / "release"
@@ -281,11 +281,16 @@ def main():
                     check(arch + "/registry", files,
                           [([PYTHON, "test/registry_storage.py", directory / "test_kittyng.exe"], None)],
                           compiler=compiler)
+                    files = source_dependencies(ninja, directory, ["test_language_controls.exe"])
+                    files.update({"test/language_apply.py"})
+                    check(arch + "/language-apply", files,
+                          [([PYTHON, "test/language_apply.py", directory / "test_language_controls.exe"], None)],
+                          compiler=compiler)
                     # Session-dialog painting has no bearing on SSH authentication.
                     files = source_dependencies(ninja, directory, [executable, cli_executable])
                     files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}
                     files -= {"windows/config.c", "windows/controls.c", "windows/dialog.c",
-                              "windows/kittyng-translations.h", "config.c"}
+                              "windows/kittyng-translations.h", "windows/kittyng-language.c", "config.c"}
                     files = {f for f in files if not f.endswith((".rc", ".rc2", ".ico"))}
                     files.update({"test/ssh_saved_password.py", "test/kittyng-password-vector.json"})
                     key = arch + "/ssh"

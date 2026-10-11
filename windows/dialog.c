@@ -65,6 +65,7 @@ typedef struct PortableDialogStuff {
      * setup.
      */
     bool initialised;
+    const char *initial_path, *current_path;
 } PortableDialogStuff;
 
 /*
@@ -676,7 +677,8 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                     c++;
 
                 item = treeview_insert(&tvfaff, j, c, s->pathname);
-                if (!hfirst || (kr_demo_panel && !strcmp(kr_demo_panel, s->pathname))) {
+                const char *preferred = kr_demo_panel ? kr_demo_panel : pds->initial_path;
+                if (!hfirst || (preferred && !strcmp(preferred, s->pathname))) {
                     hfirst = item;
                     firstpath = s->pathname;
                 }
@@ -695,6 +697,7 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
              * match the initial treeview selection.
              */
             assert(firstpath);   /* config.c must have given us _something_ */
+            pds->current_path = firstpath;
             pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
                                 117, 3, 13, firstpath);
             dlg_refresh(NULL, pds->dp);    /* and set up control values */
@@ -765,8 +768,9 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                     sfree(c);
                 }
             }
+            pds->current_path = (char *)item.lParam;
             pds_create_controls(pds, TREE_PANEL, IDCX_PANELBASE,
-                                117, 3, 13, (char *)item.lParam);
+                                117, 3, 13, pds->current_path);
 
             dlg_refresh(NULL, pds->dp);    /* set up control values */
 
@@ -815,10 +819,12 @@ void defuse_showwindow(void)
 bool do_config(Conf *conf)
 {
     int ret;
+    char *restore_path = NULL;
     do {
     PortableDialogStuff *pds = pds_new(2);
 
     setup_config_box(pds->ctrlbox, false, 0, 0);
+    pds->initial_path = restore_path;
     win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(), false, 0);
 
     pds->dp->wintitle = dupprintf("%s Configuration", appname);
@@ -831,9 +837,13 @@ bool do_config(Conf *conf)
     ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
                          NULL, GenericMainDlgProc, pds);
 
+    if (ret == 2) {
+        sfree(restore_path);
+        restore_path = dupstr(pds->current_path);
+    }
     pds_free(pds);
     } while (ret == 2);
-
+    sfree(restore_path);
     return ret;
 }
 
@@ -842,6 +852,7 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     Conf *backup_conf;
     int ret;
     int protocol;
+    char *restore_path = NULL;
 
     backup_conf = conf_copy(conf);
 
@@ -850,6 +861,7 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
 
     protocol = conf_get_int(conf, CONF_protocol);
     setup_config_box(pds->ctrlbox, true, protocol, protcfginfo);
+    pds->initial_path = restore_path;
     win_setup_config_box(pds->ctrlbox, &pds->dp->hwnd, has_help(),
                          true, protocol);
 
@@ -863,8 +875,13 @@ bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
     ret = ShinyDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), "PuTTYConfigBox",
                          NULL, GenericMainDlgProc, pds);
 
+    if (ret == 2) {
+        sfree(restore_path);
+        restore_path = dupstr(pds->current_path);
+    }
     pds_free(pds);
     } while (ret == 2);
+    sfree(restore_path);
 
     if (!ret)
         conf_copy_into(conf, backup_conf);
