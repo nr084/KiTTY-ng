@@ -68,6 +68,14 @@ for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
                     if reconnect and attempt == 0:
                         # A lost established session must reconnect with the
                         # saved password. A normal second exit must terminate.
+                        channel.sendall(b"SSH_SESSION_STARTED\r\n")
+                        # A round trip confirms that the client has processed
+                        # the established channel before the injected outage.
+                        transport.global_request("keepalive@openssh.com", wait=True)
+                        # Shutdown wakes the concurrent Windows recv before
+                        # closing its socket; close alone can leave that read
+                        # holding the underlying TCP handle temporarily.
+                        client.shutdown(socket.SHUT_RDWR)
                         transport.close()
                         continue
                     channel.sendall(b"SSH_TEST_OK\r\n")
@@ -92,11 +100,24 @@ for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
                 "KiTTYRUSReconnectDelay\\1\\\n"
                 "AuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\n", encoding="ascii")
             args = [str(binary), "--portable-dir", directory, "-load", "root-test", "-hostkey", fingerprint]
+            args += ["-sshlog", str(root / "ssh.log")]
             if binary.stem == "plink": args += ["-batch", "synthetic-test"]
             startup = subprocess.STARTUPINFO()
             startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startup.wShowWindow = 0
-            result = subprocess.run(args, capture_output=True, timeout=20, startupinfo=startup)
+            process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                       startupinfo=startup)
+            try:
+                stdout, stderr = process.communicate(timeout=20)
+                result = subprocess.CompletedProcess(args, process.returncode, stdout, stderr)
+            except subprocess.TimeoutExpired:
+                process.kill(); process.communicate()
+                print("Timed out:", binary.name, "connections:", connections,
+                      "authenticated:", server.authenticated, "server failures:", failures,
+                      flush=True)
+                if (root / "ssh.log").exists():
+                    print((root / "ssh.log").read_text(errors="replace")[-5000:], flush=True)
+                raise
             worker.join(3)
             assert result.returncode == 0, (binary.name, result.returncode, server.authenticated, failures,
                                           result.stdout.decode(errors="replace"), result.stderr.decode(errors="replace"))

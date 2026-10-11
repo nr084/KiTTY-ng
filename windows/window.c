@@ -1221,11 +1221,11 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg)
      * or a rejected host key. Normal shell exits do not reach this hook. */
     wgs->kr_retryable = wgs->kr_session_started &&
         conf_get_int(wgs->conf, CONF_kr_reconnect_delay) > 0;
+    logevent(wgs->logctx, msg);
+    logflush(wgs->logctx);
     show_mouseptr(wgs, true);
     if (!wgs->kr_retryable)
         MessageBox(wgs->term_hwnd, msg, title, MB_ICONERROR | MB_OK);
-    else
-        logevent(wgs->logctx, msg);
     sfree(title);
 
     if (conf_get_int(wgs->conf, CONF_close_on_exit) == FORCE_ON &&
