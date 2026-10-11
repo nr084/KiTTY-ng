@@ -1,0 +1,322 @@
+"""Local Windows release pipeline. Run with Python 3.10+ and Git on PATH."""
+import argparse
+import hashlib
+import io
+import json
+import os
+import re
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+import time
+import urllib.request
+import zipfile
+from build_names import main_executable, utility_executable
+from local_toolchain import ensure_local_toolchain
+
+ROOT = Path(__file__).resolve().parents[1]
+PYTHON = sys.executable
+BASELINE_FILES = {}
+
+
+def digest_files(files, baseline=None):
+    digest = hashlib.sha256()
+    if baseline:
+        missing = sorted(name for name in set(files) if (baseline, name) not in BASELINE_FILES)
+        for offset in range(0, len(missing), 100):
+            names = missing[offset:offset + 100]
+            result = subprocess.run(
+                ["git", "-c", "safe.directory=" + str(ROOT), "archive", baseline, "--", *names],
+                cwd=ROOT, capture_output=True)
+            if result.returncode:
+                return None
+            with tarfile.open(fileobj=io.BytesIO(result.stdout)) as archive:
+                for name in names:
+                    try:
+                        stream = archive.extractfile(name)
+                        if stream is None:
+                            return None
+                        BASELINE_FILES[baseline, name] = stream.read()
+                    except KeyError:
+                        return None
+    for name in sorted(set(files)):
+        path = ROOT / name
+        if baseline:
+            data = BASELINE_FILES[baseline, name].replace(b"\r\n", b"\n")
+        else:
+            if not path.is_file():
+                return None
+            data = path.read_bytes().replace(b"\r\n", b"\n")
+        digest.update(name.encode() + b"\0" + data + b"\0")
+    return digest.hexdigest()
+
+
+def fetch_wheel(package, destination):
+    # CMake and Ninja wheels contain native tools, no installation is needed.
+    from pip._vendor.packaging.tags import sys_tags
+    from pip._vendor.packaging.utils import parse_wheel_filename
+    from pip._vendor.packaging.version import Version
+    with urllib.request.urlopen(
+            f"https://pypi.org/pypi/{package}/json", timeout=60) as response:
+        metadata = json.load(response)
+    assert not Version(metadata["info"]["version"]).is_prerelease
+    tags = set(sys_tags())
+    asset = next(a for a in metadata["urls"] if
+                 a["filename"].endswith(".whl") and not a["yanked"] and
+                 parse_wheel_filename(a["filename"])[3] & tags)
+    with urllib.request.urlopen(asset["url"], timeout=120) as response:
+        data = response.read()
+    assert hashlib.sha256(data).hexdigest() == asset["digests"]["sha256"]
+    with zipfile.ZipFile(io.BytesIO(data)) as bundle:
+        for name in bundle.namelist():
+            if not (destination / name).resolve().is_relative_to(destination):
+                raise ValueError("Unsafe wheel member")
+        bundle.extractall(destination)
+    return {"version": metadata["info"]["version"], "sha256": asset["digests"]["sha256"]}
+
+
+def source_dependencies(ninja, directory, targets):
+    """Read the actual build graph and compiler-discovered header dependencies."""
+    inputs = subprocess.check_output(
+        [str(ninja), "-C", str(directory), "-t", "inputs", *targets],
+        text=True, encoding="utf8").splitlines()
+    dependencies = subprocess.check_output(
+        [str(ninja), "-C", str(directory), "-t", "deps"],
+        text=True, encoding="utf8")
+    graph = subprocess.check_output(
+        [str(ninja), "-C", str(directory), "-t", "graph", *targets],
+        text=True, encoding="utf8")
+    objects = set(re.findall(r'\[label="([^"]+)"', graph))
+    active = False
+    for line in dependencies.splitlines():
+        if line and not line.startswith(" "):
+            active = line.rsplit(": #deps", 1)[0] in objects
+        elif active and line.startswith("    "):
+            inputs.append(line.strip())
+    files = set()
+    for item in set(inputs):
+        path = Path(item)
+        if not path.is_absolute():
+            path = directory / path
+        path = path.resolve()
+        if (path.is_relative_to(ROOT) and not path.is_relative_to(directory.parent)
+                and not path.is_relative_to(ROOT / "_tools")):
+            if path.is_file():
+                files.add(path.relative_to(ROOT).as_posix())
+    if not files:
+        raise RuntimeError("No source dependencies found; cannot reuse test results")
+    # Changes to build definitions can alter feature macros and compiler flags.
+    files.update(p.relative_to(ROOT).as_posix() for p in ROOT.rglob("CMakeLists.txt")
+                 if not p.is_relative_to(directory.parent) and not p.is_relative_to(ROOT / "_tools")
+                 and ".git" not in p.parts)
+    files.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "cmake").glob("*.cmake"))
+    files.add("tools/build-llvm.py")
+    # These suites do not test release strings. PE/version validation runs
+    # separately on every package, so a new test-stage suffix needs no retest.
+    files -= {"version.h", "utils/version.c", "windows/version.rc2"}
+    return files
+
+
+def main():
+    # Keep diagnostics readable in Russian paths and redirected Windows logs.
+    os.environ["PYTHONUTF8"] = "1"
+    sys.stdout.reconfigure(encoding="utf8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf8", errors="replace")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--arch", nargs="+", choices=["x64", "x86", "arm64"],
+                        default=["x64", "x86", "arm64"])
+    parser.add_argument("--toolchain", type=Path, help="Existing LLVM-MinGW directory")
+    parser.add_argument("--cmake", type=Path)
+    parser.add_argument("--ninja", type=Path)
+    parser.add_argument("--offline", action="store_true", help="Requires all three tool paths")
+    parser.add_argument("--force-tests", action="store_true", help="Explicitly rerun cached checks")
+    parser.add_argument("--output", type=Path, default=ROOT / "dist")
+    args = parser.parse_args()
+    if os.name != "nt":
+        parser.error("Run this pipeline on Windows (native x64/x86 tests)")
+    if not shutil.which("git"):
+        parser.error("Git must be available on PATH")
+    if args.offline and not all([args.toolchain, args.cmake, args.ninja]):
+        parser.error("--offline requires --toolchain, --cmake and --ninja")
+    os.chdir(ROOT)
+    output = args.output.resolve()
+    output.mkdir(parents=True, exist_ok=True)
+    cache_path = output / "local-tests.json"
+    cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    report = {"started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "status": "running",
+              "version": (ROOT / "VERSION").read_text().strip(), "tests": [], "archives": []}
+    report["source_commit"] = subprocess.check_output(
+        ["git", "-c", "safe.directory=" + str(ROOT), "rev-parse", "HEAD"],
+        text=True).strip()
+    report["working_tree_dirty"] = bool(subprocess.check_output(
+        ["git", "-c", "safe.directory=" + str(ROOT), "status", "--porcelain"]))
+    logs = output / "local-build-logs"
+    logs.mkdir(exist_ok=True)
+    prior_path = output / "validation.json"
+    prior = json.loads(prior_path.read_text()) if prior_path.exists() else {}
+
+    def run(command, label, env=None):
+        print(label, flush=True)
+        result = subprocess.run([str(arg) for arg in command], cwd=ROOT,
+                                env=env, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+        (logs / (label + ".log")).write_bytes(result.stdout)
+        if result.returncode:
+            print(result.stdout.decode("utf8", errors="replace")[-10000:])
+            raise RuntimeError(f"{label}: exit {result.returncode}")
+
+    def check(key, files, commands, compiler=None, baseline_allowed=False):
+        fingerprint = digest_files(files)
+        if fingerprint is None:
+            raise RuntimeError("Missing test input: " + key)
+        entry = cache.get(key, {})
+        reused = (not args.force_tests and entry.get("fingerprint") == fingerprint and
+                  entry.get("compiler") == compiler)
+        if not reused and not args.force_tests and baseline_allowed:
+            arch = key.split("/", 1)[0]
+            prior_compilers = [f.get("compiler") for f in prior.get("files", [])
+                              if f.get("file", "").endswith("-" + arch + ".zip")]
+            commit = prior.get("source_commit")
+            if (commit and prior.get("ci", {}).get("status") == "success" and
+                    arch in prior.get("native_tests", []) and compiler in prior_compilers and
+                    digest_files(files, commit) == fingerprint):
+                reused = True
+                entry = {"evidence": prior["ci"]["url"], "source_commit": commit}
+        if reused:
+            print("REUSE:", key, flush=True)
+        else:
+            for index, (command, env) in enumerate(commands):
+                run(command, key.replace("/", "-") + f"-{index}", env)
+            entry = {"source_commit": report["source_commit"], "evidence": "local"}
+        entry.update(fingerprint=fingerprint, compiler=compiler, inputs=sorted(files))
+        cache[key] = entry
+        cache_path.write_text(json.dumps(cache, indent=2) + "\n")
+        report["tests"].append({"suite": key, "result": "reused" if reused else "passed",
+                                "evidence": entry["evidence"]})
+
+    try:
+        # This directory is owned by this invocation, including on failure.
+        with tempfile.TemporaryDirectory(prefix="local-build-", dir=ROOT) as temporary:
+            work = Path(temporary).resolve()
+            toolchain = args.toolchain.resolve() if args.toolchain else ensure_local_toolchain(ROOT, run)
+            wheel_info = {}
+            wheels = work / "python"
+            if not args.cmake or not args.ninja:
+                wheels.mkdir()
+            if not args.cmake:
+                wheel_info["cmake"] = fetch_wheel("cmake", wheels)
+            if not args.ninja:
+                wheel_info["ninja"] = fetch_wheel("ninja", wheels)
+            cmake = args.cmake.resolve() if args.cmake else wheels / "cmake/data/bin/cmake.exe"
+            ninja = args.ninja.resolve() if args.ninja else next(wheels.glob("ninja-*.data/scripts/ninja.exe"))
+            report["bootstrap"] = wheel_info
+            check("translations", {"config.c", "windows/config.c", "ssh/ca-config.c",
+                  "locale/ru.json", "tools/check-translations.py"},
+                  [([PYTHON, "tools/check-translations.py"], None)])
+            staged = work / "release"
+            for arch in dict.fromkeys(args.arch):
+                directory = work / arch
+                executable = main_executable(arch)
+                cli_executable = utility_executable("plink", arch)
+                command = [PYTHON, "tools/build-llvm.py", arch, "--toolchain", toolchain,
+                           "--build-dir", directory, "--cmake", cmake, "--ninja", ninja]
+                if arch != "arm64":
+                    command.append("--tests")
+                try:
+                    run(command, "build-" + arch)
+                finally:
+                    if directory.exists():
+                        for name in ("configure.log", "build.log", "compiler.json"):
+                            if (directory / name).exists():
+                                shutil.copy2(directory / name, logs / (arch + "-" + name))
+                compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
+                if arch != "arm64":
+                    suites = [
+                        ("portable", "test_kittyng", ["test/run_kittyng.py"],
+                         [PYTHON, "test/run_kittyng.py", directory / "test_kittyng.exe"]),
+                        ("legacy", "test_kittyng_legacy", ["test/run_kittyng_legacy.py", "test/kittyng-legacy-vectors.json"],
+                         [PYTHON, "test/run_kittyng_legacy.py", directory / "test_kittyng_legacy.exe"]),
+                        ("host", "test_host_strfoo", [], [directory / "test_host_strfoo.exe"]),
+                        ("bpp", "test_bpp", [], [directory / "test_bpp.exe"]),
+                        ("crypto", "testcrypt", ["test/cryptsuite.py", "test/testcrypt.py",
+                         "test/eccref.py", "test/numbertheory.py", "test/ssh.py", "test/ca.py"],
+                         [PYTHON, "test/cryptsuite.py"]),
+                    ]
+                    for suite, target, scripts, test_command in suites:
+                        files = source_dependencies(ninja, directory, [target + ".exe"]) | set(scripts)
+                        # This separate object is not referenced by the core
+                        # test executables; dispatch is exercised below.
+                        files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}
+                        environment = os.environ.copy()
+                        if suite == "crypto":
+                            environment["PUTTY_TESTCRYPT"] = '"' + str(directory / "testcrypt.exe") + '"'
+                        check(arch + "/" + suite, files, [(test_command, environment)],
+                              compiler=compiler, baseline_allowed=True)
+                    # Session-dialog painting has no bearing on SSH authentication.
+                    files = source_dependencies(ninja, directory, [executable, cli_executable])
+                    files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}
+                    files -= {"windows/config.c", "windows/controls.c", "windows/dialog.c",
+                              "windows/kittyng-translations.h", "config.c"}
+                    files = {f for f in files if not f.endswith((".rc", ".rc2", ".ico"))}
+                    files.update({"test/ssh_saved_password.py", "test/kittyng-password-vector.json"})
+                    key = arch + "/ssh"
+                    # Install Paramiko only when the SSH suite actually needs to run.
+                    cached = cache.get(key, {})
+                    fingerprint = digest_files(files)
+                    baseline_ok = (prior.get("ci", {}).get("status") == "success" and
+                                   arch in prior.get("native_tests", []) and prior.get("source_commit") and
+                                   digest_files(files, prior["source_commit"]) == fingerprint and
+                                   any(f.get("compiler") == compiler for f in prior.get("files", [])
+                                       if f.get("file", "").endswith("-" + arch + ".zip")))
+                    if args.force_tests or not (baseline_ok or
+                        (cached.get("fingerprint") == fingerprint and cached.get("compiler") == compiler)):
+                        if args.offline:
+                            __import__("paramiko")
+                            test_python = PYTHON
+                        else:
+                            environment_dir = work / "ssh-python"
+                            if not environment_dir.exists():
+                                run([PYTHON, "-m", "venv", environment_dir], "ssh-venv")
+                                run([environment_dir / "Scripts/python.exe", "-m", "pip", "install", "paramiko"], "ssh-dependencies")
+                            test_python = environment_dir / "Scripts/python.exe"
+                    else:
+                        test_python = PYTHON
+                    check(key, files, [([test_python, "test/ssh_saved_password.py", directory / executable, directory / cli_executable], None),
+                          ([test_python, "test/ssh_saved_password.py", "--reconnect", directory / executable], None)],
+                          compiler=compiler, baseline_allowed=True)
+                    files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
+                    files.update({"test/companion_dispatch.py", "tools/build_names.py"})
+                    check(arch + "/companions", files,
+                          [([PYTHON, "test/companion_dispatch.py", directory, arch], None)],
+                          compiler=compiler)
+                run([PYTHON, "tools/package-release.py", arch, directory, "--output", staged], "package-" + arch)
+                archive = staged / f"kitty-ng-{report['version']}-{arch}.zip"
+                report["archives"].append({"file": archive.name, "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+                                           "compiler": compiler})
+            for archive in report["archives"]:
+                with tempfile.NamedTemporaryFile(dir=output, suffix=".zip", delete=False) as pending:
+                    pending_path = Path(pending.name)
+                try:
+                    shutil.copyfile(staged / archive["file"], pending_path)
+                    pending_path.replace(output / archive["file"])
+                finally:
+                    pending_path.unlink(missing_ok=True)
+            (output / "SHA256SUMS.txt").write_text("".join(
+                f"{a['sha256']}  {a['file']}\n" for a in report["archives"]), encoding="ascii")
+            for arch in args.arch:
+                (output / f"SHA256SUMS-{arch}.txt").unlink(missing_ok=True)
+        report["status"] = "success"
+        print("PASS: local build, tests and ZIP packaging; temporary files removed", flush=True)
+    except BaseException as error:
+        report["status"] = "failed"
+        report["error"] = str(error)
+        raise
+    finally:
+        (output / "local-build.json").write_text(json.dumps(report, indent=2) + "\n")
+
+
+if __name__ == "__main__":
+    main()

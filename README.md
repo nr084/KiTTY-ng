@@ -1,5 +1,7 @@
 # kitty-ng
 
+**Русский** | [English](README.en.md)
+
 SSH, Telnet и последовательный терминал для Windows на базе PuTTY 0.85 с русским и английским интерфейсом и переносимыми настройками KiTTY.
 
 <img src="icons/kitty-ng.png" width="192" alt="Два соединённых терминала">
@@ -8,17 +10,31 @@ SSH, Telnet и последовательный терминал для Windows 
 
 ## Скачать и запустить
 
-Сборки публикуются в [релизах](https://github.com/nr084/kitty-ng/releases). Выберите Windows **x64**, **x86** или **ARM64**, распакуйте архив и запустите `kitty-ng.exe`. Установка не требуется. В комплект входят Plink, PSCP, PSFTP, PuTTYgen и Pageant.
+Сборки публикуются в [релизах](https://github.com/nr084/kitty-ng/releases). Выберите Windows **x64**, **x86** или **ARM64**, распакуйте архив и запустите соответственно `kitty-ng-x64.exe`, `kitty-ng-x86.exe` или `kitty-ng-arm64.exe`. Установка не требуется. В комплект входят klink, kscp, ksftp, kittygen и kageant на базе утилит PuTTY.
 
-Релиз содержит три архива: `kitty-ng-0.85-test-x64.zip`, `kitty-ng-0.85-test-x86.zip` и `kitty-ng-0.85-test-arm64.zip`. Внутри каждого лежат `kitty-ng.exe`, `plink.exe`, `pscp.exe`, `psftp.exe`, `puttygen.exe` и `pageant.exe` соответствующей архитектуры. В именах EXE версия не добавляется; встроенные сведения о версии сохраняются. Контрольные суммы архивов приводятся в описании релиза.
+Релиз содержит три архива: `kitty-ng-0.85-test-x64.zip`, `kitty-ng-0.85-test-x86.zip` и `kitty-ng-0.85-test-arm64.zip`. Все EXE внутри имеют суффикс архитектуры. Например, архив x64 содержит `kitty-ng-x64.exe`, `klink-x64.exe`, `kscp-x64.exe`, `ksftp-x64.exe`, `kittygen-x64.exe` и `kageant-x64.exe`. В остальных архивах используется суффикс `-x86` или `-arm64`. В именах EXE версия не добавляется; встроенные сведения о версии сохраняются. Контрольные суммы архивов приводятся в описании релиза.
 
 Архивы поставляются в портативном режиме: файл `kitty-ng.portable` включает хранение рядом с программой. Для хранения в реестре удалите этот маркер и убедитесь, что в `kitty.ini` нет `savemode=dir`. В обычном режиме сохраняется прежняя ветка `HKCU\Software\KiTTY-RUS`, чтобы переименование не потеряло существующие сессии.
 
 При обновлении распознаётся и старый маркер `kitty-rus.portable`. Ключи старого формата, `kitty.ini`, каталоги `Sessions` и `SshHostKeys`, а также алгоритм хранения пароля сохраняют совместимость.
 
+## Запуск сопутствующих утилит
+
+Клиент запускает помощников своей архитектуры из собственного каталога. Например, x64-клиент выбирает `kscp-x64.exe`, а x86-клиент — `kscp-x86.exe`. Проверяется реальная архитектура PE; поиск подмены через PATH не выполняется. Список задач Windows использует соответствующие `kageant` и `kittygen`, а агент открывает `kitty-ng` своей архитектуры.
+
+Для запуска передачи файлов через соответствующий kscp:
+
+```powershell
+.\kitty-ng-x64.exe -launch-utility kscp -load "Production/root" "C:\Files\example.txt" root@example.com:/tmp/
+```
+
+Также поддерживаются `-launch-utility klink`, `ksftp`, `kittygen` и `kageant`; оставшиеся аргументы передаются утилите, код её завершения возвращается вызывающему процессу. Это запуск помощников; старый drag-and-drop механизм KiTTY ещё требует переноса.
+
 ## Язык интерфейса
 
-Откройте **Окно → Внешний вид → Язык интерфейса** и выберите русский или английский. Выбор запоминается. Можно также запускать `kitty-ng.exe --language ru` или `--language en`.
+Откройте **Окно → Оформление → Язык интерфейса** и выберите **Русский** или **English** в раскрывающемся списке. Выбор запоминается и сразу обновляет интерфейс. Можно также запускать, например, `kitty-ng-x64.exe --language ru` или `--language en`.
+
+![Выбор языка интерфейса](docs/screenshots/language-ru.png)
 
 Переведены панели настройки, меню, стандартные диалоги и сообщения клиента. Имена сессий, ключи сервера, протокольные идентификаторы и текст удалённого терминала сохраняются в исходном виде. Текст лицензий оставлен в оригинале.
 
@@ -29,7 +45,7 @@ SSH, Telnet и последовательный терминал для Windows 
 Сначала сделайте копию каталога старого клиента. Разместите kitty-ng в копии рядом с `kitty.ini`, `Sessions` и `SshHostKeys` либо укажите каталог явно:
 
 ```powershell
-.\kitty-ng.exe --portable-dir "D:\Terminal\KiTTY"
+.\kitty-ng-x64.exe --portable-dir "D:\Terminal\KiTTY"
 ```
 
 Поддерживаются старые файлы сессий `Ключ\значение\`, кодирование `%XX`, вложенные каталоги, расширения файлов из `kitty.ini` и пути из `putty.conf`. Неизвестные поля старого KiTTY сохраняются при перезаписи сессии. В окне сессий доступны выбор папки и поиск по имени.
@@ -46,37 +62,32 @@ Plink, PSCP, PSFTP, PuTTYgen и Pageant собираются из той же а
 
 ## Сборка и проверка
 
-Нужны Visual Studio 2022 с компонентами C++ для нужной архитектуры, Windows SDK, CMake и Python 3. ARM64 требует соответствующих инструментов Visual Studio.
+Основная цепочка работает локально на Windows x64. Нужны **Python 3.10+ с pip** и **Git в PATH**, для первой сборки — доступ в интернет. Visual Studio и отдельная установка Windows SDK не требуются: используется LLVM-MinGW. GitHub Actions для сборки не используются.
+
+```powershell
+python tools/local-build.py
+```
+
+Команда проверяет последний стабильный LLVM-MinGW и устанавливает его локально в `_tools/llvm-mingw/<выпуск>/toolchain`. Установленный компилятор сохраняется между сборками; при появлении нового стабильного выпуска скачивается новая версия. CMake и Ninja подготавливаются во временном каталоге. SHA-256 загрузок проверяются. Цепочка собирает клиент и утилиты для **x64, x86 и ARM64**, выполняет необходимые проверки и создаёт три ZIP в `dist`. Временные зависимости и промежуточные файлы удаляются даже при ошибке; логи остаются в `dist/local-build-logs`, отчёт — в `dist/local-build.json`, контрольные суммы — в `dist/SHA256SUMS.txt`. Команда ничего не публикует на GitHub.
+
+Установить или проверить локальный компилятор отдельно: `python tools/local_toolchain.py`.
+
+Уже успешно пройденные проверки пропускаются, когда исходники, заголовки, тестовые сценарии и компилятор для соответствующей проверки не изменились. Результаты и зависимости сохраняются в `dist/local-tests.json`; файл следует сохранять между сборками. Существующий отчёт `dist/validation.json` также используется как подтверждение ранее пройденных проверок, если текущие зависимости совпадают с указанным коммитом. Первую сборку без такого подтверждения сопровождает полный набор проверок x64 и x86. ARM64 проверяется по структуре PE и версии ресурсов; запуск на устройстве ARM64 нужен отдельно.
+
+Можно собрать только одну архитектуру или использовать собственные инструменты без загрузок:
+
+```powershell
+python tools/local-build.py --arch x64
+python tools/local-build.py --offline --toolchain C:\Toolchains\llvm-mingw --cmake C:\Tools\cmake.exe --ninja C:\Tools\ninja.exe
+```
+
+Для offline-режима установите `paramiko` в Python заранее, если необходима проверка изменённой SSH-логики. При обычной сборке эта зависимость устанавливается во временное окружение только при необходимости. `--force-tests` явно запускает все проверки заново, например для воспроизведения ошибки. Точные версии инструментов и коммит записываются в `BUILD-INFO.json` внутри ZIP. При ошибке сборки или теста цепочка прекращается и записывает причину в отчёт.
+
+Вариант с установленной Visual Studio 2022 и Windows SDK остаётся доступным через CMake presets:
 
 ```powershell
 cmake --preset windows-x64
 cmake --build --preset windows-x64 --parallel
-python tools/check-translations.py
-```
-
-Для x86 и ARM64 замените `windows-x64` на `windows-x86` или `windows-arm64`. CMake-цель терминала — `kitty-ng`, результат — `kitty-ng.exe`. Автоматические сборки доступны в Actions.
-
-Основные сборки используют последний стабильный LLVM/Clang из официального LLVM-MinGW. Скрипт проверяет SHA-256 архива инструментов и удаляет временный скачанный архив. Для локальной сборки с CMake и Ninja:
-
-```powershell
-python tools/fetch-llvm-mingw.py
-python tools/build-llvm.py x64 --tests
-python tools/package-release.py x64 build/x64
-```
-
-Для повторения сборки уже скачанным компилятором передайте `--toolchain путь`. Точные версии компилятора, CMake, выпуска LLVM-MinGW и коммит исходников записываются в `BUILD-INFO.json` внутри архива. Вариант с Visual Studio выше остаётся доступным.
-
-```powershell
-cmake --build build/windows-x64 --config Release --target test_kittyng test_kittyng_legacy testcrypt test_host_strfoo test_bpp
-python test/run_kittyng.py build/windows-x64/Release/test_kittyng.exe
-python test/run_kittyng_legacy.py build/windows-x64/Release/test_kittyng_legacy.exe
-```
-
-Проверка реального SSH-входа на локальном тестовом сервере требует `paramiko` только в окружении тестирования:
-
-```powershell
-python -m pip install paramiko
-python test/ssh_saved_password.py build/windows-x64/Release/kitty-ng.exe build/windows-x64/Release/plink.exe
 ```
 
 Проверены работающие сборки x64 и x86. ARM64 собрана и проверена по формату PE; запуск на устройстве ARM64 пока не проверен. Сборки не подписаны Authenticode.
@@ -84,6 +95,10 @@ python test/ssh_saved_password.py build/windows-x64/Release/kitty-ng.exe build/w
 Изменение стадии выпуска: `python tools/set-release-stage.py test-2` или `stable`. После изменения каталога переводов выполните `python tools/generate-translations.py`.
 
 ## Происхождение и лицензия
+
+Спасибо **Саймону Тэтэму (Simon Tatham)** и всем участникам [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/): их работа составляет основу kitty-ng. Отдельная благодарность **Сирилю Дюпону (Cyril Dupont, cyd01)**, автору [KiTTY](https://github.com/cyd01/KiTTY), за расширения и удобство портативного клиента, совместимость с которым мы сохраняем.
+
+Оригинальные уведомления об авторских правах и тексты лицензий PuTTY и KiTTY сохранены в отдельных файлах. kitty-ng — самостоятельный проект nr084, продолжающий эту работу.
 
 База: [PuTTY 0.85](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html). Расширения и совместимость: [KiTTY](https://github.com/cyd01/KiTTY), исходный коммит `75fa2abcd220c17249ff7252f8d5224137001f2d`. История KiTTY сохранена в Git.
 

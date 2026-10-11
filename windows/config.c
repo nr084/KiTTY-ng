@@ -16,9 +16,25 @@ static void language_handler(dlgcontrol *ctrl, dlgparam *dlg,
                              void *data, int event)
 {
     if (event == EVENT_REFRESH) {
-        dlg_radiobutton_set(ctrl, dlg, kr_language());
+        /* Keep language IDs independent of their positions in the list. */
+        static const struct { int id; const char *name; } languages[] = {
+            { 0, "English" },
+            { 1, "\320\240\321\203\321\201\321\201\320\272\320\270\320\271" },
+        };
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        for (size_t i = 0; i < lenof(languages); i++) {
+            dlg_listbox_addwithid(ctrl, dlg, languages[i].name,
+                                 languages[i].id);
+            if (languages[i].id == kr_language())
+                dlg_listbox_select(ctrl, dlg, i);
+        }
+        dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_VALCHANGE) {
-        int language = dlg_radiobutton_get(ctrl, dlg);
+        int row = dlg_listbox_index(ctrl, dlg);
+        if (row < 0)
+            return;
+        int language = dlg_listbox_getid(ctrl, dlg, row);
         if (language != kr_language()) {
             if (kr_set_language(language))
                 dlg_end(dlg, 2); /* Rebuild the dialog with the same Conf. */
@@ -87,10 +103,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     c->editbox.password = true;
 
     s = ctrl_getset(b, "Window/Appearance", "kittyng", "kitty-ng");
-    ctrl_radiobuttons(s, "Interface language", NO_SHORTCUT, 2,
-                     HELPCTX(no_help), language_handler, P(NULL),
-                     "English", NO_SHORTCUT, I(0),
-                     "Russian", NO_SHORTCUT, I(1));
+    ctrl_droplist(s, "Interface language", NO_SHORTCUT, 50,
+                  HELPCTX(no_help), language_handler, P(NULL));
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_transparencynumber), ED_INT);

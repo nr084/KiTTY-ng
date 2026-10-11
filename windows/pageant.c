@@ -18,6 +18,7 @@
 #include "pageant.h"
 #include "licence.h"
 #include "pageant-rc.h"
+#include "kittyng-companions.h"
 
 #include <shellapi.h>
 
@@ -48,7 +49,7 @@ static HMENU systray_menu, session_menu;
 static bool already_running;
 static FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
-static char *putty_path;
+static wchar_t *putty_path;
 static bool restrict_putty_acl = false;
 
 /* CWD for "add key" file requester. */
@@ -1283,8 +1284,11 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             if (restrict_putty_acl)
                 strcat(cmdline, "&R");
 
-            if ((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
-                                      _T(""), SW_SHOW) <= 32) {
+            wchar_t *arguments = dup_mb_to_wc(CP_ACP, cmdline);
+            DWORD error, status;
+            bool launched = kr_launch_companion("kitty-ng", arguments, false, &status, &error);
+            sfree(arguments);
+            if (!launched) {
                 MessageBox(NULL, "Unable to execute PuTTY!",
                            "Error", MB_OK | MB_ICONERROR);
             }
@@ -1358,8 +1362,11 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                     strcat(param, "&R");
                 strcat(param, "@");
                 strcat(param, mii.dwTypeData);
-                if ((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
-                                          _T(""), SW_SHOW) <= 32) {
+                wchar_t *arguments = dup_mb_to_wc(CP_ACP, param);
+                DWORD error, status;
+                bool launched = kr_launch_companion("kitty-ng", arguments, false, &status, &error);
+                sfree(arguments);
+                if (!launched) {
                     MessageBox(NULL, "Unable to execute PuTTY!", "Error",
                                MB_OK | MB_ICONERROR);
                 }
@@ -1548,20 +1555,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * submenu if we find it).
      */
     {
-        char b[2048], *p, *q, *r;
-        FILE *fp;
-        GetModuleFileName(NULL, b, sizeof(b) - 16);
-        r = b;
-        p = strrchr(b, '\\');
-        if (p && p >= r) r = p+1;
-        q = strrchr(b, ':');
-        if (q && q >= r) r = q+1;
-        strcpy(r, "putty.exe");
-        if ( (fp = fopen(b, "r")) != NULL) {
-            putty_path = dupstr(b);
-            fclose(fp);
-        } else
-            putty_path = NULL;
+        DWORD error;
+        putty_path = kr_companion_path("kitty-ng", &error);
     }
 
     /*

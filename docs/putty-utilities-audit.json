@@ -27,8 +27,10 @@
     },
     {
       "file": "windows/pageant.c",
-      "identical_to_putty_0_85": true,
-      "upstream_sha256": "1b74eef641b317ac2377a9e826ed81c31194253fa489a28941790db0c60754bb"
+      "identical_to_putty_0_85": false,
+      "upstream_sha256": "1b74eef641b317ac2377a9e826ed81c31194253fa489a28941790db0c60754bb",
+      "local_sha256_lf": "91b95b9cadb77f1040ff618ff573e5511535c42e943a747a4d044bca8491d768",
+      "local_adaptation": "Запуск KiTTY-ng своей архитектуры через общий механизм поиска и проверки сопутствующих EXE; IPC агента сохранён."
     },
     {
       "file": "windows/puttygen.c",

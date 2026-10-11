@@ -2,6 +2,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
   kittyng.c
+  kittyng-companions.c
   kittyng-portable.c
   kittyng-legacy-crypt.c
   utils/agent_mutex_name.c
@@ -48,6 +49,8 @@ target_link_libraries(utils PUBLIC bcrypt)
 
 add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
+add_executable(test_companion_probe WIN32 ${CMAKE_SOURCE_DIR}/test/test_companion_probe.c)
+target_link_libraries(test_companion_probe PRIVATE shell32)
 add_executable(test_kittyng_legacy
   ${CMAKE_SOURCE_DIR}/test/test_kittyng_legacy.c kittyng-legacy-crypt.c)
 if(NOT HAVE_STRTOUMAX)
@@ -121,6 +124,19 @@ set_property(SOURCE putty.rc APPEND PROPERTY OBJECT_DEPENDS
   ${CMAKE_SOURCE_DIR}/version.h)
 be_list(kitty-ng kitty-ng SSH SERIAL OTHERBACKENDS)
 add_dependencies(kitty-ng generated_licence_h)
+
+# Only the output filename varies; keep the upstream-compatible target name.
+if(CMAKE_GENERATOR_PLATFORM MATCHES "^[Aa][Rr][Mm]64$" OR
+   CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|ARM64|arm64)$" OR
+   CMAKE_C_COMPILER_ARCHITECTURE_ID STREQUAL "ARM64" OR
+   CMAKE_C_COMPILER MATCHES "aarch64-w64-mingw32")
+  set(kitty_ng_output_arch arm64)
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(kitty_ng_output_arch x64)
+else()
+  set(kitty_ng_output_arch x86)
+endif()
+set_target_properties(kitty-ng PROPERTIES OUTPUT_NAME "kitty-ng-${kitty_ng_output_arch}")
 target_link_libraries(kitty-ng
   guiterminal guimisc eventloop sshclient otherbackends settings network crypto
   utils
@@ -224,3 +240,10 @@ foreach(program pageant puttygen puttytel)
   set_property(SOURCE ${program}.rc APPEND PROPERTY OBJECT_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/version.rc2 ${CMAKE_SOURCE_DIR}/version.h)
 endforeach()
+
+# KiTTY utility filenames include their architecture, without release numbers.
+set_target_properties(plink PROPERTIES OUTPUT_NAME "klink-${kitty_ng_output_arch}")
+set_target_properties(pscp PROPERTIES OUTPUT_NAME "kscp-${kitty_ng_output_arch}")
+set_target_properties(psftp PROPERTIES OUTPUT_NAME "ksftp-${kitty_ng_output_arch}")
+set_target_properties(puttygen PROPERTIES OUTPUT_NAME "kittygen-${kitty_ng_output_arch}")
+set_target_properties(pageant PROPERTIES OUTPUT_NAME "kageant-${kitty_ng_output_arch}")

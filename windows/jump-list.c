@@ -21,6 +21,7 @@
 
 #include "putty.h"
 #include "kittyng-portable.h"
+#include "kittyng-companions.h"
 #include "storage.h"
 
 #define MAX_JUMPLIST_ITEMS 30 /* PuTTY will never show more items in
@@ -377,7 +378,7 @@ static char putty_path[2048];
  *
  * Hence, you can launch a saved session using make_shell_link(NULL,
  * sessionname), and launch another app using e.g.
- * make_shell_link("puttygen.exe", NULL).
+ * make_shell_link("kittygen", NULL).
  */
 static IShellLink *make_shell_link(const char *appname,
                                    const char *sessionname)
@@ -391,18 +392,11 @@ static IShellLink *make_shell_link(const char *appname,
     if (!putty_path[0])
         GetModuleFileName(NULL, putty_path, sizeof(putty_path) - 1);
     if (appname) {
-        char *p, *q = putty_path;
-        FILE *fp;
-
-        if ((p = strrchr(q, '\\')) != NULL) q = p+1;
-        if ((p = strrchr(q, ':')) != NULL) q = p+1;
-        app_path = dupprintf("%.*s%s", (int)(q - putty_path), putty_path,
-                             appname);
-        if ((fp = fopen(app_path, "r")) == NULL) {
-            sfree(app_path);
-            return NULL;
-        }
-        fclose(fp);
+        DWORD error;
+        wchar_t *wide = kr_companion_path(appname, &error);
+        if (!wide) return NULL;
+        app_path = dup_wc_to_mb(CP_ACP, wide, NULL);
+        sfree(wide);
     } else {
         app_path = dupstr(putty_path);
     }
@@ -594,7 +588,7 @@ static void update_jumplist_from_registry(void)
     /*
      * Add task entries for PuTTYgen and Pageant.
      */
-    piterator = "Pageant.exe\0PuTTYgen.exe\0\0";
+    piterator = "kageant\0kittygen\0\0";
     while (*piterator != '\0') {
         link = make_shell_link(piterator, NULL);
         if (link) {

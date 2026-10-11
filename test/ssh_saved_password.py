@@ -45,6 +45,7 @@ class Server(paramiko.ServerInterface):
 reconnect = "--reconnect" in sys.argv[1:]
 for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
     binary = Path(argument).resolve()
+    is_cli = binary.stem in ("plink", "klink", "klink-x64", "klink-x86", "klink-arm64")
     for interactive in [False, True]:
         listener = socket.socket()
         listener.bind(("127.0.0.1", 0)); listener.listen(1); listener.settimeout(15)
@@ -101,7 +102,7 @@ for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
                 "AuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\n", encoding="ascii")
             args = [str(binary), "--portable-dir", directory, "-load", "root-test", "-hostkey", fingerprint]
             args += ["-sshlog", str(root / "ssh.log")]
-            if binary.stem == "plink": args += ["-batch", "synthetic-test"]
+            if is_cli: args += ["-batch", "synthetic-test"]
             startup = subprocess.STARTUPINFO()
             startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startup.wShowWindow = 0
@@ -123,7 +124,7 @@ for argument in [a for a in sys.argv[1:] if a != "--reconnect"]:
                                           result.stdout.decode(errors="replace"), result.stderr.decode(errors="replace"))
             assert server.authenticated and not failures, (binary.name, failures)
             assert len(connections) == (2 if reconnect else 1)
-            if binary.stem == "plink": assert b"SSH_TEST_OK" in result.stdout
+            if is_cli: assert b"SSH_TEST_OK" in result.stdout
         print(f"PASS: {binary.parent.name}/{binary.name}: saved root password via "
               f"{'keyboard-interactive' if interactive else 'password'}"
               f"{' and reconnect' if reconnect else ' and normal exit'}", flush=True)

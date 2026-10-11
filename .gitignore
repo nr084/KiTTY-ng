@@ -2,6 +2,7 @@
 /_import/
 /_tools/
 /build/
+/local-build-*/
 /dist/
 /upstream-kitty.json
 !/icons/kitty-ng.png

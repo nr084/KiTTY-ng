@@ -1,6 +1,7 @@
 #include "putty.h"
 #include "storage.h"
 #include "kittyng.h"
+#include "kittyng-companions.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -98,6 +99,25 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                         !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca"))) {
                 show_ca_config_box(NULL);
                 exit(0);
+            } else if (!strcmp(p, "-launch-utility")) {
+                if (!nextarg) cmdline_error("%s requires a utility name", p);
+                const char *tool = cmdline_arg_to_str(arglist->args[arglistpos++]);
+                if (!kr_companion_name(tool) || !strcmp(tool, "kitty-ng"))
+                    cmdline_error("Unknown utility: %s", tool);
+                strbuf *arguments = strbuf_new();
+                while (arglist->args[arglistpos]) {
+                    const char *argument = cmdline_arg_to_utf8(arglist->args[arglistpos++]);
+                    if (!argument) cmdline_error("Invalid utility argument encoding");
+                    if (arguments->len) put_byte(arguments, ' ');
+                    kr_quote_companion_argument(arguments, argument);
+                }
+                wchar_t *wide = dup_mb_to_wc(CP_UTF8, arguments->s);
+                DWORD status = 0, error;
+                bool success = kr_launch_companion(tool, wide, true, &status, &error);
+                sfree(wide); strbuf_free(arguments);
+                /* Keep failures scriptable; do not replace a missing helper
+                 * with a PATH search or another architecture. */
+                cleanup_exit(success ? status : error);
             } else if (!strcmp(p, "-demo-config-box")) {
                 if (!arglist->args[arglistpos]) {
                     cmdline_error("%s expects an output filename", p);
