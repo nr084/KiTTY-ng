@@ -1,4 +1,4 @@
-"""Publish the verified local three-architecture release, then remove its predecessor."""
+"""Publish the verified local three-architecture release, preserving previous releases."""
 import argparse
 import hashlib
 import json
@@ -17,8 +17,7 @@ def git(*args, **kwargs):
                                    cwd=ROOT, **kwargs)
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--delete-previous", help="Exact previous release tag; Git tag is retained")
-args = parser.parse_args()
+parser.parse_args()
 version = (ROOT / "VERSION").read_text().strip()
 tag = "v" + version
 report = json.loads((ROOT / "dist/local-build.json").read_text())
@@ -70,15 +69,8 @@ release = request(API + "/releases/" + str(release["id"]), "GET")
 assert {a["name"] for a in release["assets"]} == expected
 release = request(API + "/releases/" + str(release["id"]), "PATCH", {"draft": False})
 assert not release["draft"]
-# Confirm publication and exact assets before deleting any predecessor.
+# Confirm publication and exact assets; previous releases are retained.
 published = request(API + "/releases/tags/" + tag)
 assert published["id"] == release["id"] and not published["draft"]
 assert {a["name"] for a in published["assets"]} == expected
 print("Published:", published["html_url"], flush=True)
-if args.delete_previous:
-    assert args.delete_previous != tag
-    previous = next((r for r in releases if r["tag_name"] == args.delete_previous), None)
-    if previous:
-        request(API + "/releases/" + str(previous["id"]), "DELETE")
-        assert not any(r["id"] == previous["id"] for r in request(API + "/releases"))
-        print("Deleted previous release:", args.delete_previous, flush=True)
