@@ -82,6 +82,8 @@ Saved passwords are read from the legacy `Password` field using `cryptsalt`. Thi
 
 Entire profiles encrypted with a master password are not yet supported. If a legacy password cannot be decoded, its original value is preserved; enter the password manually to replace it. Background images, Zmodem, FAR2L integration, RuTTY/scripts, port knocking and other legacy extensions still require migration.
 
+When a portable session is saved, SSH keys and detached SSH certificates inside the portable directory are stored as relative paths, such as `SSH-Keys\nr0-private.ppk`. Loading resolves them against the portable directory, independent of the working directory. Move the directory together with its keys: the client, Klink, Kscp and Ksftp continue using the saved references. External keys retain absolute paths. The root defaults to the executable directory; `--portable-dir` or `KITTY_NG_PORTABLE_DIR` selects another portable root. KiTTY file syntax and `%XX` encoding are retained. KiTTYgen and Kageant do not persist key references in sessions; their normal file-opening and file-saving operations keep standard behavior.
+
 ## Versions
 
 Release versions combine the base PuTTY version and the KiTTY-NG revision: `0.85-1`, `0.85-2`, and so on. `0.85` is the base PuTTY version; the number after the hyphen is our release number. `0.85-1` is the first ordinary, non-test KiTTY-NG release; subsequent releases on this base are `0.85-2`, `0.85-3`, and so on. The base remains equal to the imported PuTTY version. Ordinary releases are not marked as prereleases. Git tags start with `v`. Utilities and the main client share the same embedded release version. See the [upstream utilities audit](docs/putty-utilities-audit.json).

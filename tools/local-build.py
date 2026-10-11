@@ -260,6 +260,8 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
+                        ("portable-key-paths", "test_key_paths", ["test/portable_key_paths.py"],
+                         [PYTHON, "test/portable_key_paths.py", directory / "test_key_paths.exe"]),
                         ("session-browser", "test_session_browser", ["test/session_browser.py"],
                          [PYTHON, "test/session_browser.py", directory / "test_session_browser.exe"]),
                         ("portable", "test_kittyng", ["test/run_kittyng.py"],
@@ -339,6 +341,17 @@ def main():
                         check(key, files,
                               [([PYTHON, "test/file_transfer.py", directory / executable, scenario], environment)],
                               compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable, "test_key_paths.exe",
+                        cli_executable, utility_executable("pscp", arch), utility_executable("psftp", arch)])
+                    files.update({"test/file_transfer.py", "test/kittyng-password-vector.json"})
+                    key = arch + "/portable-key-runtime"
+                    entry = cache.get(key, {})
+                    environment = None
+                    if args.force_tests or entry.get("fingerprint") != digest_files(files) or entry.get("compiler") != compiler:
+                        environment = ssh_environment(work)
+                    check(key, files,
+                          [([PYTHON, "test/file_transfer.py", directory / executable, "portable-key"], environment)],
+                          compiler=compiler)
                 run([PYTHON, "tools/package-release.py", arch, directory, "--output", staged], "package-" + arch)
                 archive = staged / f"kitty-ng-{report['version']}-{arch}.zip"
                 report["archives"].append({"file": archive.name, "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),

@@ -5,6 +5,7 @@ add_sources_from_current_dir(utils
   kittyng-utility-ui.c
   kittyng-companions.c
   kittyng-portable.c
+  kittyng-keypaths.c
   kittyng-legacy-crypt.c
   utils/agent_mutex_name.c
   utils/agent_named_pipe_name.c
@@ -50,6 +51,8 @@ target_link_libraries(utils PUBLIC bcrypt)
 
 add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
+add_executable(test_key_paths ${CMAKE_SOURCE_DIR}/test/test_key_paths.c storage.c)
+target_link_libraries(test_key_paths utils ${platform_libraries})
 add_executable(test_session_browser ${CMAKE_SOURCE_DIR}/test/test_session_browser.c)
 target_link_libraries(test_session_browser utils ${platform_libraries})
 add_executable(test_utility_ui ${CMAKE_SOURCE_DIR}/test/test_utility_ui.c)

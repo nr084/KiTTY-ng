@@ -20,6 +20,8 @@ import paramiko
 
 binary = Path(sys.argv[1]).resolve()
 scenario = sys.argv[2] if len(sys.argv) > 2 else "all"
+portable_key = scenario == "portable-key"
+if portable_key: scenario = "key"
 password = "synthetic-root-password"
 vector = json.loads(Path(__file__).with_name("kittyng-password-vector.json").read_text())
 key = paramiko.RSAKey.generate(2048)
@@ -166,6 +168,16 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
             channel.settimeout(1)
             threading.Thread(target=shell, args=(channel,), daemon=True).start(); return True
         def check_channel_exec_request(self, channel, command):
+            if portable_key and command == b"portable-key-probe":
+                def reply():
+                    channel.settimeout(5)
+                    channel.recv(1)  # Wait for the client's stdin EOF after exec success.
+                    channel.sendall(b"portable-key-ok\n")
+                    channel.send_exit_status(0)
+                    channel.shutdown_write()
+                    channel.close()
+                threading.Thread(target=reply, daemon=True).start()
+                return True
             if not command.startswith(b"scp "): return False
             threading.Thread(target=scp, args=(channel, command), daemon=True).start(); return True
     listener = socket.socket(); listener.bind(("127.0.0.1", 0)); listener.listen(8); listener.settimeout(0.2)
@@ -200,7 +212,11 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
     folder = source / "Каталог 😀"; folder.mkdir()
     (folder / "вложенный.txt").write_bytes(b"recursive payload\0")
     startup = subprocess.STARTUPINFO(); startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW; startup.wShowWindow = 0
+    unrelated = root / "unrelated" if portable_key else None
+    if unrelated: unrelated.mkdir()
+    moves = 0
     def profile(protocol, auto=False, extra=""):
+        global settings, moves
         (settings / "Sessions/transfer").write_text(
             f"HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nUserName\\root\\\nProtocol\\ssh\\\n"
             f"Password\\{'' if key_auth else vector['encoded']}\\\nTermType\\xterm\\\nWinSCPProtocol\\{protocol}\\\n"
@@ -223,19 +239,29 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
                 data = base64.b64encode(blob).decode()
                 return [data[i:i+64] for i in range(0, len(data), 64)]
             pub, priv = lines(public), lines(private)
-            keyfile = Path(key_directory.name) / "client.ppk"
+            keyfile = settings / "SSH-Keys/client.ppk" if portable_key else Path(key_directory.name) / "client.ppk"
+            if portable_key: keyfile.parent.mkdir(exist_ok=True)
             keyfile.write_text("\n".join(["PuTTY-User-Key-File-3: ssh-rsa", "Encryption: none",
                 "Comment: Synthetic transfer key", f"Public-Lines: {len(pub)}", *pub,
                 f"Private-Lines: {len(priv)}", *priv, "Private-MAC: " + mac]) + "\n")
             with (settings / "Sessions/transfer").open("a", encoding="utf8") as output:
-                output.write("PublicKeyFile\\" + str(keyfile).replace("\\", "%5C") + "\\\nTryAgent\\0\\\n")
+                output.write("PublicKeyFile\\" + ("" if portable_key else str(keyfile).replace("\\", "%5C")) + "\\\nTryAgent\\0\\\n")
+            if portable_key:
+                subprocess.run([str(binary.parent / "test_key_paths.exe"), "--portable-dir", str(settings), "transfer-key"],
+                               cwd=unrelated, check=True, capture_output=True)
+                contents = (settings / "Sessions/transfer").read_bytes()
+                assert b"PublicKeyFile\\SSH-Keys%5Cclient.ppk\\" in contents
+                moved = root / ("Moved portable КиТТY 😀 " + str(moves)); moves += 1
+                assert settings.resolve().is_relative_to(root.resolve()) and moved.resolve().is_relative_to(root.resolve())
+                settings.rename(moved); settings = moved
     def run(option, *paths):
         command = [str(binary), "--portable-dir", str(settings), "-load", "transfer", "-hostkey", fingerprint,
                    option, *map(str, paths)]
-        result = subprocess.run(command, timeout=30, capture_output=True, startupinfo=startup)
+        result = subprocess.run(command, timeout=30, capture_output=True, startupinfo=startup,
+                                **({"cwd": unrelated} if portable_key else {}))
         assert result.returncode == 0, (option, result.returncode, result.stdout, result.stderr, failures)
         assert not failures, failures
-    key_directory = tempfile.TemporaryDirectory(prefix="kitty-ng-transfer-key-") if key_auth else None
+    key_directory = tempfile.TemporaryDirectory(prefix="kitty-ng-transfer-key-") if key_auth and not portable_key else None
     try:
         for protocol in (1, 0):
             if scenario not in ("all", "key", "sftp" if protocol else "scp"): continue
@@ -254,6 +280,27 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
             assert queries, "WM_DROPFILES did not query the remote cwd"
             assert (resolve(cwd) / files[1].name).read_bytes() == payloads[1]
             assert (resolve(cwd) / folder.name / "вложенный.txt").read_bytes() == b"recursive payload\0"
+        if portable_key:
+            arch = binary.stem.rsplit("-", 1)[1]
+            common = ["--portable-dir", str(settings), "-load", "transfer", "-batch", "-hostkey", fingerprint]
+            def utility(tool, *arguments):
+                result = subprocess.run([str(binary.parent / f"{tool}-{arch}.exe"), *common, *arguments],
+                                        cwd=unrelated, timeout=30, capture_output=True, input=b"")
+                assert result.returncode == 0, (tool, result.returncode, result.stdout, result.stderr, failures)
+                return result
+            result = utility("klink", "-T", "-no-antispoof", "portable-key-probe")
+            assert result.stdout == b"portable-key-ok\n", result.stdout
+            (unrelated / "cli-upload.bin").write_bytes(b"portable-key-cli-payload\x00")
+            for protocol in ("sftp", "scp"):
+                destination = "/home/root/" if protocol == "scp" else "/home/root/direct-sftp.bin"
+                utility("kscp", "-" + protocol, "cli-upload.bin", "root@127.0.0.1:" + destination)
+                received = "/home/root/cli-upload.bin" if protocol == "scp" else destination
+                assert resolve(received).read_bytes() == b"portable-key-cli-payload\x00"
+            batch = unrelated / "commands.txt"
+            batch.write_text("put cli-upload.bin /home/root/direct-ksftp.bin\nquit\n")
+            utility("ksftp", "-b", str(batch))
+            assert resolve("/home/root/direct-ksftp.bin").read_bytes() == b"portable-key-cli-payload\x00"
+            print("PASS: moved portable key authenticates KiTTY-NG, Klink, Kscp (SCP/SFTP), Ksftp and file drops from unrelated CWD")
         assert authentications, authentications
         if key_auth: assert set(authentications) == {"publickey"}, authentications
         if scenario in ("all", "scp"): assert commands, "SCP protocol was not exercised"

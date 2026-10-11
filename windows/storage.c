@@ -10,6 +10,7 @@
 #include "putty.h"
 #include "storage.h"
 #include "kittyng-portable.h"
+#include "kittyng-keypaths.h"
 
 #include <shlobj.h>
 #ifndef CSIDL_APPDATA
@@ -174,7 +175,8 @@ Filename *read_setting_filename(settings_r *handle, const char *name)
 {
     char *tmp = read_setting_s(handle, name);
     if (tmp) {
-        Filename *ret = filename_from_str(tmp);
+        Filename *ret = kr_file_key(handle->sesskey) && kr_key_path_setting(name) ?
+            kr_portable_load_key_path(tmp) : filename_from_str(tmp);
         sfree(tmp);
         return ret;
     } else
@@ -200,7 +202,10 @@ void write_setting_filename(settings_w *handle,
      * completely fresh storage representation that fixes as many
      * other legacy problems as possible at the same time.
      */
-    write_setting_s(handle, name, result->cpath); /* FIXME */
+    char *portable = kr_file_key(handle->sesskey) && kr_key_path_setting(name) ?
+        kr_portable_save_key_path(result) : NULL;
+    write_setting_s(handle, name, portable ? portable : result->cpath);
+    sfree(portable);
 }
 
 void close_settings_r(settings_r *handle)
