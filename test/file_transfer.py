@@ -4,6 +4,7 @@ Only synthetic root credentials and a loopback SSH server are used.
 """
 import base64
 import hashlib
+import hmac
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import re
 import shlex
 import socket
 import subprocess
+import struct
 import sys
 import tempfile
 import threading
@@ -21,6 +23,8 @@ scenario = sys.argv[2] if len(sys.argv) > 2 else "all"
 password = "synthetic-root-password"
 vector = json.loads(Path(__file__).with_name("kittyng-password-vector.json").read_text())
 key = paramiko.RSAKey.generate(2048)
+key_auth = scenario == "key"
+client_key = paramiko.RSAKey.generate(2048) if key_auth else None
 fingerprint = "SHA256:" + base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip("=")
 
 with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent.parent) as temporary:
@@ -140,9 +144,14 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
         finally: channel.close()
     class Server(paramiko.ServerInterface):
         def __init__(self): self.interactive = interactive
-        def get_allowed_auths(self, username): return "keyboard-interactive" if self.interactive else "password"
+        def get_allowed_auths(self, username):
+            return "publickey" if key_auth else "keyboard-interactive" if self.interactive else "password"
+        def check_auth_publickey(self, username, supplied):
+            if key_auth and username == "root" and supplied.asbytes() == client_key.asbytes():
+                authentications.append("publickey"); return paramiko.AUTH_SUCCESSFUL
+            return paramiko.AUTH_FAILED
         def check_auth_password(self, username, supplied):
-            if username == "root" and supplied == password:
+            if not key_auth and username == "root" and supplied == password:
                 authentications.append(username); return paramiko.AUTH_SUCCESSFUL
             return paramiko.AUTH_FAILED
         def check_auth_interactive(self, username, submethods):
@@ -194,19 +203,42 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
     def profile(protocol, auto=False, extra=""):
         (settings / "Sessions/transfer").write_text(
             f"HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nUserName\\root\\\nProtocol\\ssh\\\n"
-            f"Password\\{vector['encoded']}\\\nTermType\\xterm\\\nWinSCPProtocol\\{protocol}\\\n"
+            f"Password\\{'' if key_auth else vector['encoded']}\\\nTermType\\xterm\\\nWinSCPProtocol\\{protocol}\\\n"
             "PSCPOptions\\-r -batch -v\\\nPSCPRemoteDir\\/incoming space/приём😀\\\n"
             f"SCPAutoPwd\\{int(auto)}\\\nLineCodePage\\UTF-8\\\nAuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\n"
             "ConnectionSharing\\0\\\nCloseOnExit\\2\\\n" + extra, encoding="utf8")
+        if key_auth:
+            # PPK v3, unencrypted: the MAC key is empty (sshpubk.c).
+            numbers = client_key.key.private_numbers()
+            def string(data): return struct.pack(">I", len(data)) + data
+            def integer(number):
+                data = number.to_bytes((number.bit_length() + 7) // 8, "big")
+                if data[0] & 128: data = b"\0" + data
+                return string(data)
+            public = client_key.asbytes()
+            private = b"".join(integer(n) for n in (numbers.d, numbers.p, numbers.q, numbers.iqmp))
+            fields = [b"ssh-rsa", b"none", b"Synthetic transfer key", public, private]
+            mac = hmac.new(b"", b"".join(string(field) for field in fields), hashlib.sha256).hexdigest()
+            def lines(blob):
+                data = base64.b64encode(blob).decode()
+                return [data[i:i+64] for i in range(0, len(data), 64)]
+            pub, priv = lines(public), lines(private)
+            keyfile = Path(key_directory.name) / "client.ppk"
+            keyfile.write_text("\n".join(["PuTTY-User-Key-File-3: ssh-rsa", "Encryption: none",
+                "Comment: Synthetic transfer key", f"Public-Lines: {len(pub)}", *pub,
+                f"Private-Lines: {len(priv)}", *priv, "Private-MAC: " + mac]) + "\n")
+            with (settings / "Sessions/transfer").open("a", encoding="utf8") as output:
+                output.write("PublicKeyFile\\" + str(keyfile).replace("\\", "%5C") + "\\\nTryAgent\\0\\\n")
     def run(option, *paths):
         command = [str(binary), "--portable-dir", str(settings), "-load", "transfer", "-hostkey", fingerprint,
                    option, *map(str, paths)]
         result = subprocess.run(command, timeout=30, capture_output=True, startupinfo=startup)
         assert result.returncode == 0, (option, result.returncode, result.stdout, result.stderr, failures)
         assert not failures, failures
+    key_directory = tempfile.TemporaryDirectory(prefix="kitty-ng-transfer-key-") if key_auth else None
     try:
         for protocol in (1, 0):
-            if scenario not in ("all", "sftp" if protocol else "scp"): continue
+            if scenario not in ("all", "key", "sftp" if protocol else "scp"): continue
             profile(protocol)
             run("-test-upload", *files, folder)
             incoming = resolve("/incoming space/приём😀")
@@ -215,20 +247,23 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
             target = root / f"получено-{protocol}😀.txt"
             run("-test-download", "/incoming space/приём😀/" + files[1].name, target)
             assert target.read_bytes() == payloads[1]
-        if scenario in ("all", "drop"):
-            interactive = True
+        if scenario in ("all", "drop", "key"):
+            interactive = not key_auth
             profile(1, auto=True)
             run("-test-drop-files", files[1], folder)
             assert queries, "WM_DROPFILES did not query the remote cwd"
             assert (resolve(cwd) / files[1].name).read_bytes() == payloads[1]
             assert (resolve(cwd) / folder.name / "вложенный.txt").read_bytes() == b"recursive payload\0"
         assert authentications, authentications
+        if key_auth: assert set(authentications) == {"publickey"}, authentications
         if scenario in ("all", "scp"): assert commands, "SCP protocol was not exercised"
         # Only the explicitly created legacy profile contains a password value,
         # and that value stays encoded; no transfer snapshot is written to disk.
         assert password.encode() not in (settings / "Sessions/transfer").read_bytes()
         assert sorted(p.name for p in (settings / "Sessions").iterdir()) == ["transfer"]
-        print("PASS:", binary.name, scenario + ": Unicode files/folders, saved root password, no temporary profiles")
+        print("PASS:", binary.name, scenario + ": Unicode files/folders, " +
+              ("saved SSH key" if key_auth else "saved root password") + ", no temporary profiles")
     finally:
         stop.set(); listener.close()
         for transport in transports: transport.close()
+        if key_directory: key_directory.cleanup()

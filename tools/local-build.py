@@ -312,7 +312,7 @@ def main():
                           compiler=compiler)
                     files = source_dependencies(ninja, directory, [executable, utility_executable("pscp", arch)])
                     files.update({"test/file_transfer.py", "test/kittyng-password-vector.json"})
-                    for scenario in ("sftp", "scp", "drop"):
+                    for scenario in ("sftp", "scp", "drop", "key"):
                         key = arch + "/transfer-" + scenario
                         entry = cache.get(key, {})
                         environment = None
