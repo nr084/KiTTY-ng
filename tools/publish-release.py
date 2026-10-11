@@ -67,7 +67,10 @@ for asset in report["archives"]:
     print("Uploaded:", path.name, flush=True)
 release = request(API + "/releases/" + str(release["id"]), "GET")
 assert {a["name"] for a in release["assets"]} == expected
-release = request(API + "/releases/" + str(release["id"]), "PATCH", {"draft": False})
+publication = {"draft": False}
+if not metadata["prerelease"]:
+    publication["make_latest"] = "true"
+release = request(API + "/releases/" + str(release["id"]), "PATCH", publication)
 assert not release["draft"]
 # Confirm publication and exact assets; previous releases are retained.
 published = request(API + "/releases/tags/" + tag)

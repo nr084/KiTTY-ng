@@ -6,13 +6,13 @@ SSH, Telnet and serial terminal for Windows, based on PuTTY 0.85, with English a
 
 <img src="icons/kitty-ng.png" width="192" alt="Two connected terminals">
 
-**Test version: 0.85-test-3.** Migration of KiTTY extensions is ongoing. This release uses a modern PuTTY codebase with selected KiTTY features; it does not yet include every feature of the original KiTTY. The [migration report](docs/migration.md) describes the current scope in Russian.
+**Release: 0.85-1.** Migration of KiTTY extensions is ongoing. This release uses a modern PuTTY codebase with selected KiTTY features; it does not yet include every feature of the original KiTTY. The [migration report](docs/migration.md) describes the current scope in Russian.
 
 ## Download and run
 
 Download the appropriate archive from [Releases](https://github.com/nr084/kitty-ng/releases): **x64**, **x86** or **ARM64**. Extract it and run `kitty-ng-x64.exe`, `kitty-ng-x86.exe` or `kitty-ng-arm64.exe`. No installation is required.
 
-Each release contains three archives: `kitty-ng-0.85-test-3-x64.zip`, `kitty-ng-0.85-test-3-x86.zip` and `kitty-ng-0.85-test-3-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
+Each release contains three archives: `kitty-ng-0.85-1-x64.zip`, `kitty-ng-0.85-1-x86.zip` and `kitty-ng-0.85-1-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
 
 ```text
 kitty-ng-x64.exe
@@ -80,7 +80,7 @@ Entire profiles encrypted with a master password are not yet supported. If a leg
 
 ## Versions
 
-The numeric version matches the base PuTTY release. Test stages use `0.85-test`, `0.85-test-2` and subsequent suffixes; a stable release uses `0.85`. Git tags start with `v`. Utilities and the main client share the same embedded release version. See the [upstream utilities audit](docs/putty-utilities-audit.json).
+Release versions combine the base PuTTY version and the KiTTY-NG revision: `0.85-1`, `0.85-2`, and so on. The base remains equal to the imported PuTTY version. Ordinary releases are not marked as prereleases. Git tags start with `v`. Utilities and the main client share the same embedded release version. See the [upstream utilities audit](docs/putty-utilities-audit.json).
 
 ## Local build
 
@@ -113,7 +113,7 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64 --parallel
 ```
 
-Use `python tools/set-release-stage.py test-2` or `stable` to change the release stage. After editing translations, run `python tools/generate-translations.py`.
+Use `python tools/set-release-stage.py 1` for `0.85-1`, `2` for `0.85-2`, and so on. Change the version only after an explicit instruction to publish a release. After editing translations, run `python tools/generate-translations.py`.
 
 ## Acknowledgements and licenses
 
