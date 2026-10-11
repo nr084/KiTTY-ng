@@ -7,6 +7,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyng-companions.h"
+#endif
 
 /*
  * Some command-line parameters need to be saved up until after
@@ -200,6 +203,14 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
 
 #ifdef _WIN32
     /* Portable location is selected lazily before any settings are loaded. */
+    if (!strcmp(p, "--kitty-ng-conf")) {
+        if (!nextarg) return -2;
+        DWORD error;
+        if (!kr_import_companion_conf(conf, value, &error))
+            cmdline_error("Invalid inherited session configuration (code %lu)", (unsigned long)error);
+        loaded_session = true;
+        return 2;
+    }
     if (!strcmp(p, "--portable")) return 1;
     if (!strcmp(p, "--portable-dir")) return nextarg ? 2 : -2;
     if (!strcmp(p, "--language")) {

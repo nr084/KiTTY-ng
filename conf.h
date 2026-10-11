@@ -1323,3 +1323,24 @@ CONF_OPTION(folder,
     DEFAULT_STR(""),
     SAVE_KEYWORD("Folder"),
 )
+CONF_OPTION(pscpremotedir,
+    VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("PSCPRemoteDir"),
+)
+CONF_OPTION(pscpoptions,
+    VALUE_TYPE(STR), DEFAULT_STR("-r"), SAVE_KEYWORD("PSCPOptions"),
+)
+CONF_OPTION(winscpprot,
+    VALUE_TYPE(INT), DEFAULT_INT(1), SAVE_KEYWORD("WinSCPProtocol"),
+)
+CONF_OPTION(sftpconnect,
+    VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("SFTPConnect"),
+)
+CONF_OPTION(scp_auto_pwd,
+    VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("SCPAutoPwd"),
+)
+CONF_OPTION(kr_transfer_utf8,
+    VALUE_TYPE(BOOL), DEFAULT_BOOL(false), NOT_SAVED,
+)
+CONF_OPTION(kr_transfer_hide,
+    VALUE_TYPE(BOOL), DEFAULT_BOOL(false), NOT_SAVED,
+)

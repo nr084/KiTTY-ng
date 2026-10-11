@@ -22,6 +22,9 @@
 #include "win-gui-seat.h"
 #include "tree234.h"
 #include "kittyng.h"
+#include <shellapi.h>
+#include <shlobj.h>
+#include "kittyng-transfer.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -641,6 +644,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     SetWindowLongPtr(wgs->term_hwnd, GWLP_USERDATA, (LONG_PTR)wgs);
+    DragAcceptFiles(wgs->term_hwnd, true);
+    if (kr_test_drop_count)
+        SetTimer(wgs->term_hwnd, KR_TRANSFER_TEST_TIMER, 100, NULL);
 
     /*
      * Initialise the fonts, simultaneously correcting the guesses
@@ -796,6 +802,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             kr_append_menu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
             kr_append_menu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
             kr_append_menu(m, MF_ENABLED, IDM_KR_TRAY, "Send to tray");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_UPLOAD, "Send files...");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_DOWNLOAD, "Receive file...");
             AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR)wgs->savedsess_menu,
                        "Sa&ved Sessions");
             kr_append_menu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
@@ -2262,6 +2270,32 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         kr_taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
         break;
       case WM_TIMER:
+        if (wParam == KR_TRANSFER_TEST_TIMER) {
+            if (wgs->backend && backend_sendok(wgs->backend)) {
+                KillTimer(hwnd, KR_TRANSFER_TEST_TIMER);
+                size_t length = 1;
+                for (size_t i = 0; i < kr_test_drop_count; i++) length += wcslen(kr_test_drop_files[i]) + 1;
+                HGLOBAL memory = GlobalAlloc(GHND, sizeof(DROPFILES) + length * sizeof(wchar_t));
+                if (!memory) cleanup_exit(ERROR_NOT_ENOUGH_MEMORY);
+                DROPFILES *drop = GlobalLock(memory);
+                if (!drop) { GlobalFree(memory); cleanup_exit(ERROR_NOT_ENOUGH_MEMORY); }
+                drop->pFiles = sizeof(DROPFILES); drop->fWide = true;
+                wchar_t *path = (wchar_t *)(drop + 1);
+                for (size_t i = 0; i < kr_test_drop_count; i++) {
+                    wcscpy(path, kr_test_drop_files[i]); path += wcslen(path) + 1;
+                    sfree(kr_test_drop_files[i]);
+                }
+                sfree(kr_test_drop_files); kr_test_drop_files = NULL; kr_test_drop_count = 0;
+                GlobalUnlock(memory);
+                PostMessage(hwnd, WM_DROPFILES, (WPARAM)memory, 0);
+            }
+            return 0;
+        }
+        if (wParam == KR_TRANSFER_PWD_TIMER) {
+            kr_transfer_cancel_query(hwnd, !conf_get_bool(wgs->conf, CONF_kr_transfer_hide));
+            if (conf_get_bool(wgs->conf, CONF_kr_transfer_hide)) cleanup_exit(ERROR_TIMEOUT);
+            return 0;
+        }
         if (wParam == KR_RECONNECT_TIMER) {
             KillTimer(hwnd, KR_RECONNECT_TIMER);
             if (conf_get_int(wgs->conf, CONF_kr_reconnect_delay) > 0)
@@ -2274,6 +2308,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             kr_tray_icon(hwnd, false);
             ShowWindow(hwnd, SW_RESTORE);
             SetForegroundWindow(hwnd);
+        }
+        return 0;
+      case WM_DROPFILES:
+        kr_transfer_drop(hwnd, wgs->conf, wgs->backend, (HDROP)wParam);
+        return 0;
+      case WM_KR_TRANSFER_FINISHED:
+        if (conf_get_bool(wgs->conf, CONF_kr_transfer_hide)) cleanup_exit(wParam);
+        if (wParam) {
+            char *message = dupprintf("File transfer failed (code %lu)", (unsigned long)wParam);
+            kr_messagebox(hwnd, message, "File transfer", MB_OK | MB_ICONERROR); sfree(message);
         }
         return 0;
       case WM_CLOSE: {
@@ -2298,6 +2342,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         return 0;
       }
       case WM_DESTROY:
+        kr_transfer_cancel_query(hwnd, false);
+        KillTimer(hwnd, KR_TRANSFER_TEST_TIMER);
         KillTimer(hwnd, KR_RECONNECT_TIMER);
         kr_tray_icon(hwnd, false);
         show_mouseptr(wgs, true);
@@ -2430,6 +2476,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           case IDM_KR_TRAY:
             if (kr_tray_icon(hwnd, true))
                 ShowWindow(hwnd, SW_HIDE);
+            break;
+          case IDM_KR_UPLOAD:
+            kr_transfer_choose_upload(hwnd, wgs->conf, wgs->backend);
+            break;
+          case IDM_KR_DOWNLOAD:
+            kr_transfer_choose_download(hwnd, wgs->conf);
             break;
           case IDM_RECONF: {
             Conf *prev_conf;
@@ -4905,6 +4957,7 @@ static int TranslateKey(WinGuiSeat *wgs, UINT message, WPARAM wParam,
 static void wintw_set_title(TermWin *tw, const char *title, int codepage)
 {
     WinGuiSeat *wgs = container_of(tw, WinGuiSeat, termwin);
+    if (kr_transfer_title(wgs->term_hwnd, title, codepage)) return;
     wchar_t *new_window_name = dup_mb_to_wc(codepage, title);
     if (!wcscmp(new_window_name, wgs->window_name)) {
         sfree(new_window_name);

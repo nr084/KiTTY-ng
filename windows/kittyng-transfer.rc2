@@ -1,0 +1,12 @@
+#include "kittyng-transfer.h"
+
+IDD_KR_REMOTE_FILE DIALOGEX 0, 0, 310, 78
+STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Receive file..."
+FONT 9, "Segoe UI"
+BEGIN
+    LTEXT "Remote file or directory:", -1, 10, 10, 290, 10
+    EDITTEXT IDC_KR_REMOTE_FILE, 10, 25, 290, 14, ES_AUTOHSCROLL
+    DEFPUSHBUTTON "Download", IDOK, 170, 53, 62, 16
+    PUSHBUTTON "Cancel", IDCANCEL, 238, 53, 62, 16
+END

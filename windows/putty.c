@@ -2,6 +2,8 @@
 #include "storage.h"
 #include "kittyng.h"
 #include "kittyng-companions.h"
+#include <shellapi.h>
+#include "kittyng-transfer.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -99,6 +101,36 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
                         !strcmp(p, "-host_ca") || !strcmp(p, "--host_ca"))) {
                 show_ca_config_box(NULL);
                 exit(0);
+            } else if (!strcmp(p, "-upload") || !strcmp(p, "-download") ||
+                       !strcmp(p, "-test-upload") || !strcmp(p, "-test-download") ||
+                       !strcmp(p, "-test-drop-files")) {
+                bool drop = !strcmp(p, "-test-drop-files");
+                bool upload = drop || !strcmp(p, "-upload") || !strcmp(p, "-test-upload");
+                bool hide = !strncmp(p, "-test-", 6);
+                if (!nextarg) cmdline_error("%s requires filenames", p);
+                cmdline_run_saved(conf);
+                conf_set_bool(conf, CONF_kr_transfer_hide, hide);
+                const char *remote = NULL;
+                if (!upload) remote = cmdline_arg_to_utf8(arglist->args[arglistpos++]);
+                wchar_t **paths = NULL; size_t count = 0, capacity = 0;
+                while (arglist->args[arglistpos]) {
+                    const char *path = cmdline_arg_to_utf8(arglist->args[arglistpos++]);
+                    if (!path) cmdline_error("Invalid file path encoding");
+                    sgrowarray(paths, capacity, count);
+                    paths[count++] = dup_mb_to_wc(CP_UTF8, path);
+                }
+                if (drop) {
+                    kr_test_drop_files = paths; kr_test_drop_count = count;
+                    conf_set_int(conf, CONF_close_on_exit, FORCE_OFF);
+                    conf_set_bool(conf, CONF_warn_on_close, false);
+                    continue;
+                }
+                DWORD status, error;
+                bool success = kr_transfer_run(conf, upload, (const wchar_t *const *)paths,
+                                                count, remote, hide, &status, &error);
+                for (size_t i = 0; i < count; i++) sfree(paths[i]);
+                sfree(paths);
+                cleanup_exit(success ? status : error);
             } else if (!strcmp(p, "-launch-utility")) {
                 if (!nextarg) cmdline_error("%s requires a utility name", p);
                 const char *tool = cmdline_arg_to_str(arglist->args[arglistpos++]);

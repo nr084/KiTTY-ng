@@ -9,6 +9,7 @@ IDI_CFGICON ICON "kitty-ng.ico"
 
 #include "help.rc2"
 #include "putty-common.rc2"
+#include "kittyng-transfer.rc2"
 
 #ifndef NO_MANIFESTS
 1 RT_MANIFEST "putty.mft"

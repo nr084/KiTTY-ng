@@ -20,6 +20,9 @@
 #include <assert.h>
 
 #include "putty.h"
+#ifdef _WIN32
+#include "kittyng-companions.h"
+#endif
 #include "psftp.h"
 #include "ssh.h"
 #include "ssh/sftp.h"
@@ -1976,6 +1979,26 @@ static void sink(const char *targ, const char *src)
 /*
  * We will copy local files to a remote server.
  */
+static char *transfer_shell_path(const char *path)
+{
+#ifdef _WIN32
+    if (kr_companion_utf8()) {
+        strbuf *quoted = strbuf_new();
+        put_datalit(quoted, "-- ");
+        /* Preserve the usual ~/ expansion without exposing other shell text. */
+        if (path[0] == '~' && path[1] == '/') { put_datalit(quoted, "~/"); path += 2; }
+        put_byte(quoted, '\'');
+        for (; *path; path++) {
+            if (*path == '\'') put_datalit(quoted, "'\\''");
+            else put_byte(quoted, *path);
+        }
+        put_byte(quoted, '\'');
+        return strbuf_to_str(quoted);
+    }
+#endif
+    return dupstr(path);
+}
+
 static void toremote(CmdlineArg **args, size_t nargs)
 {
     char *wtarg, *host, *user;
@@ -2023,11 +2046,13 @@ static void toremote(CmdlineArg **args, size_t nargs)
             targetshouldbedirectory = true;
     }
 
+    char *shell_target = transfer_shell_path(targ);
     cmd = dupprintf("scp%s%s%s%s -t %s",
                     verbose ? " -v" : "",
                     recursive ? " -r" : "",
                     preserve ? " -p" : "",
-                    targetshouldbedirectory ? " -d" : "", targ);
+                    targetshouldbedirectory ? " -d" : "", shell_target);
+    sfree(shell_target);
     do_cmd(host, user, cmd);
     sfree(cmd);
 
@@ -2110,11 +2135,13 @@ static void tolocal(CmdlineArg **args, size_t nargs)
             user = NULL;
     }
 
+    char *shell_source = transfer_shell_path(src);
     cmd = dupprintf("scp%s%s%s%s -f %s",
                     verbose ? " -v" : "",
                     recursive ? " -r" : "",
                     preserve ? " -p" : "",
-                    targetshouldbedirectory ? " -d" : "", src);
+                    targetshouldbedirectory ? " -d" : "", shell_source);
+    sfree(shell_source);
     do_cmd(host, user, cmd);
     sfree(cmd);
 

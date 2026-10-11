@@ -109,9 +109,13 @@ def source_dependencies(ninja, directory, targets):
     if not files:
         raise RuntimeError("No source dependencies found; cannot reuse test results")
     # Changes to build definitions can alter feature macros and compiler flags.
-    files.update(p.relative_to(ROOT).as_posix() for p in ROOT.rglob("CMakeLists.txt")
-                 if not p.is_relative_to(directory.parent) and not p.is_relative_to(ROOT / "_tools")
-                 and ".git" not in p.parts)
+    # Read repository build definitions, excluding installed tools and all
+    # generated/untracked trees. Otherwise a temporary CMake wheel changes
+    # every suite fingerprint and causes unrelated tests to run again.
+    tracked = subprocess.check_output(
+        ["git", "-c", "safe.directory=" + str(ROOT), "ls-files", "--", "*CMakeLists.txt"],
+        cwd=ROOT, text=True, encoding="utf8").splitlines()
+    files.update(tracked)
     files.update(p.relative_to(ROOT).as_posix() for p in (ROOT / "cmake").glob("*.cmake"))
     files.add("tools/build-llvm.py")
     # These suites do not test release strings. PE/version validation runs
@@ -197,6 +201,23 @@ def main():
         report["tests"].append({"suite": key, "result": "reused" if reused else "passed",
                                 "evidence": entry["evidence"]})
 
+    def ssh_environment(work):
+        environment = os.environ.copy()
+        if args.offline:
+            __import__("paramiko")
+            return environment
+        dependencies = work / "ssh-dependencies"
+        if not dependencies.exists():
+            dependencies.mkdir()
+            # Verified wheels avoid a second Python installation or pip's
+            # potentially interactive subprocesses. All files are temporary.
+            report["ssh_dependencies"] = {
+                name: fetch_wheel(name, dependencies) for name in
+                ("paramiko", "bcrypt", "pynacl", "invoke", "cryptography", "cffi", "pycparser")}
+        environment["PYTHONPATH"] = str(dependencies)
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        return environment
+
     try:
         # This directory is owned by this invocation, including on failure.
         with tempfile.TemporaryDirectory(prefix="local-build-", dir=ROOT) as temporary:
@@ -273,25 +294,29 @@ def main():
                                        if f.get("file", "").endswith("-" + arch + ".zip")))
                     if args.force_tests or not (baseline_ok or
                         (cached.get("fingerprint") == fingerprint and cached.get("compiler") == compiler)):
-                        if args.offline:
-                            __import__("paramiko")
-                            test_python = PYTHON
-                        else:
-                            environment_dir = work / "ssh-python"
-                            if not environment_dir.exists():
-                                run([PYTHON, "-m", "venv", environment_dir], "ssh-venv")
-                                run([environment_dir / "Scripts/python.exe", "-m", "pip", "install", "paramiko"], "ssh-dependencies")
-                            test_python = environment_dir / "Scripts/python.exe"
+                        ssh_env = ssh_environment(work)
                     else:
-                        test_python = PYTHON
-                    check(key, files, [([test_python, "test/ssh_saved_password.py", directory / executable, directory / cli_executable], None),
-                          ([test_python, "test/ssh_saved_password.py", "--reconnect", directory / executable], None)],
+                        ssh_env = None
+                    check(key, files, [([PYTHON, "test/ssh_saved_password.py", directory / executable, directory / cli_executable], ssh_env),
+                          ([PYTHON, "test/ssh_saved_password.py", "--reconnect", directory / executable], ssh_env)],
                           compiler=compiler, baseline_allowed=True)
                     files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                     files.update({"test/companion_dispatch.py", "tools/build_names.py"})
                     check(arch + "/companions", files,
                           [([PYTHON, "test/companion_dispatch.py", directory, arch], None)],
                           compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable, utility_executable("pscp", arch)])
+                    files.update({"test/file_transfer.py", "test/kittyng-password-vector.json"})
+                    for scenario in ("sftp", "scp", "drop"):
+                        key = arch + "/transfer-" + scenario
+                        entry = cache.get(key, {})
+                        environment = None
+                        if (args.force_tests or entry.get("fingerprint") != digest_files(files)
+                                or entry.get("compiler") != compiler):
+                            environment = ssh_environment(work)
+                        check(key, files,
+                              [([PYTHON, "test/file_transfer.py", directory / executable, scenario], environment)],
+                              compiler=compiler)
                 run([PYTHON, "tools/package-release.py", arch, directory, "--output", staged], "package-" + arch)
                 archive = staged / f"kitty-ng-{report['version']}-{arch}.zip"
                 report["archives"].append({"file": archive.name, "sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),

@@ -4,6 +4,7 @@
 
 #include <wchar.h>
 #include "putty.h"
+#include "kittyng-companions.h"
 
 typedef struct CmdlineArgWin CmdlineArgWin;
 struct CmdlineArgWin {
@@ -141,6 +142,11 @@ CmdlineArg *cmdline_arg_from_utf8(CmdlineArgList *listp, const char *string)
     arg->acp = dupstr(string);
     arg->wide = dup_mb_to_wc(CP_UTF8, string);
     arg->utf8 = dup_wc_to_mb(CP_ACP, arg->wide, "");
+    if (kr_companion_utf8()) {
+        sfree(arg->utf8); sfree(arg->acp);
+        arg->utf8 = dupstr(string);
+        arg->acp = dup_wc_to_mb(CP_ACP, arg->wide, "");
+    }
     return &arg->argp;
 }
 
@@ -150,7 +156,7 @@ const char *cmdline_arg_to_str(CmdlineArg *argp)
         return NULL;
 
     CmdlineArgWin *arg = container_of(argp, CmdlineArgWin, argp);
-    return arg->acp;
+    return kr_companion_utf8() ? arg->utf8 : arg->acp;
 }
 
 const char *cmdline_arg_to_utf8(CmdlineArg *argp)

@@ -58,6 +58,36 @@ static void password_handler(dlgcontrol *ctrl, dlgparam *dlg,
     }
 }
 
+static void transfer_string_handler(dlgcontrol *ctrl, dlgparam *dlg,
+                                    void *data, int event)
+{
+    Conf *conf = data;
+    if (event == EVENT_REFRESH) {
+        const char *value = conf_get_str(conf, ctrl->context.i);
+        if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1, NULL, 0))
+            dlg_editbox_set_utf8(ctrl, dlg, value);
+        else {
+            wchar_t *wide = dup_mb_to_wc(CP_ACP, value);
+            char *utf8 = dup_wc_to_mb(CP_UTF8, wide, NULL);
+            dlg_editbox_set_utf8(ctrl, dlg, utf8); sfree(utf8); sfree(wide);
+        }
+    }
+    else if (event == EVENT_VALCHANGE) {
+        char *value = dlg_editbox_get_utf8(ctrl, dlg);
+        conf_set_str(conf, ctrl->context.i, value); sfree(value);
+    }
+}
+
+static void transfer_protocol_handler(dlgcontrol *ctrl, dlgparam *dlg,
+                                      void *data, int event)
+{
+    Conf *conf = data;
+    if (event == EVENT_REFRESH)
+        dlg_radiobutton_set(ctrl, dlg, conf_get_int(conf, CONF_winscpprot) == 0 ? 1 : 0);
+    else if (event == EVENT_VALCHANGE)
+        conf_set_int(conf, CONF_winscpprot, dlg_radiobutton_get(ctrl, dlg) == 1 ? 0 : 1);
+}
+
 static void about_handler(dlgcontrol *ctrl, dlgparam *dlg,
                           void *data, int event)
 {
@@ -101,6 +131,20 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     c = ctrl_editbox(s, "Saved password", NO_SHORTCUT, 100,
                      HELPCTX(no_help), password_handler, P(NULL), P(NULL));
     c->editbox.password = true;
+
+    ctrl_settitle(b, "Connection/File transfer", "File transfer settings");
+    s = ctrl_getset(b, "Connection/File transfer", "transfer", "File transfer");
+    ctrl_radiobuttons(s, "File transfer protocol", NO_SHORTCUT, 2, HELPCTX(no_help),
+                     transfer_protocol_handler, I(CONF_winscpprot),
+                     "SFTP", NO_SHORTCUT, I(1), "SCP", NO_SHORTCUT, I(0));
+    ctrl_editbox(s, "Remote directory (empty uses home)", NO_SHORTCUT, 100,
+                 HELPCTX(no_help), transfer_string_handler, I(CONF_pscpremotedir), P(NULL));
+    ctrl_checkbox(s, "Use current remote directory for uploads", NO_SHORTCUT,
+                  HELPCTX(no_help), conf_checkbox_handler, I(CONF_scp_auto_pwd));
+    ctrl_editbox(s, "Additional kscp options", NO_SHORTCUT, 100, HELPCTX(no_help),
+                 transfer_string_handler, I(CONF_pscpoptions), P(NULL));
+    ctrl_editbox(s, "Alternate destination (user@host:port, optional)", NO_SHORTCUT, 100,
+                 HELPCTX(no_help), transfer_string_handler, I(CONF_sftpconnect), P(NULL));
 
     s = ctrl_getset(b, "Window/Appearance", "kittyng", "kitty-ng");
     ctrl_droplist(s, "Interface language", NO_SHORTCUT, 50,

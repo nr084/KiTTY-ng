@@ -11,6 +11,33 @@
 #include "psftp.h"
 #include "ssh.h"
 #include "security-api.h"
+#include "kittyng-companions.h"
+
+static int file_codepage(void) { return kr_companion_utf8() ? CP_UTF8 : DEFAULT_CODEPAGE; }
+static HANDLE file_open(const char *name, DWORD access, DWORD share, DWORD disposition, DWORD attributes)
+{
+    wchar_t *wide = dup_mb_to_wc(file_codepage(), name);
+    HANDLE handle = CreateFileW(wide, access, share, NULL, disposition, attributes, NULL);
+    DWORD error = GetLastError(); sfree(wide); SetLastError(error);
+    return handle;
+}
+static DWORD file_attributes(const char *name)
+{
+    wchar_t *wide = dup_mb_to_wc(file_codepage(), name);
+    DWORD value = GetFileAttributesW(wide), error = GetLastError();
+    sfree(wide); SetLastError(error); return value;
+}
+static HANDLE file_find(const char *name, WIN32_FIND_DATAW *data)
+{
+    wchar_t *wide = dup_mb_to_wc(file_codepage(), name);
+    HANDLE handle = FindFirstFileW(wide, data);
+    DWORD error = GetLastError(); sfree(wide); SetLastError(error);
+    return handle;
+}
+static char *file_basename(const wchar_t *name)
+{
+    return dup_wc_to_mb(file_codepage(), name, "?");
+}
 
 SeatPromptResult filexfer_get_userpass_input(Seat *seat, prompts_t *p)
 {
@@ -106,8 +133,7 @@ RFile *open_existing_file(const char *name, uint64_t *size,
     HANDLE h;
     RFile *f;
 
-    h = CreateFile(name, GENERIC_READ, FILE_SHARE_READ, NULL,
-                   OPEN_EXISTING, 0, 0);
+    h = file_open(name, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING, 0);
     if (h == INVALID_HANDLE_VALUE)
         return NULL;
 
@@ -159,8 +185,7 @@ WFile *open_new_file(const char *name, long perms)
     HANDLE h;
     WFile *f;
 
-    h = CreateFile(name, GENERIC_WRITE, 0, NULL,
-                   CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0);
+    h = file_open(name, GENERIC_WRITE, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL);
     if (h == INVALID_HANDLE_VALUE)
         return NULL;
 
@@ -175,8 +200,7 @@ WFile *open_existing_wfile(const char *name, uint64_t *size)
     HANDLE h;
     WFile *f;
 
-    h = CreateFile(name, GENERIC_WRITE, FILE_SHARE_READ, NULL,
-                   OPEN_EXISTING, 0, 0);
+    h = file_open(name, GENERIC_WRITE, FILE_SHARE_READ, OPEN_EXISTING, 0);
     if (h == INVALID_HANDLE_VALUE)
         return NULL;
 
@@ -257,7 +281,7 @@ uint64_t get_file_posn(WFile *f)
 int file_type(const char *name)
 {
     DWORD attr;
-    attr = GetFileAttributes(name);
+    attr = file_attributes(name);
     /* We know of no `weird' files under Windows. */
     if (attr == (DWORD)-1)
         return FILE_TYPE_NONEXISTENT;
@@ -275,13 +299,13 @@ struct DirHandle {
 DirHandle *open_directory(const char *name, const char **errmsg)
 {
     HANDLE h;
-    WIN32_FIND_DATA fdat;
+    WIN32_FIND_DATAW fdat;
     char *findfile;
     DirHandle *dir;
 
     /* Enumerate files in dir `foo'. */
     findfile = dupcat(name, "/*");
-    h = FindFirstFile(findfile, &fdat);
+    h = file_find(findfile, &fdat);
     if (h == INVALID_HANDLE_VALUE) {
         *errmsg = win_strerror(GetLastError());
         return NULL;
@@ -290,7 +314,7 @@ DirHandle *open_directory(const char *name, const char **errmsg)
 
     dir = snew(DirHandle);
     dir->h = h;
-    dir->name = dupstr(fdat.cFileName);
+    dir->name = file_basename(fdat.cFileName);
     return dir;
 }
 
@@ -299,11 +323,11 @@ char *read_filename(DirHandle *dir)
     do {
 
         if (!dir->name) {
-            WIN32_FIND_DATA fdat;
-            if (!FindNextFile(dir->h, &fdat))
+            WIN32_FIND_DATAW fdat;
+            if (!FindNextFileW(dir->h, &fdat))
                 return NULL;
             else
-                dir->name = dupstr(fdat.cFileName);
+                dir->name = file_basename(fdat.cFileName);
         }
 
         assert(dir->name);
@@ -335,14 +359,14 @@ void close_directory(DirHandle *dir)
 int test_wildcard(const char *name, bool cmdline)
 {
     HANDLE fh;
-    WIN32_FIND_DATA fdat;
+    WIN32_FIND_DATAW fdat;
 
     /* First see if the exact name exists. */
-    if (GetFileAttributes(name) != (DWORD)-1)
+    if (file_attributes(name) != (DWORD)-1)
         return WCTYPE_FILENAME;
 
     /* Otherwise see if a wildcard match finds anything. */
-    fh = FindFirstFile(name, &fdat);
+    fh = file_find(name, &fdat);
     if (fh == INVALID_HANDLE_VALUE)
         return WCTYPE_NONEXISTENT;
 
@@ -383,11 +407,11 @@ char *stripslashes(const char *str, bool local)
 WildcardMatcher *begin_wildcard_matching(const char *name)
 {
     HANDLE h;
-    WIN32_FIND_DATA fdat;
+    WIN32_FIND_DATAW fdat;
     WildcardMatcher *dir;
     char *last;
 
-    h = FindFirstFile(name, &fdat);
+    h = file_find(name, &fdat);
     if (h == INVALID_HANDLE_VALUE)
         return NULL;
 
@@ -400,8 +424,11 @@ WildcardMatcher *begin_wildcard_matching(const char *name)
         (fdat.cFileName[1] == '\0' ||
          (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
         dir->name = NULL;
-    else
-        dir->name = dupcat(dir->srcpath, fdat.cFileName);
+    else {
+        char *base = file_basename(fdat.cFileName);
+        dir->name = dupcat(dir->srcpath, base);
+        sfree(base);
+    }
 
     return dir;
 }
@@ -409,17 +436,20 @@ WildcardMatcher *begin_wildcard_matching(const char *name)
 char *wildcard_get_filename(WildcardMatcher *dir)
 {
     while (!dir->name) {
-        WIN32_FIND_DATA fdat;
+        WIN32_FIND_DATAW fdat;
 
-        if (!FindNextFile(dir->h, &fdat))
+        if (!FindNextFileW(dir->h, &fdat))
             return NULL;
 
         if (fdat.cFileName[0] == '.' &&
             (fdat.cFileName[1] == '\0' ||
              (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
             dir->name = NULL;
-        else
-            dir->name = dupcat(dir->srcpath, fdat.cFileName);
+        else {
+            char *base = file_basename(fdat.cFileName);
+            dir->name = dupcat(dir->srcpath, base);
+            sfree(base);
+        }
     }
 
     if (dir->name) {
@@ -452,7 +482,10 @@ bool vet_filename(const char *name)
 
 bool create_directory(const char *name)
 {
-    return CreateDirectory(name, NULL) != 0;
+    wchar_t *wide = dup_mb_to_wc(file_codepage(), name);
+    bool ok = CreateDirectoryW(wide, NULL) != 0;
+    DWORD error = GetLastError(); sfree(wide); SetLastError(error);
+    return ok;
 }
 
 char *dir_file_cat(const char *dir, const char *file)

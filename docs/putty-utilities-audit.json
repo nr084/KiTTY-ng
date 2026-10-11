@@ -7,8 +7,10 @@
   "files": [
     {
       "file": "pscp.c",
-      "identical_to_putty_0_85": true,
-      "upstream_sha256": "03ab19f33709a31d113d7984e51a15ad5aee75ebfd5bd1962397f14beeafb042"
+      "identical_to_putty_0_85": false,
+      "upstream_sha256": "03ab19f33709a31d113d7984e51a15ad5aee75ebfd5bd1962397f14beeafb042",
+      "local_sha256_lf": "ad8c79e8a8a4a66c39dc3eca6cbb049220e41cd4ed41425241a4b5743c5de43d",
+      "local_adaptation": "Экранирование удалённых SCP-путей при передаче из GUI; обычный командный интерфейс PuTTY сохранён."
     },
     {
       "file": "psftp.c",
