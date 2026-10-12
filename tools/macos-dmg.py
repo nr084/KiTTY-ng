@@ -27,9 +27,12 @@ def main():
   for name in ('README-macos.txt','Diagnose KiTTY-NG.command','Smoke-test KiTTY-NG.command'):
    path=payload/name
    if path.exists():shutil.move(path,instructions/name);modes['Instructions/'+name]=modes.pop(name)
-  for name in ('macos.md','macos.en.md'):shutil.copy2(ROOT/'docs'/name,instructions/name)
-  screenshots=instructions/'screenshots';screenshots.mkdir(exist_ok=True)
-  for image in sorted((ROOT/'docs/screenshots').glob('macos-*.png')):shutil.copy2(image,screenshots/image.name)
+  # Mirror the documented directory layout so offline links resolve.
+  for name in ('macos.md','macos.en.md'):(instructions/name).unlink(missing_ok=True)
+  shutil.copytree(ROOT/'docs',instructions/'docs',dirs_exist_ok=True)
+  for name in ('README.md','README.en.md','LICENCE','LICENCE-KiTTY.txt'):shutil.copy2(ROOT/name,instructions/name)
+  icons=instructions/'icons';icons.mkdir(exist_ok=True)
+  for name in ('kitty-ng.png','kitty-ng-forum.png','kitty-ng-prompt.txt'):shutil.copy2(ROOT/'icons'/name,icons/name)
   shutil.copy2(payload/'KiTTY-NG.app/Contents/Resources/kitty-ng.icns',payload/'.VolumeIcon.icns')
   (instructions/'Start here.html').write_text(f'''<!doctype html><html lang="ru"><meta charset="utf-8"><title>KiTTY-NG {version} — Universal</title><style>body{{font:17px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:#18253d;background:#f2f6fb;margin:0;padding:48px}}main{{max-width:820px;margin:auto;background:white;padding:36px;border-radius:22px;box-shadow:0 12px 44px #10244d15}}h1{{margin:0;color:#175cc5;font-size:38px}}p,li{{line-height:1.6}}.chip{{display:inline-block;background:#e7efff;padding:6px 14px;border-radius:20px;color:#175cc5}}hr{{border:0;border-top:1px solid #dde5ef;margin:28px 0}}</style><main><h1>KiTTY-NG {version}</h1><p class="chip">macOS Universal · Apple Silicon + Intel</p><h2>Портативный запуск</h2><ol><li>Перенесите <b>KiTTY-NG.app</b> из образа в свою папку. Для общих профилей — рядом с Windows EXE и Sessions.</li><li>Извлеките DMG, затем откройте приложение.</li><li>Если macOS блокирует запуск: Настройки системы → Конфиденциальность и безопасность → Всё равно открыть.</li></ol><p>Данные хранятся снаружи .app. Диагностические command-файлы перенесите рядом с приложением перед запуском.</p><hr><h2>Portable setup</h2><ol><li>Copy <b>KiTTY-NG.app</b> into your folder, beside Windows EXEs and Sessions for shared profiles.</li><li>Eject the DMG, then launch the app.</li><li>If blocked, use System Settings → Privacy &amp; Security → Open Anyway.</li></ol><p>Settings stay outside the app bundle. Copy diagnostic command files beside the app before running.</p><p>Based on PuTTY by Simon Tatham and contributors, and KiTTY by Cyril Dupont. <a href="https://github.com/nr084/kitty-ng">GitHub</a></p></main></html>''',encoding='utf-8')
   with DSStore.open(str(payload/'.DS_Store'),'w+') as ds:

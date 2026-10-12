@@ -56,6 +56,13 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
         bundle.write(root / "docs" / name, "docs/" + name)
     for image in sorted((root / "docs/screenshots").glob("macos-*.png")):
         bundle.write(image, "docs/screenshots/" + image.name)
+    # Include the complete guide tree referenced by the packaged README.
+    existing = set(bundle.namelist())
+    for guide in sorted((root / "docs").rglob("*.md")):
+        relative = guide.relative_to(root).as_posix()
+        if relative not in existing:
+            bundle.write(guide, relative)
+    bundle.write(root / "icons/kitty-ng-forum.png", "icons/kitty-ng-forum.png")
     bundle.write(root / "icons/kitty-ng.png", "icons/kitty-ng.png")
     bundle.write(root / "icons/kitty-ng-prompt.txt", "icons/kitty-ng-prompt.txt")
     bundle.writestr("kitty-ng.portable", "")

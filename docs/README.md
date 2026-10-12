@@ -1,0 +1,26 @@
+# Документация KiTTY-NG
+
+[Проект](../README.md) | [English](README.en.md)
+
+| Руководство | Содержание |
+| --- | --- |
+| [Windows](windows.md) | Запуск, язык, утилиты и передача файлов |
+| [macOS Universal](macos.md) | DMG, portable-режим и общие Windows-профили |
+| [Совместимость](portable.md) | Переход с KiTTY, пароли, ключи и относительные пути |
+| [Сборка](build.md) | Локальная компиляция Windows/macOS и версии |
+
+## Технические отчёты
+
+- [Миграция KiTTY](migration.md) · [Матрица решений](kitty-migration-decisions.json) · [Аудит расширений](kitty-feature-audit.json).
+- [Матрица macOS](macos-migration.json) · [Исправления Windows](windows-fixes.md).
+- [Область проверки](validation.md) · [Аудит утилит PuTTY](putty-utilities-audit.json).
+- [Следующие задачи](planned.md).
+
+## История выпусков
+
+- [0.85-3](releases/0.85-3.md) — Windows + macOS Universal.
+- [0.85-2](releases/0.85-2.md).
+- [0.85-1](releases/0.85-1.md).
+- [Следующие изменения](releases/unreleased.md).
+
+Старые заметки `0.85-test*` сохранены как история разработки. Их имена файлов не обозначают доступные актуальные сборки; выбирайте пакеты в [GitHub Releases](https://github.com/nr084/kitty-ng/releases).

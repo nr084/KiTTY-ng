@@ -1,36 +1,28 @@
 # KiTTY-NG for macOS
 
-**macOS Portable + shared Windows profiles.** No installation is required. Keep `KiTTY-NG.app` beside the Windows EXEs and use the same `Sessions` folder, host keys and relative SSH-key paths. Settings stay outside the app bundle. The original KiTTY portable profile format is supported.
+[Documentation](README.en.md) | [Русский](macos.md)
 
-[Русский](macos.md) | **English**
+**Universal: Apple Silicon and Intel in one app.** Release 0.85-3 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
-Download the Universal DMG from [Releases](https://github.com/nr084/kitty-ng/releases). macOS 13 or newer is required. One app and all five bundled helpers contain both ARM64 and Intel x86_64 slices.
+## First launch
 
-## Start and portable profiles
+1. Open `kitty-ng-0.85-3-macos-universal.dmg`.
+2. Copy `KiTTY-NG.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
+3. Eject the DMG and launch the copied app.
+4. If no sessions appear, click **Choose folder…** and select the portable root.
 
-Open the DMG and copy `KiTTY-NG.app` into a writable folder. Eject the image before launching. For shared Windows/Mac profiles, put the app beside the Windows EXEs, `kitty.ini`, `Sessions`, `SshHostKeys` and your key folder. Keep settings outside the app bundle. The folder picker selects the shared portable root; `KITTY_NG_PORTABLE_DIR` and `--portable-dir` can also set it. Do not launch the portable app from the read-only DMG.
+Settings remain outside `.app`. The read-only DMG is not suitable for working with profiles. If AppTranslocation changes the launch location, select the settings folder manually.
 
-The app is locally ad-hoc signed, without Developer ID or notarization. If Gatekeeper blocks it, use System Settings → Privacy & Security → Open Anyway. If App Translocation changes the path, choose your portable root manually.
+### Allowing launch
 
-## Use
+The app has a local ad-hoc signature without Developer ID or Apple notarization. If blocked, use **System Settings → Privacy & Security → Open Anyway**. You may re-sign it on Mac:
 
-Folders appear before profiles, `..` goes up, and Quick search ignores case. New, Edit, Delete and Duplicate manage profiles. Duplicate asks for a new name and opens the settings editor; the original stays unchanged. Choose English/Russian and Apply to save the language. Saved key/certificate/script paths inside the root are relative.
+```sh
+codesign --force --deep --sign - KiTTY-NG.app
+codesign --verify --deep --strict --verbose=2 KiTTY-NG.app
+```
 
-Right-click a terminal for Send files or Download files. In applications that capture mouse reporting, use Shift+right-click. Ctrl+F3 uploads and Ctrl+F4 downloads when KiTTY shortcuts are enabled and not overridden. Dragging files uploads without a destination prompt: known current directory, configured remote path, or `.` on the new connection. Private SSH settings are passed to bundled kscp through a private pipe, not password command-line arguments.
-
-KiTTYgen is in the app menu. Kageant has a menu bar status icon, key management and language selection. Automation, scripts, reconnection, custom shortcuts and additional fonts are configured in the session editor. All settings exposes persisted PuTTY/KiTTY options; complex map values retain their storage syntax.
-
-Windows and macOS use separate default random-seed files. macOS reads `macseedfile` from putty.conf if explicitly set. Existing keys/profiles do not depend on the seed filename.
-
-## Verification and limits
-
-Basic operation is confirmed by the user on an M3 MacBook Air. SSH CA, Kerberos/GSSAPI and other specialized scenarios need separate native verification. Unix utilities are bundled; no GTK or third-party runtime is required. Printing and retired platform-specific extensions are excluded; see the [migration matrix](macos-migration.json).
-
-Smoke-test KiTTY-NG.command uses temporary synthetic keys and profiles; Diagnose KiTTY-NG.command enables NSZombie diagnostics and writes a log beside the app. These are in the image's Instructions folder: copy them beside the app before running.
-
-Build locally on Windows with `python tools/local-build.py --platform macos`, then package the disk image using `tools/macos-dmg.py`. Build tools and the Apple SDK stay under ignored `_tools`; intermediate files are removed. Sources are based on PuTTY by Simon Tatham and contributors, and KiTTY by Cyril Dupont.
-
-Language switching preserves the native search control and the names English/Русский. New SSH profiles default to port 22 before any terminal has been opened; explicitly saved ports are retained. The smoke script contains a native AppKit regression check for these cases.
+## Sharing Windows profiles
 
 ```text
 KiTTY-NG/
@@ -44,10 +36,49 @@ KiTTY-NG/
 └── SSH-Keys/
 ```
 
-KiTTYgen keeps its language names, algorithm selection, bit count, key comment, file path and public-key data unchanged when switching the interface language.
+Both platforms read original KiTTY portable profiles. Folders appear as `<name>`, `..` goes up, quick search is case-insensitive, and folders sort before sessions. `KITTY_NG_PORTABLE_DIR` selects the root; console helpers also accept `--portable-dir`.
 
-## Interface
+Relative key, certificate and file paths resolve against the shared root. Internal paths become relative when saving; external paths remain absolute. Absolute Windows paths and `%USERPROFILE%` are not translated automatically. Update such profiles on Windows before moving them. See [portable compatibility](portable.en.md).
 
-![KiTTY-NG](screenshots/macos-session-en.png)
+Unknown profile fields are retained. Mac font and window geometry settings use separate fields. Profiles changed externally are protected from stale writes. Seed files are separate: `kitty-ng-macos.rnd` and `kitty-ng-win.rnd`; `macseedfile` in `putty.conf` overrides the Mac path.
 
-![KiTTYgen](screenshots/macos-kittygen-en.png)
+## Profiles and language
+
+**New**, **Edit**, **Delete** and **Duplicate** manage profiles. Duplication asks for a name and opens the copied settings; only **Save** writes the copy. **Refresh** reloads the list; **Upgrade profiles** converts eligible internal file references.
+
+New SSH profiles use port **22**. Choose **English / Русский → Apply** in the main window. KiTTYgen has a dropdown and Kageant has a language menu. The default follows the macOS language; a saved choice takes precedence. Remote output and user data are not translated.
+
+## File transfers
+
+Drop files or folders onto an SSH terminal, or use its context menu. Upload uses the known current path when detection is enabled, the configured `PSCPRemoteDir`, or `.` — the home directory of a new connection. It does not ask for a separate destination directory. Use the download command and specify the remote path to receive files. If a terminal application captures the mouse, use **Shift + right-click** for the local menu.
+
+The embedded `kscp` receives current session settings: port, proxy, saved password, key, certificate and agent. Passwords are not command-line arguments or temporary profiles. Helpers reside inside `.app`; PATH is not searched. Multiple files, Unicode names and recursive directories are supported.
+
+## Terminal, automation and utilities
+
+- Profile settings cover connections, authentication, proxies, transfers, automation, windows and notes. **All settings** exposes the persisted PuTTY configuration tree.
+- Commands and UTF-8 scripts are sent after the SSH channel is ready, with configurable delays. Scripts are not executed locally.
+- Reconnection after network failure or wake, KiTTY `[Shortcuts]`, Cmd+C / Cmd+V, input protection and fullscreen are supported.
+- Ctrl+click opens HTTP/HTTPS links. Optional OSC 52 allows clipboard writes only.
+- KiTTYgen generates Ed25519/RSA/ECDSA keys, loads keys, changes passphrases, copies public keys and exports PPK/OpenSSH/RFC4716.
+- Kageant supports loading/listing keys, removing all keys and stopping the agent. The macOS menu restores hidden terminals.
+
+All five helpers in `Contents/Helpers` are Universal: `klink`, `kscp`, `ksftp`, `kittygen`, `kageant`.
+
+## Special scenarios and limitations
+
+SSH CA settings use `SshHostCAs`; automatic synchronization with the Windows registry CA store is not available. GSSAPI uses the system GSS.framework and requires valid Kerberos credentials. These scenarios, Intel runtime and the macOS 13 deployment baseline require separate native validation.
+
+Saved KiTTY passwords are reversible. Entire profiles encrypted with a master password are unsupported. Retaining an unknown field does not imply support for its retired extension. See the [macOS matrix](macos-migration.json), [verification scope](validation.md) and [roadmap](planned.md) (technical reports in Russian).
+
+## Diagnostics and builds
+
+The DMG's `Instructions` folder contains guides and diagnostic `.command` files. Copy these beside the app before use. The diagnostic command produces a log; the smoke-test command uses synthetic data in a temporary directory.
+
+See [local builds](build.en.md) for Windows compilation and DMG packaging. Compilation does not require a Mac; native UI validation does.
+
+## Screenshots
+
+![KiTTY-NG — English interface](screenshots/macos-session-en.png)
+
+![KiTTYgen — English interface](screenshots/macos-kittygen-en.png)
