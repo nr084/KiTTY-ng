@@ -537,7 +537,7 @@ static void kr_test_clipboard(TermWin *tw, const char *encoded)
 
 static void kr_extension_ui_test(WinGuiSeat *wgs)
 {
-#define EXTENSION_CHECK(value) do { if (!(value)) cleanup_exit(ERROR_INVALID_DATA); } while (0)
+#define EXTENSION_CHECK(value) do { if (!(value)) { fprintf(stderr,"Extension UI check failed: %s\n",#value); cleanup_exit(ERROR_INVALID_DATA); } } while (0)
     if (!wgs->backend || !backend_sendok(wgs->backend) || !wgs->kr_commands_started || wgs->kr_commands) return;
     KillTimer(wgs->term_hwnd, KR_EXTENSION_TEST_TIMER);
     HWND hwnd = wgs->term_hwnd;
