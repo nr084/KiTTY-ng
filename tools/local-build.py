@@ -125,11 +125,18 @@ def source_dependencies(ninja, directory, targets):
 
 
 def main():
+    platform_parser = argparse.ArgumentParser(add_help=False)
+    platform_parser.add_argument("--platform", choices=["windows", "macos"], default="windows")
+    platform_args, remaining = platform_parser.parse_known_args()
+    if platform_args.platform == "macos":
+        subprocess.run([sys.executable, str(ROOT / "tools/macos-build.py"), *remaining], cwd=ROOT, check=True)
+        return
     # Keep diagnostics readable in Russian paths and redirected Windows logs.
     os.environ["PYTHONUTF8"] = "1"
     sys.stdout.reconfigure(encoding="utf8", errors="replace")
     sys.stderr.reconfigure(encoding="utf8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--platform", choices=["windows", "macos"], default="windows")
     parser.add_argument("--arch", nargs="+", choices=["x64", "x86", "arm64"],
                         default=["x64", "x86", "arm64"])
     parser.add_argument("--toolchain", type=Path, help="Existing LLVM-MinGW directory")

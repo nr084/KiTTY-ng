@@ -12,6 +12,19 @@
 #include <string.h>
 
 #include "putty.h"
+#ifdef KITTY_NG_MACOS
+#include "macos/cli-language.h"
+#define printf kr_mac_printf
+#define fprintf kr_mac_fprintf
+#define vfprintf kr_mac_vfprintf
+#define fputs kr_mac_fputs
+#define dupprintf kr_mac_dupprintf
+#define dupvprintf kr_mac_dupvprintf
+#endif
+
+#ifdef KITTY_NG_MACOS
+#include "macos/helper.h"
+#endif
 #include "ssh.h"
 #include "sshkeygen.h"
 #include "mpint.h"
@@ -234,6 +247,14 @@ const bool buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
+#ifdef KITTY_NG_MACOS
+    kr_mac_begin_tool();
+    for(int i=1;i<argc;i++)if(!strcmp(argv[i],"--language")){
+        if(i+1>=argc||(strcmp(argv[i+1],"en")&&strcmp(argv[i+1],"ru"))){fprintf(stderr,"Language must be en or ru\n");return 1;}
+        kr_mac_cli_set_language(argv[i+1]);memmove(argv+i,argv+i+2,(argc-i-1)*sizeof(*argv));argc-=2;i--;
+    }
+#endif
+
     char *infile = NULL;
     Filename *infilename = NULL, *outfilename = NULL;
     LoadedFile *infile_lf = NULL;

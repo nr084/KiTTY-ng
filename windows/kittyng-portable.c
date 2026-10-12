@@ -41,7 +41,7 @@ static void load_legacy_paths(void)
     sessions_directory = join(portable_root, L"Sessions");
     hostkeys_directory = join(portable_root, L"SshHostKeys");
     proxies_directory = join(portable_root, L"Proxies");
-    seed_path = join(portable_root, L"putty.rnd");
+    seed_path = join(portable_root, L"kitty-ng-win.rnd");
     wchar_t *ini = join(portable_root, L"kitty.ini");
     GetPrivateProfileStringW(L"KiTTY", L"fileextension", L"", session_suffix, lenof(session_suffix), ini);
     GetPrivateProfileStringW(L"KiTTY", L"hostkeyextension", L"", hostkey_suffix, lenof(hostkey_suffix), ini);

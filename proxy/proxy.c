@@ -520,6 +520,12 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         sk_addr_free(addr);
         return new_error_socket_fmt(plug, "%s", kr_translate(profile_error));
     }
+#elif defined(KITTY_NG_MACOS)
+    const char *profile_error = conf_get_str(conf, CONF_kr_proxy_error);
+    if (*profile_error) {
+        sk_addr_free(addr);
+        return new_error_socket_fmt(plug, "%s", profile_error);
+    }
 #endif
 
     if (type != PROXY_NONE &&

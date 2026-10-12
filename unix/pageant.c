@@ -17,6 +17,19 @@
 #include <termios.h>
 
 #include "putty.h"
+#ifdef KITTY_NG_MACOS
+#include "macos/cli-language.h"
+#define printf kr_mac_printf
+#define fprintf kr_mac_fprintf
+#define vfprintf kr_mac_vfprintf
+#define fputs kr_mac_fputs
+#define dupprintf kr_mac_dupprintf
+#define dupvprintf kr_mac_dupvprintf
+#endif
+
+#ifdef KITTY_NG_MACOS
+#include "macos/helper.h"
+#endif
 #include "ssh.h"
 #include "misc.h"
 #include "pageant.h"
@@ -92,6 +105,9 @@ static int make_pipe_to_askpass(const char *msg)
         /*
          * See comment in fork_and_exec_self() in main-gtk-simple.c.
          */
+#ifdef KITTY_NG_MACOS
+        if(kr_mac_gui_prompts()){kr_mac_exec_askpass(msg);_exit(127);}
+#endif
         execv("/proc/self/exe", (char **)args);
         execvp(progname, (char **)args);
         perror("exec");
@@ -1138,6 +1154,9 @@ void run_agent(FILE *logfp, const char *symlink_path)
     upc->termination_pid = -1;
     upc->prompt_buf = strbuf_new_nm();
     upc->prompt_type = display ? RTPROMPT_GUI : RTPROMPT_UNAVAILABLE;
+#ifdef KITTY_NG_MACOS
+    if(kr_mac_gui_prompts())upc->prompt_type=RTPROMPT_GUI;
+#endif
     pl = pageant_listener_new(&pl_plug, &upc->plc);
     sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
                                       &errw, &socketname);
@@ -1307,6 +1326,14 @@ void run_agent(FILE *logfp, const char *symlink_path)
 
 int main(int argc, char **argv)
 {
+#ifdef KITTY_NG_MACOS
+    kr_mac_begin_tool();
+    for(int i=1;i<argc;i++)if(!strcmp(argv[i],"--language")){
+        if(i+1>=argc||(strcmp(argv[i+1],"en")&&strcmp(argv[i+1],"ru"))){fprintf(stderr,"Language must be en or ru\n");return 1;}
+        kr_mac_cli_set_language(argv[i+1]);memmove(argv+i,argv+i+2,(argc-i-1)*sizeof(*argv));argc-=2;i--;
+    }
+#endif
+
     bool doing_opts = true;
     keyact curr_keyact = KEYACT_AGENT_LOAD;
     const char *standalone_askpass_prompt = NULL;

@@ -20,6 +20,16 @@
 #include <assert.h>
 
 #include "putty.h"
+#ifdef KITTY_NG_MACOS
+#include "macos/cli-language.h"
+#define printf kr_mac_printf
+#define fprintf kr_mac_fprintf
+#define vfprintf kr_mac_vfprintf
+#define fputs kr_mac_fputs
+#define dupprintf kr_mac_dupprintf
+#define dupvprintf kr_mac_dupvprintf
+#endif
+
 #ifdef _WIN32
 #include "kittyng.h"
 #define printf kr_console_printf
@@ -2374,7 +2384,7 @@ int psftp_main(CmdlineArgList *arglist)
         } else if (strcmp(argstr, "-no-sanitise-stderr") == 0) {
             sanitise_stderr = false;
         } else if (strcmp(argstr, "--") == 0) {
-            arglistpos++;
+            /* arglistpos already points past the separator; keep the first path. */
             break;
         } else {
             cmdline_error("unknown option \"%s\"", argstr);

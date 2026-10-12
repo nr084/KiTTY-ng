@@ -1,4 +1,4 @@
-"""Publish the verified local three-architecture release, preserving previous releases."""
+"""Publish the verified local Windows and macOS Universal release, preserving previous releases."""
 import argparse
 import hashlib
 import json
@@ -17,15 +17,16 @@ def git(*args, **kwargs):
                                    cwd=ROOT, **kwargs)
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.parse_args()
+parser.add_argument("--draft-only", action="store_true", help="Upload a reviewable draft without publishing")
+args = parser.parse_args()
 version = (ROOT / "VERSION").read_text().strip()
 tag = "v" + version
-report = json.loads((ROOT / "dist/local-build.json").read_text())
+report = json.loads((ROOT / "dist/release-build.json").read_text())
 commit = git("rev-parse", "HEAD", text=True).strip()
 assert not git("status", "--porcelain"), "Commit all changes before publishing"
 assert report["status"] == "success" and report["version"] == version
 assert report["source_commit"] == commit and not report["working_tree_dirty"]
-expected = {f"kitty-ng-{version}-{arch}.zip" for arch in ("x64", "x86", "arm64")}
+expected = {f"kitty-ng-{version}-{arch}.zip" for arch in ("x64", "x86", "arm64")} | {f"kitty-ng-{version}-macos-universal.dmg"}
 assert {a["file"] for a in report["archives"]} == expected
 for asset in report["archives"]:
     assert hashlib.sha256((ROOT / "dist" / asset["file"]).read_bytes()).hexdigest() == asset["sha256"]
@@ -61,12 +62,15 @@ for asset in release["assets"]:
 for asset in report["archives"]:
     path = ROOT / "dist" / asset["file"]
     url = release["upload_url"].split("{", 1)[0] + "?name=" + urllib.parse.quote(path.name)
-    uploaded = request(url, "POST", path.read_bytes(), "application/zip")
+    uploaded = request(url, "POST", path.read_bytes(), "application/x-apple-diskimage" if path.suffix == ".dmg" else "application/zip")
     assert uploaded["size"] == path.stat().st_size
     assert uploaded.get("digest") == "sha256:" + asset["sha256"], "Upload checksum mismatch"
     print("Uploaded:", path.name, flush=True)
 release = request(API + "/releases/" + str(release["id"]), "GET")
 assert {a["name"] for a in release["assets"]} == expected
+if args.draft_only:
+    print("Draft prepared:", release["html_url"], flush=True)
+    raise SystemExit(0)
 publication = {"draft": False}
 if not metadata["prerelease"]:
     publication["make_latest"] = "true"

@@ -11,6 +11,7 @@
 
 #include "putty.h"
 #include "kittyng.h"
+#include "kittyng-logui.h"
 #define dupprintf kr_printf
 #undef SetWindowText
 #define SetWindowText kr_set_text
@@ -260,47 +261,6 @@ static char *getevent(int i)
 static HWND logbox;
 HWND event_log_window(void) { return logbox; }
 
-static void update_logbox_horizontal_extent(HWND logbox)
-{
-    /* Find the width of every entry in the current Event Log, and set
-     * the horizontal scrollbar so that you can scroll right to see
-     * all of them. */
-    HWND listbox = GetDlgItem(logbox, IDN_LIST);
-    HDC hdc = GetDC(listbox);
-    int count = SendMessage(listbox, LB_GETCOUNT, 0, 0);
-    strbuf *sb = strbuf_new();
-    WPARAM maxwidth = 0;
-    for (int i = 0; i < count; i++) {
-        size_t len = SendMessage(listbox, LB_GETTEXTLEN, i, 0);
-        strbuf_clear(sb);
-        SendMessage(listbox, LB_GETTEXT, i, (LPARAM)strbuf_append(sb, len));
-        SIZE size;
-        if (GetTextExtentPoint(hdc, sb->s, sb->len, &size)) {
-            if (maxwidth < size.cx)
-                maxwidth = size.cx;
-        }
-    }
-    strbuf_free(sb);
-    ReleaseDC(listbox, hdc);
-
-    /*
-     * This doesn't seem to set _exactly_ the right width. If I scroll
-     * the scrollbar right as far as it will go, I find I end up with
-     * a bit of extra space on the right of the longest piece of text.
-     * I don't know why that is.
-     *
-     * Testing with debug(), GetTextExtentPoint seems to be correctly
-     * returning the exact width in pixels of each log entry's text.
-     * And the docs for LB_SETHORIZONTALEXTENT say that it wants a
-     * width in pixels too. So I don't think it can be the usual
-     * problem of confusing logical dialog units and pixels. (In any
-     * case, on the high-DPI display where I tested, the difference
-     * between those is more than a factor of 2, whereas I'm seeing a
-     * discrepancy of only about 10%.)
-     */
-    SendMessage(listbox, LB_SETHORIZONTALEXTENT, maxwidth, 0);
-}
-
 static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
@@ -318,14 +278,26 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                            (LPARAM) tabs);
 
         for (i = 0; i < ninitial; i++)
-            SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
-                               0, (LPARAM) events_initial[i]);
+            kr_log_add(hwnd, events_initial[i]);
         for (i = 0; i < ncircular; i++)
-            SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
-                               0, (LPARAM) events_circular[(circular_first + i) % LOGEVENT_CIRCULAR_MAX]);
-        update_logbox_horizontal_extent(hwnd);
+            kr_log_add(hwnd, events_circular[(circular_first + i) % LOGEVENT_CIRCULAR_MAX]);
+        kr_log_extent(hwnd);
+        kr_log_layout(hwnd);
 
         return 1;
+      }
+      case WM_SIZE:
+        if (wParam != SIZE_MINIMIZED) kr_log_layout(hwnd);
+        return 0;
+      case WM_GETMINMAXINFO: {
+        RECT minimum = {0, 0, 240, 100};
+        MapDialogRect(hwnd, &minimum);
+        AdjustWindowRectEx(&minimum, GetWindowLongPtr(hwnd, GWL_STYLE), FALSE,
+                          GetWindowLongPtr(hwnd, GWL_EXSTYLE));
+        MINMAXINFO *limits = (MINMAXINFO *)lParam;
+        limits->ptMinTrackSize.x = minimum.right - minimum.left;
+        limits->ptMinTrackSize.y = minimum.bottom - minimum.top;
+        return 0;
       }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
@@ -357,6 +329,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 
                     if (count == 0) {  /* can't copy zero stuff */
                         MessageBeep(0);
+                        sfree(selitems);
                         break;
                     }
 
@@ -366,7 +339,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                         put_datapl(sb, ptrlen_from_asciz(q));
                         put_data(sb, sel_nl, sizeof(sel_nl));
                     }
-                    write_aclip(hwnd, CLIP_SYSTEM, sb->s, sb->len);
+                    kr_log_copy(hwnd, sb->s);
                     strbuf_free(sb);
                     sfree(selitems);
 
@@ -910,12 +883,11 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
     *location = dupcat(timebuf, string);
     if (logbox) {
         int count;
-        SendDlgItemMessage(logbox, IDN_LIST, LB_ADDSTRING,
-                           0, (LPARAM) *location);
+        kr_log_add(logbox, *location);
         count = SendDlgItemMessage(logbox, IDN_LIST, LB_GETCOUNT, 0, 0);
         SendDlgItemMessage(logbox, IDN_LIST, LB_SETTOPINDEX, count - 1, 0);
 
-        update_logbox_horizontal_extent(logbox);
+        kr_log_extent(logbox);
     }
     if (ninitial < LOGEVENT_INITIAL_MAX) {
         ninitial++;
@@ -941,7 +913,7 @@ static void win_gui_logging_error(LogPolicy *lp, const char *event)
 void showeventlog(HWND hwnd)
 {
     if (!logbox) {
-        logbox = CreateDialog(hinst, MAKEINTRESOURCE(IDD_LOGBOX),
+        logbox = CreateDialogW(hinst, MAKEINTRESOURCEW(IDD_LOGBOX),
                               hwnd, LogProc);
         ShowWindow(logbox, SW_SHOWNORMAL);
     }

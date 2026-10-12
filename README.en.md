@@ -1,18 +1,33 @@
-# kitty-ng
+# KiTTY-NG
+
+**macOS Portable + shared Windows profiles.** No installation is required. Keep `KiTTY-NG.app` beside the Windows EXEs and use the same `Sessions` folder, host keys and relative SSH-key paths. Settings stay outside the app bundle. The original KiTTY portable profile format is supported.
 
 [Русский](README.md) | **English**
 
-SSH, Telnet and serial terminal for Windows, based on PuTTY 0.85, with English and Russian interfaces and support for KiTTY portable settings.
+SSH, Telnet and serial terminal for Windows and macOS, based on PuTTY 0.85, with English and Russian interfaces and support for KiTTY portable settings.
 
 <img src="icons/kitty-ng.png" width="192" alt="Two connected terminals">
 
-**Release: 0.85-2.** KiTTY extension migration is complete in the current source: useful features were ported and the remaining extensions have explicit replacement or retirement decisions. See the [migration report](docs/migration.md) (Russian) and [decision matrix](docs/kitty-migration-decisions.json) for compatibility limits.
+**Release: 0.85-3.** KiTTY extension migration is complete in the current source: useful features were ported and the remaining extensions have explicit replacement or retirement decisions. See the [migration report](docs/migration.md) (Russian) and [decision matrix](docs/kitty-migration-decisions.json) for compatibility limits.
+
+<p>
+<img src="docs/screenshots/macos-session-en.png" width="760" alt="KiTTY-NG — macOS">
+</p>
+<p>
+<img src="docs/screenshots/macos-kittygen-en.png" width="760" alt="KiTTYgen — macOS">
+</p>
+
+## macOS Universal
+
+A native application for **Apple Silicon and Intel in one DMG**. It includes SSH, portable profiles shared with Windows, a profile editor and duplication, kscp transfers, automation, reconnection, a KiTTYgen GUI, Kageant, and English/Russian UI. The user has confirmed it works on a MacBook Air M3.
+
+Download `kitty-ng-0.85-3-macos-universal.dmg`, open it, and copy `KiTTY-NG.app` into your folder. To share profiles, place it beside the Windows EXEs and `Sessions`. See the [macOS guide](docs/macos.en.md). Kerberos/GSSAPI and SSH CA need additional scenario-specific validation.
 
 ## Download and run
 
 Download the appropriate archive from [Releases](https://github.com/nr084/kitty-ng/releases): **x64**, **x86** or **ARM64**. Extract it and run `kitty-ng-x64.exe`, `kitty-ng-x86.exe` or `kitty-ng-arm64.exe`. No installation is required.
 
-Each release contains three archives: `kitty-ng-0.85-2-x64.zip`, `kitty-ng-0.85-2-x86.zip` and `kitty-ng-0.85-2-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
+Windows is supplied in three archives: `kitty-ng-0.85-3-x64.zip`, `kitty-ng-0.85-3-x86.zip` and `kitty-ng-0.85-3-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
 
 ```text
 kitty-ng-x64.exe
@@ -89,7 +104,7 @@ When a portable session is saved, SSH keys and detached SSH certificates inside 
 The “Update profiles to latest version” button below Delete processes all saved portable sessions, including nested folders. It converts internal absolute key and certificate paths to relative references, preserves all other profile lines, and reports updates and errors. Existing relative references and external keys remain unchanged.
 
 
-## New in 0.85-2
+## Migrated KiTTY extensions
 
 - Startup commands and UTF-8 scripts after SSH authentication, with configurable delays: **Connection → Automation**.
 - Shared profiles from `Proxies`: **Connection → Proxy profiles**. A missing or invalid selected proxy blocks the connection.

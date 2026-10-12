@@ -1,3 +1,13 @@
+if(APPLE)
+  add_compile_definitions(KITTY_NG_MACOS)
+  include_directories(${CMAKE_SOURCE_DIR}/macos)
+  set(KITTY_NG_STORAGE ../macos/storage.c)
+  target_link_libraries(utils "-framework CoreFoundation")
+  add_sources_from_current_dir(utils ../macos/cli-language.c ../macos/helper.c ../macos/snapshot.c ../windows/kittyng-legacy-crypt.c ../windows/utils/escape_registry_key.c)
+else()
+  set(KITTY_NG_STORAGE storage.c)
+endif()
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
@@ -40,7 +50,7 @@ add_sources_from_current_dir(eventloop
 add_sources_from_current_dir(console
   console.c)
 add_sources_from_current_dir(settings
-  storage.c)
+  ${KITTY_NG_STORAGE})
 add_sources_from_current_dir(network
   network.c fd-socket.c agent-socket.c peerinfo.c local-proxy.c x11.c)
 add_sources_from_current_dir(sshcommon
@@ -92,7 +102,7 @@ add_library(puttygen-common OBJECT
   keygen-noise.c
   no-gtk.c
   noise.c
-  storage.c
+  ${KITTY_NG_STORAGE}
   ${CMAKE_SOURCE_DIR}/sshpubk.c
   ${CMAKE_SOURCE_DIR}/sshrand.c)
 
@@ -261,6 +271,9 @@ be_list(pageant Pageant)
 target_link_libraries(pageant
   eventloop console agent settings network crypto utils
   ${pageant_libs})
+if(APPLE)
+  add_sources_from_current_dir(pageant unicode.c)
+endif()
 installed_program(pageant)
 
 add_sources_from_current_dir(test_conf unicode.c stubs/no-uxsel.c)

@@ -3,6 +3,10 @@ project(kitty-ng LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 
+if(APPLE)
+  add_compile_definitions(KITTY_NG_MACOS)
+endif()
+
 include(cmake/setup.cmake)
 
 # Scan the docs directory first, so that when we start calling
@@ -190,6 +194,10 @@ target_link_libraries(test_conf sshclient otherbackends settings network crypto 
 foreach(subdir ${platform} ${extra_dirs})
   add_subdirectory(${subdir})
 endforeach()
+
+if(APPLE)
+  add_subdirectory(macos)
+endif()
 
 # Nasty bodge: we'd like to run this command inside unix/CMakeLists,
 # adding the 'charset' library to everything that links with utils.

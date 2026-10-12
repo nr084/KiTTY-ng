@@ -22,6 +22,8 @@
 #include "win-gui-seat.h"
 #include "tree234.h"
 #include "kittyng.h"
+#include "kittyng-session-menu.h"
+#include "kittyng-tray.h"
 #include <shellapi.h>
 #include <shlobj.h>
 #include "kittyng-transfer.h"
@@ -1393,19 +1395,8 @@ void cleanup_exit(int code)
  */
 static void update_savedsess_menu(WinGuiSeat *wgs)
 {
-    int i;
-    while (DeleteMenu(wgs->savedsess_menu, 0, MF_BYPOSITION)) ;
-    /* skip sesslist.sessions[0] == Default Settings */
-    for (i = 1;
-         i < ((sesslist.nsessions <= MENU_SAVED_MAX+1) ? sesslist.nsessions
-                                                       : MENU_SAVED_MAX+1);
-         i++)
-        AppendMenuA(wgs->savedsess_menu, MF_ENABLED,
-                   IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
-                   sesslist.sessions[i]);
-    if (sesslist.nsessions <= 1)
-        AppendMenu(wgs->savedsess_menu, MF_GRAYED, IDM_SAVED_MIN,
-                   "(No sessions)");
+    kr_saved_sessions_menu(wgs->savedsess_menu, &sesslist,
+                           IDM_SAVED_MIN, MENU_SAVED_STEP, MENU_SAVED_MAX);
 }
 
 /*
@@ -2631,10 +2622,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         }
         break;
       case WM_KR_TRAY:
-        if (lParam == WM_LBUTTONUP || lParam == WM_RBUTTONUP) {
+        if (lParam == WM_LBUTTONUP || lParam == WM_LBUTTONDBLCLK) {
             kr_tray_icon(hwnd, false);
             ShowWindow(hwnd, SW_RESTORE);
             SetForegroundWindow(hwnd);
+        } else if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
+            HMENU menu = kr_tray_popup_menu();
+            if (menu) {
+                POINT cursor; GetCursorPos(&cursor); SetForegroundWindow(hwnd);
+                UINT command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON,
+                                               cursor.x, cursor.y, 0, hwnd, NULL);
+                DestroyMenu(menu); PostMessage(hwnd, WM_NULL, 0, 0);
+                if (command == 1) {
+                    kr_tray_icon(hwnd, false); ShowWindow(hwnd, SW_RESTORE); SetForegroundWindow(hwnd);
+                } else if (command == 2) showabout(hwnd);
+                else if (command == 3) PostMessage(hwnd, WM_CLOSE, 0, 0);
+            }
         }
         return 0;
       case WM_DROPFILES:
@@ -2723,7 +2726,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           case IDM_KR_AGENT:
           case IDM_KR_KEYGEN: {
             DWORD error, status;
-            if (!kr_launch_companion((wParam & ~0xF) == IDM_KR_AGENT ? "pageant" : "puttygen", L"", false, &status, &error))
+            if (!kr_launch_companion((wParam & ~0xF) == IDM_KR_AGENT ? "kageant" : "kittygen", L"", false, &status, &error))
                 MessageBox(hwnd, "Unable to launch the matching-architecture utility.", "KiTTY-NG", MB_OK | MB_ICONERROR);
             break;
           }

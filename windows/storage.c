@@ -634,13 +634,13 @@ static HANDLE access_random_seed(int action)
         char profile[MAX_PATH + 1];
         if (SUCCEEDED(p_SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA,
                                          NULL, SHGFP_TYPE_CURRENT, profile)) &&
-            try_random_seed_and_free(dupcat(profile, "\\PUTTY.RND"),
+            try_random_seed_and_free(dupcat(profile, "\\kitty-ng-win.rnd"),
                                      action, &rethandle))
             return rethandle;
 
         if (SUCCEEDED(p_SHGetFolderPathA(NULL, CSIDL_APPDATA,
                                          NULL, SHGFP_TYPE_CURRENT, profile)) &&
-            try_random_seed_and_free(dupcat(profile, "\\PUTTY.RND"),
+            try_random_seed_and_free(dupcat(profile, "\\kitty-ng-win.rnd"),
                                      action, &rethandle))
             return rethandle;
     }
@@ -663,7 +663,7 @@ static HANDLE access_random_seed(int action)
 
         if (drvlen < lenof(drv) && pathlen < lenof(path) && pathlen > 0 &&
             try_random_seed_and_free(
-                dupcat(drv, path, "\\PUTTY.RND"), action, &rethandle))
+                dupcat(drv, path, "\\kitty-ng-win.rnd"), action, &rethandle))
             return rethandle;
     }
 
@@ -675,7 +675,7 @@ static HANDLE access_random_seed(int action)
         DWORD len = GetWindowsDirectory(windir, sizeof(windir));
         if (len < lenof(windir) &&
             try_random_seed_and_free(
-                dupcat(windir, "\\PUTTY.RND"), action, &rethandle))
+                dupcat(windir, "\\kitty-ng-win.rnd"), action, &rethandle))
             return rethandle;
     }
 

@@ -52,6 +52,10 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
         bundle.write(root / "docs/screenshots" / name, "docs/screenshots/" + name)
     if (args.build / "compiler.json").exists():
         bundle.write(args.build / "compiler.json", "BUILD-INFO.json")
+    for name in ("macos.md", "macos.en.md", "macos-migration.json"):
+        bundle.write(root / "docs" / name, "docs/" + name)
+    for image in sorted((root / "docs/screenshots").glob("macos-*.png")):
+        bundle.write(image, "docs/screenshots/" + image.name)
     bundle.write(root / "icons/kitty-ng.png", "icons/kitty-ng.png")
     bundle.write(root / "icons/kitty-ng-prompt.txt", "icons/kitty-ng-prompt.txt")
     bundle.writestr("kitty-ng.portable", "")

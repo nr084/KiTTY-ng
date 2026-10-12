@@ -67,7 +67,7 @@ uintmax_t strtoumax(const char *nptr, char **endptr, int base);
     __attribute__ ((format (__MINGW_PRINTF_FORMAT, fmt_index, ellipsis_index)))
 #else
 #define PRINTF_LIKE(fmt_index, ellipsis_index) \
-    __attribute__ ((format (printf, fmt_index, ellipsis_index)))
+    __attribute__ ((format (__printf__, fmt_index, ellipsis_index)))
 #endif
 #else /* __GNUC__ */
 #define PRINTF_LIKE(fmt_index, ellipsis_index)

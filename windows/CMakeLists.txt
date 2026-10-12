@@ -2,6 +2,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
   kittyng.c
+  kittyng-logui.c
+  kittyng-session-menu.c
+  kittyng-tray.c
   kittyng-utility-ui.c
   kittyng-companions.c
   kittyng-portable.c
@@ -70,6 +73,8 @@ else()
   target_compile_options(test_language_controls PRIVATE -ffunction-sections -fdata-sections)
   target_link_options(test_language_controls PRIVATE -Wl,--gc-sections)
 endif()
+add_executable(test_windows_repairs ${CMAKE_SOURCE_DIR}/test/test_windows_repairs.c putty.rc)
+target_link_libraries(test_windows_repairs utils ${platform_libraries})
 add_executable(test_companion_probe WIN32 ${CMAKE_SOURCE_DIR}/test/test_companion_probe.c)
 target_link_libraries(test_companion_probe PRIVATE shell32)
 add_executable(test_kittyng_legacy

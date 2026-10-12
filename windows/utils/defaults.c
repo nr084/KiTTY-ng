@@ -36,5 +36,8 @@ bool platform_default_b(const char *name, bool def)
 
 int platform_default_i(const char *name, int def)
 {
+    /* Original KiTTY reports Shift/Ctrl/Alt on arrows to applications.
+     * Only the missing-setting default changes; saved choices are retained. */
+    if (!strcmp(name, "ShiftedArrowKeys")) return 1; /* SHARROW_BITMAP storage value */
     return def;
 }

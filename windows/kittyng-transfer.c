@@ -262,6 +262,7 @@ static INT_PTR CALLBACK remote_file_dialog(HWND dialog, UINT message, WPARAM wpa
     if (message == WM_INITDIALOG) {
         SetWindowLongPtr(dialog, GWLP_USERDATA, lparam);
         kr_localize_dialog(dialog);
+        kr_localize_window(dialog, "Receive file...");
         SetDlgItemTextW(dialog, IDC_KR_REMOTE_FILE, (wchar_t *)lparam);
         return true;
     }

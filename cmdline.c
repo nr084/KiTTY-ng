@@ -7,6 +7,10 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "putty.h"
+#ifdef KITTY_NG_MACOS
+#include "macos/helper.h"
+#include "macos/cli-language.h"
+#endif
 #ifdef _WIN32
 #include "kittyng-companions.h"
 #include "kittyng-portable.h"
@@ -449,6 +453,11 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
         }
     }
 
+#ifdef KITTY_NG_MACOS
+    if(!strcmp(p,"--language")){RETURN(2);if(strcmp(value,"en")&&strcmp(value,"ru"))cmdline_error("Language must be en or ru");kr_mac_cli_set_language(value);return 2;}
+    if (!strcmp(p,"--kitty-ng-conf")) {RETURN(2);if(!kr_mac_import_conf(conf,value))cmdline_error("Invalid inherited session configuration");loaded_session=true;return 2;}
+    if (!strcmp(p, "--portable-dir")) { RETURN(2); return 2; }
+#endif
     if (!strcmp(p, "-load")) {
         RETURN(2);
         /* This parameter must be processed immediately rather than being
@@ -999,7 +1008,7 @@ void cmdline_run_saved(Conf *conf)
                                   saves[pri].params[i].value, 0, conf);
         saves[pri].nsaved = 0;
     }
-#ifdef _WIN32
+#if defined(_WIN32) || defined(KITTY_NG_MACOS)
     /* CLI utilities share kitty-ng's saved password without a -pw argument. */
     if (!cmdline_password && *conf_get_str(conf, CONF_password))
         cmdline_password = dupstr(conf_get_str(conf, CONF_password));

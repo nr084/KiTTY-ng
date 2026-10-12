@@ -11,6 +11,9 @@
 #include "kittyng-extensions.h"
 #endif
 #include "storage.h"
+#ifdef KITTY_NG_MACOS
+#include "macos/portable.h"
+#endif
 #ifndef NO_GSSAPI
 #include "ssh/gssc.h"
 #include "ssh/gss.h"
@@ -527,6 +530,9 @@ char *save_settings(const char *section, Conf *conf)
 
 #ifdef _WIN32
     errmsg = kr_prepare_password(conf);
+    if (errmsg) return errmsg;
+#elif defined(KITTY_NG_MACOS)
+    errmsg = kr_mac_prepare_password(conf);
     if (errmsg) return errmsg;
 #endif
 
@@ -1086,6 +1092,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     }
     kr_load_proxy(conf);
     kr_load_password(conf);
+#elif defined(KITTY_NG_MACOS)
+    kr_mac_load_conf(sesskey, conf);
 #endif
 }
 

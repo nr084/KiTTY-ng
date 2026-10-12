@@ -1400,5 +1400,6 @@
   "- No proxy -": "- Без прокси -",
   "Use an existing proxy profile from the Proxies directory or current registry.": "Выберите профиль из каталога Proxies или текущего реестра.",
   "Selected proxy profile is missing or invalid; connection is blocked.": "Выбранный профиль прокси отсутствует или некорректен; соединение заблокировано.",
-  "Automatic command references an unavailable local script. Select a UTF-8 startup script explicitly.": "Автоматическая команда ссылается на недоступный локальный скрипт. Выберите начальный скрипт в формате UTF-8."
+  "Automatic command references an unavailable local script. Select a UTF-8 startup script explicitly.": "Автоматическая команда ссылается на недоступный локальный скрипт. Выберите начальный скрипт в формате UTF-8.",
+  "Restore": "Восстановить"
 }

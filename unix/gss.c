@@ -10,7 +10,11 @@
 
 const int ngsslibs = 4;
 const char *const gsslibnames[4] = {
+#ifdef __APPLE__
+    "macOS GSS.framework",
+#else
     "libgssapi (Heimdal)",
+#endif
     "libgssapi_krb5 (MIT Kerberos)",
     "libgss (Sun)",
     "User-specified GSSAPI library",
@@ -66,10 +70,20 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
     list->nlibraries = 0;
 
     /* Heimdal's GSSAPI Library */
+    #ifdef __APPLE__
+    if ((gsslib = dlopen("/System/Library/Frameworks/GSS.framework/GSS", RTLD_LAZY)) != NULL)
+#else
     if ((gsslib = dlopen("libgssapi.so.2", RTLD_LAZY)) != NULL)
+#endif
         gss_init(&list->libraries[list->nlibraries++], gsslib,
-                 0, "Using GSSAPI from libgssapi.so.2");
+                 0,
+#ifdef __APPLE__
+                 "Using macOS GSS.framework");
+#else
+                 "Using GSSAPI from libgssapi.so.2");
+#endif
 
+#ifndef __APPLE__
     /* MIT Kerberos's GSSAPI Library */
     if ((gsslib = dlopen("libgssapi_krb5.so.2", RTLD_LAZY)) != NULL)
         gss_init(&list->libraries[list->nlibraries++], gsslib,
@@ -80,6 +94,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
         gss_init(&list->libraries[list->nlibraries++], gsslib,
                  2, "Using GSSAPI from libgss.so.1");
 
+#endif
     /* User-specified GSSAPI library */
     gsspath = conf_get_filename(conf, CONF_ssh_gss_custom)->path;
     if (*gsspath && (gsslib = dlopen(gsspath, RTLD_LAZY)) != NULL)

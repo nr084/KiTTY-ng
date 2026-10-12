@@ -1,0 +1,173 @@
+{
+  "scope": "Native AppKit Mac port; separate from the closed Windows KiTTY migration",
+  "version": "0.85-3",
+  "basic_terminal_runtime": "User confirmed SSH terminal on MacBook Air M3, macOS 27.0.1; new features not verified",
+  "decisions": [
+    {
+      "id": "portable-and-sessions",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Общий формат, папки, поиск, редактор, относительные ссылки и неизвестные поля; UTF-8/CP1251 имена и сохранение старого физического имени. Нативный файловый round trip проверяется smoke-сценарием."
+    },
+    {
+      "id": "password-and-transfer",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Сохранённый пароль, ключ, сертификат, агент и прокси передаются встроенному kscp приватным stdin-снимком; upload/download/drop, нативные запросы, подтверждение пути."
+    },
+    {
+      "id": "startup-automation",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Autocommand, inline/file UTF-8 Scriptfile, задержки; удалённый ввод. Недоступные Windows пути отклоняются."
+    },
+    {
+      "id": "window-and-notes",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Заметки в редакторе, прозрачность/поверх окон/защита ввода/скрытие, геометрия Mac, сохранение при выходе, меню статуса."
+    },
+    {
+      "id": "keyboard",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Синтаксис Shortcuts, числовые legacy codes, пользовательский текст и стандартные действия; клавиши Win соответствуют Cmd, Alt — Option, AltGr — Ctrl+Option. Нативная проверка ожидается."
+    },
+    {
+      "id": "urls",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Ctrl+щелчок HTTP/HTTPS через NSWorkspace; локальные исполняемые команды не используются."
+    },
+    {
+      "id": "shared-proxies",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Общие Proxies, проверка выбранного профиля, отсутствие тихого обхода повреждённого прокси."
+    },
+    {
+      "id": "reconnect",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Повтор после ошибки связи/пробуждения, отмена остановлена, нормальный выход подчиняется CloseOnExit."
+    },
+    {
+      "id": "agent-keygen",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Universal PuTTY helpers с нативными GUI/меню, языками, приватным сокетом и ограниченным жизненным циклом агента."
+    },
+    {
+      "id": "terminal-keyboard-colours",
+      "status": "implemented",
+      "runtime": "not-verified",
+      "reason": "Ядро PuTTY, Unicode/MC, клавиатура/мышь/палитра/OSC52, отдельные bold/wide шрифты и double-height/width; визуальная проверка ожидается."
+    },
+    {
+      "id": "far2l",
+      "status": "replaced",
+      "runtime": "not-verified",
+      "reason": "Штатные возможности современного терминального ядра PuTTY; отдельные Windows/Far hooks не добавляются."
+    },
+    {
+      "id": "rutty",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Старый RuTTY expect-движок с условиями ожидания и остановки исключён. Перенесены обычные стартовые команды/скрипты; условные RuTTY-сценарии не исполняются и не считаются совместимыми."
+    },
+    {
+      "id": "background-images",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "JPEG, слайд-шоу и просмотр изображений исключены из области терминального клиента; остаются палитра и прозрачность."
+    },
+    {
+      "id": "zmodem",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Старый запуск внешнего winpzmodem исключён. Через SSH используется SCP/SFTP; для последовательного порта эта замена не обеспечивает передачу файлов."
+    },
+    {
+      "id": "port-knocking",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Встроенные блокирующие IPv4-последовательности port knocking исключены; для требующих их серверов нужен отдельный клиент knocking/SPA перед SSH."
+    },
+    {
+      "id": "unsafe-local-hooks",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Скрытый чат-сервер, встроенный редактор, исполнение локальных команд из специальных remote OSC и дампы состояния исключены; удалённый вывод не запускает локальные команды."
+    },
+    {
+      "id": "obsolete-bundles",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "ADB-бэкэнд, Cygterm/CtHelper, старые Cygwin DLL и UPX-дубликаты не входят в поставку; используются стандартные протоколы PuTTY и актуальные отдельные приложения."
+    },
+    {
+      "id": "window-management",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Старые roll-up, межоконный Ctrl+Tab и kiosk-ограничения кнопок окна исключены; стандартное управление окнами Windows, защита ввода и трей остаются."
+    },
+    {
+      "id": "external-winscp",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Встроенные аргументы и редактор WinSCP не переносятся; перенос файлов обеспечен kscp, внешние приложения настраиваются отдельно."
+    },
+    {
+      "id": "legacy-cosmetics",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Индексы старого встроенного набора значков, подчёркивание URL и произвольные regex/browser-команды исключены; поддерживаются ICO и стандартный браузер Windows."
+    },
+    {
+      "id": "clipboard-print",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Отдельная печать буфера обмена исключена: текст можно печатать внешним редактором; штатная терминальная печать PuTTY сохраняется."
+    },
+    {
+      "id": "alternate-host",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Неявное переключение на HostAlt исключено; отдельные профили/DNS позволяют явно выбирать сервер без автоматического повторного использования учётных данных на другом адресе."
+    },
+    {
+      "id": "idle-and-shutdown",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "AntiIdle-эмуляция клавиш и AutocommandOut исключены; keepalive PuTTY сохраняет соединение, но не обходит shell idle-политику; завершение настраивается на сервере."
+    },
+    {
+      "id": "legacy-logging",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Старые per-line LogTimestamp и LogTimeRotation исключены; остаётся штатный журнал PuTTY, датированные имена и метки пакетного журнала. Периодическая ротация требует внешнего средства и не считается автоматически перенесённой."
+    },
+    {
+      "id": "terminal-misc",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "NoFocusReporting и печать туннелей в заголовке не переносятся: старый FARTTY-режим отсутствует, состояние соединения доступно в журнале событий."
+    },
+    {
+      "id": "master-password",
+      "status": "excluded",
+      "runtime": "not-applicable",
+      "reason": "Целиком зашифрованные мастер-паролем профили не читаются и не перезаписываются. Их нужно предварительно экспортировать старым KiTTY в обычный формат; сохранённый пароль сеанса поддерживается."
+    }
+  ],
+  "remaining": [],
+  "implementation_status": "ready-for-native-validation",
+  "native_validation_pending": [
+    "AppKit option tree and language switching",
+    "Real kscp transfer with saved password, encrypted key, agent and proxy",
+    "SSH CA server certificate verification and GSSAPI with real credentials",
+    "CP1251 existing-file save/round trip using smoke test",
+    "Double-width/double-height glyph rendering and custom fonts",
+    "Long-running stability and Intel/Rosetta execution"
+  ]
+}

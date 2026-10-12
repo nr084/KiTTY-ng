@@ -7587,9 +7587,17 @@ int format_arrow_key(char *buf, Terminal *term, int xkey,
           case SHARROW_APPLICATION:
             if (ctrl)
                 app_flg = !app_flg;
+            /* KiTTY users rely on Shift+arrows even in older profiles.
+             * Preserve the Ctrl-only toggle, but report shifted arrows. */
+            if (shift) {
+                bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
+                app_flg = false;
+            }
             break;
           case SHARROW_BITMAP:
             bitmap = shift_bitmap(shift, ctrl, alt, consumed_alt);
+            /* Modified arrows use CSI even when DECCKM requests SS3. */
+            if (bitmap) app_flg = false;
             break;
         }
 

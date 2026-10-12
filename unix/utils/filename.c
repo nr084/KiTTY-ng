@@ -4,6 +4,7 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "putty.h"
 
@@ -67,6 +68,9 @@ FILE *f_open(const Filename *filename, char const *mode, bool is_private)
         fd = open(filename->path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
         if (fd < 0)
             return NULL;
-        return fdopen(fd, mode);
+#ifdef __APPLE__
+        if (fchmod(fd,0600)<0) {close(fd);return NULL;}
+#endif
+        FILE *fp=fdopen(fd,mode);if(!fp)close(fd);return fp;
     }
 }
