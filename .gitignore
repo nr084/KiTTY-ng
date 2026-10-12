@@ -160,3 +160,6 @@ Makefile
 !/icons/klink.png
 !/icons/kscp.png
 !/icons/ksftp.png
+
+# Compact logo for forum topic headers
+!/icons/kitty-ng-forum.png
