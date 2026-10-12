@@ -125,7 +125,7 @@ def main():
         desktop = '[Desktop Entry]\nType=Application\nName=KiTTY-ng\nComment=Portable SSH client\nExec=kitty-ng\nIcon=kitty-ng\nTerminal=false\nCategories=Network;RemoteAccess;\n'
         (app / 'kitty-ng.desktop').write_text(desktop, encoding='utf-8', newline='\n')
         # Import only launcher text; native build/package commands are never run.
-        shutil.copy2(ROOT / 'linux/AppRun', app / 'AppRun')
+        (app / 'AppRun').write_bytes((ROOT / 'linux/AppRun').read_bytes().replace(b'\r\n', b'\n'))
         docs = app / 'usr/share/doc/kitty-ng'
         docs.mkdir(parents=True)
         for name in ('README.md', 'README.en.md', 'LICENCE', 'LICENCE-KiTTY.txt'):

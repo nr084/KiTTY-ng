@@ -1,0 +1,3 @@
+
+# The portable Linux launcher must retain a Unix shebang on Windows checkouts.
+/linux/AppRun text eol=lf
