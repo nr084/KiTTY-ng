@@ -2143,6 +2143,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+#ifdef KITTY_NG_LINUX
+    if(inst->input_locked)return;
+#endif
 
 #ifdef KEY_EVENT_DIAGNOSTICS
     char *string_string = dupstr("");
@@ -2215,6 +2218,9 @@ void input_method_preedit_end_event(GtkIMContext *imc, gpointer data)
 gboolean scroll_internal(GtkFrontend *inst, gdouble xdelta, gdouble ydelta,
                          guint state, gdouble ex, gdouble ey)
 {
+#ifdef KITTY_NG_LINUX
+    if(inst->input_locked)return true;
+#endif
     int x, y;
     bool shift, ctrl, alt, raw_mouse_mode;
 
@@ -2331,7 +2337,7 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
 
     if (event->button == 3 && (ctrl
 #ifdef KITTY_NG_LINUX
-        || !raw_mouse_mode
+        || !raw_mouse_mode || inst->input_locked
 #endif
         )) {
         /* Just in case this happened in mid-select */
@@ -2438,6 +2444,9 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+#ifdef KITTY_NG_LINUX
+    if(inst->input_locked)return true;
+#endif
     bool shift, ctrl, alt;
     Mouse_Action action = MA_DRAG;
     Mouse_Button button = MBT_NOTHING;
@@ -2639,7 +2648,7 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 #ifdef KITTY_NG_LINUX
 static gboolean send_startup(gpointer data){GtkFrontend *inst=data;if(!inst->backend||!backend_sendok(inst->backend)){inst->startup_source=0;return FALSE;}if(inst->startup_text&&inst->startup_text[inst->startup_offset]){size_t n=1;const unsigned char *s=(const unsigned char*)inst->startup_text+inst->startup_offset;while((s[n]&192)==128)n++;backend_send(inst->backend,(const char*)s,n);inst->startup_offset+=n;int delay=s[n-1]=='\r'?conf_get_int(inst->conf,CONF_kr_command_delay):conf_get_int(inst->conf,CONF_bcdelay);inst->startup_source=g_timeout_add(MAX(1,MIN(60000,delay)),send_startup,inst);return FALSE;}inst->startup_source=0;return FALSE;}
 static void gtk_seat_session_started(Seat *seat){GtkFrontend *inst=container_of(seat,GtkFrontend,seat);inst->connection_started=true;if(inst->startup_source)g_source_remove(inst->startup_source);if(inst->startup_text){smemclr(inst->startup_text,strlen(inst->startup_text));sfree(inst->startup_text);}char *error=NULL;inst->startup_text=kr_mac_startup_commands(inst->conf,&error);inst->startup_offset=0;if(error){seat_nonfatal(seat,"%s",error);sfree(error);}else if(inst->startup_text&&*inst->startup_text)inst->startup_source=g_timeout_add(MAX(1,MIN(60000,conf_get_int(inst->conf,CONF_initdelay))),send_startup,inst);}
-static void transfer_drop(GtkWidget *widget,GdkDragContext *context,gint x,gint y,GtkSelectionData *selection,guint info,guint time,gpointer data){GtkFrontend *inst=data;char **uris=gtk_selection_data_get_uris(selection);GPtrArray *paths=g_ptr_array_new_with_free_func(g_free);for(int i=0;uris&&uris[i];i++){char *path=g_filename_from_uri(uris[i],NULL,NULL);if(path)g_ptr_array_add(paths,path);}bool valid=paths->len>0;g_ptr_array_add(paths,NULL);if(valid&&!inst->input_locked)kr_linux_upload(inst->conf,GTK_WINDOW(inst->window),(char**)paths->pdata,inst->remote_directory);gtk_drag_finish(context,valid,FALSE,time);g_strfreev(uris);g_ptr_array_free(paths,TRUE);}
+static void transfer_drop(GtkWidget *widget,GdkDragContext *context,gint x,gint y,GtkSelectionData *selection,guint info,guint time,gpointer data){GtkFrontend *inst=data;char **uris=gtk_selection_data_get_uris(selection);GPtrArray *paths=g_ptr_array_new_with_free_func(g_free);for(int i=0;uris&&uris[i];i++){char *path=g_filename_from_uri(uris[i],NULL,NULL);if(path)g_ptr_array_add(paths,path);}bool valid=!inst->input_locked&&paths->len>0;g_ptr_array_add(paths,NULL);if(valid&&!inst->input_locked)kr_linux_upload(inst->conf,GTK_WINDOW(inst->window),(char**)paths->pdata,inst->remote_directory);gtk_drag_finish(context,valid,FALSE,time);g_strfreev(uris);g_ptr_array_free(paths,TRUE);}
 /* Let the menu finish handling its activation event before running a modal
  * chooser. Keep an independent Conf in case the terminal closes meanwhile. */
 typedef struct TransferMenuAction {

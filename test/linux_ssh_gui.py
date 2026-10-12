@@ -139,12 +139,12 @@ try:
     print('PASS: physical Ctrl-click opens the exact HTTPS URI using the isolated desktop handler',flush=True)
     capture=home/'gui-key-bytes';ready=home/'gui-key-ready';script=home/'gui-input-capture.py'
     for path in (capture,ready):path.unlink(missing_ok=True)
-    script.write_text("import os,tty,termios,select,time\nfrom pathlib import Path\nold=termios.tcgetattr(0)\ntty.setraw(0)\nPath("+repr(str(ready))+ ").touch()\ndata=b''\nend=time.monotonic()+8\ntry:\n while len(data)<21 and time.monotonic()<end:\n  if select.select([0],[],[],.2)[0]:data+=os.read(0,64)\nfinally:termios.tcsetattr(0,termios.TCSANOW,old)\nPath("+repr(str(capture))+").write_bytes(data)\n")
+    script.write_text("import os,tty,termios,select,time\nfrom pathlib import Path\nold=termios.tcgetattr(0)\ntty.setraw(0)\nos.write(1,b'\\x1b[?1003h')\nPath("+repr(str(ready))+ ").touch()\ndata=b''\nend=time.monotonic()+8\ntry:\n while len(data)<21 and time.monotonic()<end:\n  if select.select([0],[],[],.2)[0]:data+=os.read(0,64)\nfinally:termios.tcsetattr(0,termios.TCSANOW,old);os.write(1,b'\\x1b[?1003l')\nPath("+repr(str(capture))+").write_bytes(data)\n")
     subprocess.run(['xdotool','windowactivate','--sync',terminal,'type','--clearmodifiers','python3 '+str(script)],check=True);subprocess.run(['xdotool','key','Return'],check=True)
-    wait(ready.exists);subprocess.run(['xdotool','key','--clearmodifiers','shift+Down','shift+Up'],check=True);function_key('F2');subprocess.run(['xdotool','key','ctrl+shift+l','z','ctrl+shift+l'],check=True);subprocess.run(['xdotool','key','ctrl+shift+y'],check=True);wait(capture.exists)
+    wait(ready.exists);subprocess.run(['xdotool','key','--clearmodifiers','shift+Down','shift+Up'],check=True);function_key('F2');subprocess.run(['xdotool','key','ctrl+shift+l','z','mousemove',str(int(geometry['X'])+120),str(int(geometry['Y'])+120),'click','1','click','4','key','ctrl+shift+l'],check=True);subprocess.run(['xdotool','key','ctrl+shift+y'],check=True);wait(capture.exists)
     expected=b'\x1b[1;2B\x1b[1;2A\x1bOQcustom'
     assert capture.read_bytes()==expected, 'Unexpected Shift arrow bytes: '+capture.read_bytes().hex()
-    print('PASS: SSH PTY Shift arrows, custom text shortcut and input lock suppressing ordinary keys',flush=True)
+    print('PASS: SSH PTY Shift arrows, custom text shortcut and input lock suppressing keys, raw mouse clicks/motion and wheel',flush=True)
     panel=home/'gui-mc';panel.mkdir(exist_ok=True);selected=home/'gui-mc-selected';selected.unlink(missing_ok=True)
     for name in ('.mc.menu','a.txt','b.txt','c.txt'):
      path=panel/name

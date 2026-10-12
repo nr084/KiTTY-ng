@@ -12,6 +12,30 @@ static void lock_menu(GtkMenuItem *item, gpointer data) {
     GtkFrontend *inst = data;
     inst->input_locked = !inst->input_locked;
 }
+static void gtk_seat_session_started(Seat *seat);
+static void top_menu(GtkMenuItem *item, gpointer data) {
+    GtkFrontend *inst = data;
+    bool top = !conf_get_bool(inst->conf, CONF_alwaysontop);
+    conf_set_bool(inst->conf, CONF_alwaysontop, top);
+    gtk_window_set_keep_above(GTK_WINDOW(inst->window), top);
+}
+static void minimize_menu(GtkMenuItem *item, gpointer data) {
+    GtkFrontend *inst = data;
+    gtk_window_iconify(GTK_WINDOW(inst->window));
+}
+static void fullscreen_menu(GtkMenuItem *item, gpointer data) {
+    GtkFrontend *inst = data;
+    if (gdk_window_get_state(gtk_widget_get_window(inst->window)) &
+        GDK_WINDOW_STATE_FULLSCREEN)
+        gtk_window_unfullscreen(GTK_WINDOW(inst->window));
+    else
+        gtk_window_fullscreen(GTK_WINDOW(inst->window));
+}
+static void startup_menu(GtkMenuItem *item, gpointer data) {
+    GtkFrontend *inst = data;
+    if (inst->backend && backend_sendok(inst->backend))
+        gtk_seat_session_started(&inst->seat);
+}
 static void command_menu(GtkMenuItem *item, gpointer data) {
     GtkFrontend *inst = data;
     if (inst->input_locked || !inst->backend || !backend_sendok(inst->backend))
@@ -47,7 +71,7 @@ static unsigned linux_key(GdkEventKey *event) {
     if (event->state & GDK_SUPER_MASK)
         mods |= 8;
     if (event->state & GDK_MOD5_MASK)
-        mods |= 16;
+        mods = (mods & ~3U) | 16;
     if (key >= GDK_KEY_F1 && key <= GDK_KEY_F24)
         key = 112 + key - GDK_KEY_F1;
     else {
@@ -126,6 +150,10 @@ static bool kr_linux_shortcut(GtkFrontend *inst, GdkEventKey *event) {
                    {"sendfile", "{CONTROL}{F3}", upload_menu},
                    {"getfile", "{CONTROL}{F4}", download_menu},
                    {"protect", "{CONTROL}{F9}", lock_menu},
+                   {"tray", "{CONTROL}{F6}", minimize_menu},
+                   {"visible", "{CONTROL}{F7}", top_menu},
+                   {"autocommand", "{SHIFT}{F12}", startup_menu},
+                   {"fullscreen", "", fullscreen_menu},
                    {"eventlog", "", event_log_menuitem},
                    {"copyall", "", copy_all_menuitem},
                    {"duplicate", "", dup_session_menuitem},

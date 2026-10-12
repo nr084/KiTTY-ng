@@ -48,4 +48,4 @@ The verified desktop is Ubuntu 26.04 with Xfce/X11, including regular-user opera
 
 New profiles use Xterm 216+ function keys to match `TERM=xterm`. Explicit saved modes take precedence; select Xterm 216+ in Keyboard settings if an old profile has incompatible F1–F4 behavior. Closing the terminal cancels its active file transfers.
 
-Enable custom shortcuts in Window settings: Ctrl+F2 sends a command, Ctrl+F3 uploads, Ctrl+F4 downloads and Ctrl+F9 locks/unlocks input. The shared `[Shortcuts]` section supports custom text bindings. Ctrl-click opens HTTP/HTTPS links using the default browser. Kageant can remove an individual key by fingerprint or comment.
+Enable custom shortcuts in Window settings: Ctrl+F2 sends a command, Ctrl+F3 uploads, Ctrl+F4 downloads and Ctrl+F9 locks/unlocks input, including remote mouse motion, buttons and wheel. Ctrl+F6 minimizes, Ctrl+F7 toggles always-on-top, and Shift+F12 replays startup commands. The shared `[Shortcuts]` section supports custom text bindings. Ctrl-click opens HTTP/HTTPS links using the default browser. Kageant can remove an individual key by fingerprint or comment.
