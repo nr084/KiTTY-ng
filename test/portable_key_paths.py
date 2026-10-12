@@ -11,7 +11,7 @@ import winreg
 binary = Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix="kitty-ng-keypaths-") as temporary:
     base = Path(temporary).resolve()
-    package = base / "Portable KiTTY-NG"
+    package = base / "Portable KiTTY-ng"
     (package / "SSH-Keys").mkdir(parents=True)
     for name in ("client.ppk", "certificate.pub"):
         (package / "SSH-Keys" / name).write_bytes(b"synthetic fixture\n")
@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix="kitty-ng-keypaths-") as temporary:
         assert b"PublicKeyFile\\SSH-Keys%5Cclient.ppk\\" in stored
         assert b"DetachedCertificate\\SSH-Keys%5Ccertificate.pub\\" in stored
         assert str(package).encode() not in stored
-        moved = base / ("Перенесённый KiTTY-NG 😀" + str(int(custom)))
+        moved = base / ("Перенесённый KiTTY-ng 😀" + str(int(custom)))
         assert package.resolve().is_relative_to(base) and moved.resolve().is_relative_to(base)
         package.rename(moved); package = moved
         env["KITTY_NG_PORTABLE_DIR"] = str(package)

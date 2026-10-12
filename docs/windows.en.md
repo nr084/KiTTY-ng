@@ -1,10 +1,10 @@
-# KiTTY-NG for Windows
+# KiTTY-ng for Windows
 
 [Documentation](README.en.md) | [Русский](windows.md)
 
 Download the appropriate archive from [Releases](https://github.com/nr084/kitty-ng/releases): **x64**, **x86** or **ARM64**. Extract it and run `kitty-ng-x64.exe`, `kitty-ng-x86.exe` or `kitty-ng-arm64.exe`. No installation is required.
 
-Windows is supplied in three archives: `kitty-ng-0.85-3-x64.zip`, `kitty-ng-0.85-3-x86.zip` and `kitty-ng-0.85-3-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
+Windows is supplied in three archives: `kitty-ng-0.85-4-x64.zip`, `kitty-ng-0.85-4-x86.zip` and `kitty-ng-0.85-4-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
 
 ```text
 kitty-ng-x64.exe
@@ -60,4 +60,4 @@ The screenshots below show the English interface:
 
 ![Session configuration](screenshots/session-en.png)
 
-![About KiTTY-NG](screenshots/about-en.png)
+![About KiTTY-ng](screenshots/about-en.png)

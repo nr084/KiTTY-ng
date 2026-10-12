@@ -41,7 +41,7 @@ char *pty_osx_envrestore_prefix;
 static NSString *S(const char *text){if(!text)return @"";NSString *s=[NSString stringWithUTF8String:text];return s?:[[NSString alloc]initWithBytes:text length:strlen(text) encoding:NSWindowsCP1251StringEncoding]?:@"";}
 static BOOL RU(void){return kr_mac_language()==1;}
 static NSString *T(NSString *en,NSString *ru){return RU()?ru:en;}
-static void message(const char *text){NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-NG";alert.informativeText=S(kr_mac_translate(text));[alert runModal];}
+static void message(const char *text){NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-ng";alert.informativeText=S(kr_mac_translate(text));[alert runModal];}
 void nonfatal(const char *format,...){va_list ap;va_start(ap,format);char *text=dupvprintf(format,ap);va_end(ap);message(text);sfree(text);}
 void modalfatalbox(const char *format,...){va_list ap;va_start(ap,format);char *text=dupvprintf(format,ap);va_end(ap);message(text);sfree(text);[NSApp terminate:nil];exit(1);}
 void cmdline_error(const char *format,...){va_list ap;va_start(ap,format);char *text=dupvprintf(format,ap);va_end(ap);message(text);sfree(text);}
@@ -177,7 +177,7 @@ static void remote_clipboard(TermWin *w,const char *encoded){
 }
 static void refresh(TermWin *w){[TW(w)->view setNeedsDisplay:YES];}
 static void request_resize(TermWin *w,int cols,int rows){MacSession *s=TW(w);if(cols>0&&rows>0&&cols<=1000&&rows<=1000)[s->view.terminalWindow setContentSize:terminalContentSize(s->view,cols,rows)];term_resize_request_completed(s->term);}
-static void title(TermWin *w,const char *text,int cp){TW(w)->view.terminalWindow.title=[@"KiTTY-NG — " stringByAppendingString:S(text)];}
+static void title(TermWin *w,const char *text,int cp){TW(w)->view.terminalWindow.title=[@"KiTTY-ng — " stringByAppendingString:S(text)];}
 static void icon_title(TermWin *w,const char *text,int cp){}
 static void minimized(TermWin *w,bool state){if(state)[TW(w)->view.terminalWindow miniaturize:nil];else[TW(w)->view.terminalWindow deminiaturize:nil];}
 static void maximized(TermWin *w,bool state){NSWindow *window=TW(w)->view.terminalWindow;if(window.zoomed!=state)[window zoom:nil];}
@@ -195,7 +195,7 @@ static uint64_t now(void){return NSProcessInfo.processInfo.systemUptime*1000;}
 static void cancel_commands(MacSession *s){if(s->commands){smemclr(s->commands,strlen(s->commands));sfree(s->commands);s->commands=NULL;}s->command_index=0;}
 static void exited(Seat *seat){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);s->view.terminalWindow.title=[s->view.terminalWindow.title stringByAppendingString:T(@" — closed",@" — закрыто")];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.terminalWindow close];});}}
 static void fatal(Seat *seat,const char *error){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);int delay=conf_get_int(s->conf,CONF_kr_reconnect_delay);
-    if(delay>0&&!s->manual_abort){s->reconnect_due=now()+(uint64_t)delay*1000;[s->view.events addObject:S(error)];s->view.terminalWindow.title=T(@"KiTTY-NG — reconnecting…",@"KiTTY-NG — переподключение…");}else message(error);
+    if(delay>0&&!s->manual_abort){s->reconnect_due=now()+(uint64_t)delay*1000;[s->view.events addObject:S(error)];s->view.terminalWindow.title=T(@"KiTTY-ng — reconnecting…",@"KiTTY-ng — переподключение…");}else message(error);
 }
 static void nonfatal_seat(Seat *seat,const char *error){message(error);}
 static NSString *dialog_text(SeatDialogText *text){NSMutableString *s=[NSMutableString new];for(size_t i=0;i<text->nitems;i++)if(text->items[i].type!=SDT_BATCH_ABORT)[s appendFormat:@"%@\n\n",S(text->items[i].text)];return s;}
@@ -208,7 +208,7 @@ static SeatPromptResult host_key(Seat *seat,const char *host,int port,const char
 static SeatPromptResult weak_crypto(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *context){NSAlert *a=[NSAlert new];a.messageText=T(@"SSH security warning",@"Предупреждение безопасности SSH");a.informativeText=dialog_text(text);[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a addButtonWithTitle:T(@"Continue",@"Продолжить")];BOOL accepted=[a runModal]==NSAlertSecondButtonReturn;if(!accepted)SEAT(seat)->manual_abort=true;return accepted?SPR_OK:SPR_USER_ABORT;}
 static SeatPromptResult prompts(Seat *seat,prompts_t *p){MacSession *s=SEAT(seat);
     if(!s->password_tried&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(s->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);s->password_tried=true;return SPR_OK;}}
-    for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-NG — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if([a runModal]!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}return SPR_OK;
+    for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if([a runModal]!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}return SPR_OK;
 }
 static void trust(Seat *seat,bool value){if(SEAT(seat)->term)term_set_trust_status(SEAT(seat)->term,value);}
 static bool pixel_size(Seat *seat,int *w,int *h){NSSize z=SEAT(seat)->view.bounds.size;*w=z.width;*h=z.height;return true;}
@@ -246,7 +246,7 @@ static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.
     }
     if(consumed)[self.oscData replaceBytesInRange:NSMakeRange(0,consumed) withBytes:NULL length:0];
 }
-- (void)toggleTop:(id)sender {if(self.session){bool top=!conf_get_bool(self.session->conf,CONF_kr_always_on_top);conf_set_bool(self.session->conf,CONF_kr_always_on_top,top);self.terminalWindow.level=top?NSFloatingWindowLevel:NSNormalWindowLevel;}}
+- (void)toggleTop:(id)sender {if(self.session){bool top=!conf_get_bool(self.session->conf,CONF_alwaysontop);conf_set_bool(self.session->conf,CONF_alwaysontop,top);self.terminalWindow.level=top?NSFloatingWindowLevel:NSNormalWindowLevel;}}
 - (void)toggleLock:(id)sender {if(self.session)self.session->input_locked=!self.session->input_locked;}
 - (void)hideWindow:(id)sender {[self.terminalWindow orderOut:nil];}
 - (void)fullscreen:(id)sender {[self.terminalWindow toggleFullScreen:nil];}
@@ -268,7 +268,7 @@ static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.
     [self.terminalWindow setContentSize:terminalContentSize(self,MAX(20,conf_get_int(s->conf,CONF_width)),MAX(8,conf_get_int(s->conf,CONF_height)))];term_size(s->term,MAX(8,self.bounds.size.height/self.cellHeight),MAX(20,self.bounds.size.width/self.cellWidth),conf_get_int(s->conf,CONF_savelines));
     [NSWorkspace.sharedWorkspace.notificationCenter addObserver:self selector:@selector(woke:) name:NSWorkspaceDidWakeNotification object:nil];
     [self connect];
-    if(conf_get_bool(s->conf,CONF_kr_always_on_top))self.terminalWindow.level=NSFloatingWindowLevel;
+    if(conf_get_bool(s->conf,CONF_alwaysontop))self.terminalWindow.level=NSFloatingWindowLevel;
     int transparency=conf_get_int(s->conf,CONF_transparencynumber);if(transparency>=0)self.terminalWindow.alphaValue=MAX(0.1,1.0-MIN(transparency,255)/255.0);
     
 }
@@ -381,10 +381,10 @@ void kr_mac_open_session(const char *name,const char *path){if(!kr_mac_select_ro
 if(!initialized){setlocale(LC_CTYPE,"");sk_init();uxsel_init();enable_dit();settings_set_default_protocol(PROT_SSH);settings_set_default_port(22);windows=[NSMutableArray new];initialized=true;}
     Conf *conf=conf_new();bool exists=load_settings(name,conf);conf_set_str(conf,CONF_kr_session_name,name);if(!exists||!conf_launchable(conf)){conf_free(conf);message("Unable to load a connectable session. Select a saved profile with a host name.");return;}
     MacTerminal *view=[[MacTerminal alloc]initWithFrame:NSMakeRect(0,0,800,480)];MacSession *s=snew(MacSession);memset(s,0,sizeof(*s));s->conf=conf;view.session=s;char *profile=kr_mac_profile_path(name);view.profileSource=profile?[NSData dataWithContentsOfFile:S(profile)]:nil;sfree(profile);
-    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.title=[@"KiTTY-NG — " stringByAppendingString:S(name)];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
+    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.title=[@"KiTTY-ng — " stringByAppendingString:S(name)];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
     window.contentView=frame;view.frame=NSInsetRect(frame.bounds,terminalPadding,terminalPadding);[frame addSubview:view];window.releasedWhenClosed=NO;window.delegate=view;window.minSize=NSMakeSize(240,160);view.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;view.terminalWindow=window;[windows addObject:view];[view start];[window center];[window makeKeyAndOrderFront:nil];[window makeFirstResponder:view];
     if(conf_get_bool(conf,CONF_save_windowpos)){settings_r *reader=open_settings_r(name);int x=read_setting_i(reader,"MacWindowX",INT_MIN),y=read_setting_i(reader,"MacWindowY",INT_MIN),w=read_setting_i(reader,"MacWindowWidth",0),h=read_setting_i(reader,"MacWindowHeight",0);close_settings_r(reader);if(x!=INT_MIN&&y!=INT_MIN&&w>=240&&h>=160&&w<=10000&&h<=10000)[window setFrame:NSMakeRect(x,y,w,h) display:YES];}
     if(conf_get_bool(conf,CONF_maximize))[window zoom:nil];if(conf_get_bool(conf,CONF_fullscreen))[window toggleFullScreen:nil];if(conf_get_bool(conf,CONF_sendtotray))[window orderOut:nil];
 }
 
-void kr_mac_show_windows(void){for(MacTerminal *view in [windows copy])[view.terminalWindow makeKeyAndOrderFront:nil];for(NSWindow *window in NSApp.windows)if([window.title isEqualToString:@"KiTTY-NG"])[window makeKeyAndOrderFront:nil];}
+void kr_mac_show_windows(void){for(MacTerminal *view in [windows copy])[view.terminalWindow makeKeyAndOrderFront:nil];for(NSWindow *window in NSApp.windows)if([window.title isEqualToString:@"KiTTY-ng"])[window makeKeyAndOrderFront:nil];}

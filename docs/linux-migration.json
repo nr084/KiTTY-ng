@@ -1,0 +1,61 @@
+{
+  "status": "native_acceptance_completed_for_core_port",
+  "version": "0.85-4",
+  "published": true,
+  "build_host": "Windows",
+  "compiler": "Clang/LLD 23.1.3",
+  "target": "x86_64-linux-gnu",
+  "baseline": "Ubuntu 22.04 with current updates/security",
+  "verified_desktop": "Ubuntu 26.04, Xfce/X11",
+  "features": [
+    {
+      "feature": "Terminal and SSH transport",
+      "implementation": "Existing PuTTY GTK 3, SSH and cryptography code",
+      "evidence": "Real OpenSSH password/key/agent connections; native MC and PTY key sequences"
+    },
+    {
+      "feature": "Portable profiles",
+      "implementation": "Shared macOS portable storage and legacy KiTTY codec",
+      "evidence": "Create/edit/duplicate, SSH/22, relative key relocation, unknown fields and external-change protection"
+    },
+    {
+      "feature": "Russian/English UI",
+      "implementation": "Shared translations, GTK native controls, preserved values.ini keys",
+      "evidence": "Browser RU/EN; KiTTYgen key/comment retained across switching"
+    },
+    {
+      "feature": "SCP/SFTP and drag-and-drop",
+      "implementation": "Bundled kscp; shared anonymous Conf pipe; native GTK dialogs/URI drop",
+      "evidence": "GUI upload/download and physical drag of Unicode filenames as a regular user"
+    },
+    {
+      "feature": "Startup automation and reconnect",
+      "implementation": "Shared command/script parser; GLib timers",
+      "evidence": "Startup command and reconnect after killing only the synthetic connection SSH server process"
+    },
+    {
+      "feature": "Key generation and agent",
+      "implementation": "Bundled kittygen/kageant; GTK frontends",
+      "evidence": "Ed25519 generation, relative PPK, actual SSH agent auth, add/list/remove, keygen temporary-key cleanup"
+    },
+    {
+      "feature": "Packaging",
+      "implementation": "Windows-hosted Clang/LLD, SquashFS Tools NG, official AppImage runtime",
+      "evidence": "FUSE launch as regular user; AppDir/extract checks; explicit executable permissions and dependency licensing"
+    },
+    {
+      "feature": "Custom shortcuts, input lock and web links",
+      "implementation": "Shared shortcut parser, GTK actions and isolated host-browser launch environment",
+      "evidence": "Real SSH PTY custom text/input lock and command popup; physical Ctrl-click exact HTTPS URI; native Kageant GUI remove-one"
+    }
+  ],
+  "not_claimed": [
+    "Wayland desktop validation",
+    "Non-Ubuntu distribution acceptance",
+    "ARM64 native validation",
+    "Windows shell integrations, Jump Lists and Windows tray behavior"
+  ],
+  "optional_followups": [
+    "Broader distribution and desktop certification"
+  ]
+}

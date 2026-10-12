@@ -2,7 +2,7 @@
 import hashlib,json,re,shutil,tempfile,urllib.request,zipfile
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
-def fetch(url):return urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'KiTTY-NG macOS tools'}),timeout=60)
+def fetch(url):return urllib.request.urlopen(urllib.request.Request(url,headers={'User-Agent':'KiTTY-ng macOS tools'}),timeout=60)
 def api(path):
     with fetch('https://api.github.com/repos/'+path) as source:return json.load(source)
 def install(kind,release,asset,checksum=None):

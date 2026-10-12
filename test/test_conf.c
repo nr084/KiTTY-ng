@@ -1046,6 +1046,10 @@ void test_conf_key_info(void)
 
 int main(void)
 {
+    Conf *defaults = conf_new();
+    do_defaults(NULL, defaults);
+    if(conf_get_int(defaults, CONF_port) != 22) { fprintf(stderr,"Initial port must be 22\n"); nfails++; }
+    conf_free(defaults);
     test_conf_key_info();
     test_simple();
     return nfails != 0;

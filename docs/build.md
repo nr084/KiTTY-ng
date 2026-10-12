@@ -32,9 +32,9 @@ cmake --preset windows-x64
 cmake --build --preset windows-x64 --parallel
 ```
 
-Проверены работающие сборки x64 и x86. ARM64 собрана и проверена по формату PE; пользователь подтвердил работу ранее полученной ARM64-сборки. Новые сценарии 0.85-3 на ARM64 отдельно не проверены. Сборки не подписаны Authenticode.
+Проверены работающие сборки x64 и x86. ARM64 собрана и проверена по формату PE; пользователь подтвердил работу ранее полученной ARM64-сборки. Новые сценарии 0.85-4 на ARM64 отдельно не проверены. Сборки не подписаны Authenticode.
 
-Номер редакции KiTTY-NG: `python tools/set-release-stage.py 1` для `0.85-1`, `2` для `0.85-2` и далее. База остаётся равной версии PuTTY. Версию повышать только по отдельной команде на выпуск. После изменения каталога переводов выполните `python tools/generate-translations.py`.
+Номер редакции KiTTY-ng: `python tools/set-release-stage.py 1` для `0.85-1`, `2` для `0.85-2` и далее. База остаётся равной версии PuTTY. Версию повышать только по отдельной команде на выпуск. После изменения каталога переводов выполните `python tools/generate-translations.py`.
 
 ## macOS Universal / DMG
 
@@ -49,6 +49,25 @@ python tools/macos-dmg.py
 
 ## Правила выпусков
 
-`0.85` — версия импортированной базы PuTTY, число после дефиса — редакция KiTTY-NG: `0.85-1`, `0.85-2`, `0.85-3`. Теги: `v0.85-3`. Версии клиента и всех утилит совпадают. Версия добавляется в имена ZIP/DMG, архитектура — в имена Windows EXE; номер версии в имени EXE не используется.
+`0.85` — версия импортированной базы PuTTY, число после дефиса — редакция KiTTY-ng: `0.85-1`, `0.85-2`, `0.85-3`, `0.85-4`. Теги: `v0.85-4`. Версии клиента и всех утилит совпадают. Версия добавляется в имена ZIP/DMG, архитектура — в имена Windows EXE; номер версии в имени EXE не используется.
 
 Номер повышается только по отдельной команде на выпуск. Обновление документации не создаёт новый релиз. Старые опубликованные релизы сохраняются.
+
+## Linux · AppImage / AppDir
+
+```powershell
+python tools/local-build.py --platform linux
+python tools/linux-package-windows.py
+```
+
+[Linux guide](linux.en.md) · [Руководство Linux](linux.md).
+
+## Complete release build
+
+```powershell
+python tools/release-build.py --build-only
+# После нативной проверки Linux:
+python tools/release-build.py --assemble-only
+```
+
+Builds all platforms locally on Windows, checks committed source provenance and requires matching native Linux acceptance before publication.

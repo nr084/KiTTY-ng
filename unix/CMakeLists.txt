@@ -4,6 +4,11 @@ if(APPLE)
   set(KITTY_NG_STORAGE ../macos/storage.c)
   target_link_libraries(utils "-framework CoreFoundation")
   add_sources_from_current_dir(utils ../macos/cli-language.c ../macos/helper.c ../macos/snapshot.c ../windows/kittyng-legacy-crypt.c ../windows/utils/escape_registry_key.c)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_compile_definitions(KITTY_NG_LINUX)
+  include_directories(${CMAKE_SOURCE_DIR}/macos ${CMAKE_SOURCE_DIR}/linux)
+  set(KITTY_NG_STORAGE ../macos/storage.c)
+  add_sources_from_current_dir(utils ../linux/language.c ../macos/helper.c ../macos/snapshot.c ../windows/kittyng-legacy-crypt.c ../windows/utils/escape_registry_key.c)
 else()
   set(KITTY_NG_STORAGE storage.c)
 endif()
@@ -193,7 +198,14 @@ if(GTK_FOUND)
     putty.c
     main-gtk-simple.c
     ${CMAKE_SOURCE_DIR}/stubs/no-console.c)
-  be_list(putty PuTTY SSH SERIAL OTHERBACKENDS)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_sources(guiterminal PRIVATE ../linux/gui.c ../linux/tools-gui.c ../linux/preferences.c ../linux/transfer.c ../linux/icons.c ../macos/automation.c)
+    # Portable settings preserve encrypted legacy passwords even for auxiliary
+    # Unix frontends, so storage carries this dependency explicitly.
+    target_sources(settings PRIVATE ../sshpubk.c)
+    target_link_libraries(settings PRIVATE crypto)
+  endif()
+  be_list(putty KiTTY-ng SSH SERIAL OTHERBACKENDS)
   target_link_libraries(putty
     guiterminal eventloop sshclient otherbackends settings
     network crypto utils puttyxpms
@@ -271,9 +283,30 @@ be_list(pageant Pageant)
 target_link_libraries(pageant
   eventloop console agent settings network crypto utils
   ${pageant_libs})
-if(APPLE)
+if(APPLE OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_sources_from_current_dir(pageant unicode.c)
 endif()
 installed_program(pageant)
 
 add_sources_from_current_dir(test_conf unicode.c stubs/no-uxsel.c)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  foreach(pair "putty;kitty-ng" "plink;klink" "pscp;kscp" "psftp;ksftp" "puttygen;kittygen" "pageant;kageant")
+    list(GET pair 0 target)
+    list(GET pair 1 name)
+    if(TARGET ${target})
+      set_target_properties(${target} PROPERTIES OUTPUT_NAME ${name})
+    endif()
+  endforeach()
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  foreach(storage_test test_conf test_lineedit test_terminal)
+    if(TARGET ${storage_test})
+      target_sources(${storage_test} PRIVATE ../linux/test-storage.c)
+    endif()
+  endforeach()
+  # CA parsing in the shared portable store uses the common public-key parser.
+  target_sources(fuzzterm PRIVATE ../stubs/no-storage.c ../linux/test-storage.c)
+  target_sources(psocks PRIVATE ../linux/test-storage.c)
+endif()

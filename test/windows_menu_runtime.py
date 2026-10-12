@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
  process=subprocess.Popen([str(client),*(['-load','Legacy'] if '--legacy-arrows-only' in sys.argv else []),'--portable-dir',str(root/'profiles'),'--language','ru','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','test','-pw','synthetic','-hostkey',fp],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  try:
   assert ready.wait(15),failure
-  hwnd=until(lambda:next((h for h in windows(process.pid) if 'KiTTY-NG' in title(h) and u.GetDlgItem(h,3001)==None),None))
+  hwnd=until(lambda:next((h for h in windows(process.pid) if 'KiTTY-ng' in title(h) and u.GetDlgItem(h,3001)==None),None))
   if '--tray-only' in sys.argv:
    u.PostMessageW.argtypes=[w.HWND,w.UINT,w.WPARAM,w.LPARAM]
    u.SendMessageW(hwnd,0x112,0x1b0,0);assert not u.IsWindowVisible(hwnd)

@@ -12,7 +12,7 @@
 #include <string.h>
 
 #include "putty.h"
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/cli-language.h"
 #define printf kr_mac_printf
 #define fprintf kr_mac_fprintf
@@ -22,7 +22,7 @@
 #define dupvprintf kr_mac_dupvprintf
 #endif
 
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/helper.h"
 #endif
 #include "ssh.h"
@@ -247,7 +247,7 @@ const bool buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     kr_mac_begin_tool();
     for(int i=1;i<argc;i++)if(!strcmp(argv[i],"--language")){
         if(i+1>=argc||(strcmp(argv[i+1],"en")&&strcmp(argv[i+1],"ru"))){fprintf(stderr,"Language must be en or ru\n");return 1;}

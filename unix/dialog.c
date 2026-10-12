@@ -28,6 +28,12 @@
 #endif
 
 #include "storage.h"
+#ifdef KITTY_NG_LINUX
+#include "cli-language.h"
+#define KR_UI(text) kr_mac_translate(text)
+#else
+#define KR_UI(text) (text)
+#endif
 #include "dialog.h"
 #include "tree234.h"
 #include "licence.h"
@@ -1905,7 +1911,7 @@ GtkWidget *layout_ctrls(
     if (!s->boxname) {
         /* This controlset is a panel title. */
         assert(s->boxtitle);
-        return gtk_label_new(s->boxtitle);
+        return gtk_label_new(KR_UI(s->boxtitle));
     }
 
     /*
@@ -1972,7 +1978,7 @@ GtkWidget *layout_ctrls(
 
         switch (ctrl->type) {
           case CTRL_BUTTON:
-            w = gtk_button_new_with_label(ctrl->label);
+            w = gtk_button_new_with_label(KR_UI(ctrl->label));
             if (win) {
                 gtk_widget_set_can_default(w, true);
                 if (ctrl->button.isdefault)
@@ -1988,7 +1994,7 @@ GtkWidget *layout_ctrls(
                          ctrl->button.shortcut, SHORTCUT_UCTRL, uc);
             break;
           case CTRL_CHECKBOX:
-            w = gtk_check_button_new_with_label(ctrl->label);
+            w = gtk_check_button_new_with_label(KR_UI(ctrl->label));
             g_signal_connect(G_OBJECT(w), "toggled",
                              G_CALLBACK(button_toggled), dp);
             g_signal_connect(G_OBJECT(w), "focus_in_event",
@@ -2007,7 +2013,7 @@ GtkWidget *layout_ctrls(
 
             w = columns_new(0);
             if (ctrl->label) {
-                GtkWidget *label = gtk_label_new(ctrl->label);
+                GtkWidget *label = gtk_label_new(KR_UI(ctrl->label));
                 columns_add(COLUMNS(w), label, 0, 1);
                 columns_force_left_align(COLUMNS(w), label);
                 gtk_widget_show(label);
@@ -2125,7 +2131,7 @@ GtkWidget *layout_ctrls(
             if (ctrl->label) {
                 GtkWidget *label;
 
-                label = gtk_label_new(ctrl->label);
+                label = gtk_label_new(KR_UI(ctrl->label));
 
                 shortcut_add(scs, label, ctrl->editbox.shortcut,
                              SHORTCUT_FOCUS, uc->entry);
@@ -2171,7 +2177,7 @@ GtkWidget *layout_ctrls(
                 columns_set_cols(COLUMNS(w), 2, percentages);
 
                 if (ctrl->label) {
-                    ww = gtk_label_new(ctrl->label);
+                    ww = gtk_label_new(KR_UI(ctrl->label));
                     columns_add(COLUMNS(w), ww, 0, 2);
                     columns_force_left_align(COLUMNS(w), ww);
                     gtk_widget_show(ww);
@@ -2196,7 +2202,7 @@ GtkWidget *layout_ctrls(
                 columns_add(COLUMNS(w), ww, 0, 1);
                 gtk_widget_show(ww);
 
-                uc->button = ww = gtk_button_new_with_label(browsebtn);
+                uc->button = ww = gtk_button_new_with_label(KR_UI(browsebtn));
                 columns_add(COLUMNS(w), ww, 1, 1);
                 gtk_widget_show(ww);
 
@@ -2209,7 +2215,7 @@ GtkWidget *layout_ctrls(
                 g_signal_connect(G_OBJECT(uc->entry), "focus_in_event",
                                  G_CALLBACK(widget_focus), dp);
             } else {
-                uc->button = w = gtk_button_new_with_label(ctrl->label);
+                uc->button = w = gtk_button_new_with_label(KR_UI(ctrl->label));
                 shortcut_add(scs, gtk_bin_get_child(GTK_BIN(w)),
                              ctrl->fileselect.shortcut, SHORTCUT_UCTRL, uc);
                 gtk_widget_show(w);
@@ -2368,14 +2374,14 @@ GtkWidget *layout_ctrls(
                     columns_set_cols(COLUMNS(cols), 2, percentages);
                     columns_add(COLUMNS(cols), w, 0, 1);
                     gtk_widget_show(w);
-                    button = gtk_button_new_with_label("Up");
+                    button = gtk_button_new_with_label(KR_UI("Up"));
                     columns_add(COLUMNS(cols), button, 1, 1);
                     gtk_widget_show(button);
                     g_signal_connect(G_OBJECT(button), "clicked",
                                      G_CALLBACK(draglist_up), dp);
                     g_signal_connect(G_OBJECT(button), "focus_in_event",
                                      G_CALLBACK(widget_focus), dp);
-                    button = gtk_button_new_with_label("Down");
+                    button = gtk_button_new_with_label(KR_UI("Down"));
                     columns_add(COLUMNS(cols), button, 1, 1);
                     gtk_widget_show(button);
                     g_signal_connect(G_OBJECT(button), "clicked",
@@ -2471,7 +2477,7 @@ GtkWidget *layout_ctrls(
             if (ctrl->label) {
                 GtkWidget *label, *container;
 
-                label = gtk_label_new(ctrl->label);
+                label = gtk_label_new(KR_UI(ctrl->label));
 #if GTK_CHECK_VERSION(3,0,0)
                 gtk_label_set_width_chars(GTK_LABEL(label), 3);
 #endif
@@ -2540,7 +2546,7 @@ GtkWidget *layout_ctrls(
              * wrapping labels behave sensibly. So now we can just do
              * the obvious thing.
              */
-            uc->text = w = gtk_label_new(uc->ctrl->label);
+            uc->text = w = gtk_label_new(KR_UI(uc->ctrl->label));
 #endif
 #if GTK_CHECK_VERSION(2,0,0)
             gtk_label_set_selectable(GTK_LABEL(w), true);
@@ -3048,7 +3054,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     cols = columns_new(4);
     gtk_box_pack_start(GTK_BOX(vbox), cols, false, false, 0);
     gtk_widget_show(cols);
-    label = gtk_label_new("Category:");
+    label = gtk_label_new(KR_UI("Category:"));
     columns_add(COLUMNS(cols), label, 0, 1);
     columns_force_left_align(COLUMNS(cols), label);
     gtk_widget_show(label);
@@ -3163,7 +3169,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
                 else
                     gtk_tree_store_append(treestore, &treeiter, NULL);
                 gtk_tree_store_set(treestore, &treeiter,
-                                   TREESTORE_PATH, c,
+                                   TREESTORE_PATH, KR_UI(c),
                                    TREESTORE_PARAMS, nselparams,
                                    -1);
                 treeiterlevels[j] = treeiter;
@@ -3597,7 +3603,7 @@ static GtkWidget *add_more_info_button(GtkWidget *w, void *vctx)
     GtkWidget *box = gtk_hbox_new(false, 10);
     gtk_widget_show(box);
     gtk_box_pack_end(GTK_BOX(box), w, false, true, 0);
-    GtkWidget *button = gtk_button_new_with_label("More info...");
+    GtkWidget *button = gtk_button_new_with_label(KR_UI("More info..."));
     gtk_widget_show(button);
     gtk_box_pack_start(GTK_BOX(box), button, false, true, 0);
     *(GtkWidget **)vctx = button;
@@ -3935,7 +3941,7 @@ void about_box(void *window)
     g_signal_connect(G_OBJECT(aboutbox), "destroy",
                      G_CALLBACK(about_window_destroyed), NULL);
 
-    w = gtk_button_new_with_label("Close");
+    w = gtk_button_new_with_label(KR_UI("Close"));
     gtk_widget_set_can_default(w, true);
     gtk_window_set_default(GTK_WINDOW(aboutbox), w);
     action_area = our_dialog_make_action_hbox(GTK_WINDOW(aboutbox));
@@ -3944,7 +3950,7 @@ void about_box(void *window)
                      G_CALLBACK(about_close_clicked), NULL);
     gtk_widget_show(w);
 
-    w = gtk_button_new_with_label("View Licence");
+    w = gtk_button_new_with_label(KR_UI("View Licence"));
     gtk_widget_set_can_default(w, true);
     gtk_box_pack_end(action_area, w, false, false, 0);
     g_signal_connect(G_OBJECT(w), "clicked",

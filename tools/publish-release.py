@@ -1,4 +1,4 @@
-"""Publish the verified local Windows and macOS Universal release, preserving previous releases."""
+"""Publish the verified local Windows, macOS Universal and Linux release, preserving previous releases."""
 import argparse
 import hashlib
 import json
@@ -26,7 +26,7 @@ commit = git("rev-parse", "HEAD", text=True).strip()
 assert not git("status", "--porcelain"), "Commit all changes before publishing"
 assert report["status"] == "success" and report["version"] == version
 assert report["source_commit"] == commit and not report["working_tree_dirty"]
-expected = {f"kitty-ng-{version}-{arch}.zip" for arch in ("x64", "x86", "arm64")} | {f"kitty-ng-{version}-macos-universal.dmg"}
+expected = {f"kitty-ng-{version}-{arch}.zip" for arch in ("x64", "x86", "arm64")} | {f"kitty-ng-{version}-macos-universal.dmg", f"kitty-ng-{version}-x86_64.AppImage", f"kitty-ng-{version}-x86_64.tar.zst"}
 assert {a["file"] for a in report["archives"]} == expected
 for asset in report["archives"]:
     assert hashlib.sha256((ROOT / "dist" / asset["file"]).read_bytes()).hexdigest() == asset["sha256"]
@@ -36,7 +36,7 @@ credential = subprocess.run(
     text=True, capture_output=True, check=True)
 values = dict(line.split("=", 1) for line in credential.stdout.splitlines() if "=" in line)
 headers = {"Authorization": "Bearer " + values["password"],
-           "User-Agent": "KiTTY-NG local release", "Accept": "application/vnd.github+json"}
+           "User-Agent": "KiTTY-ng local release", "Accept": "application/vnd.github+json"}
 
 def request(url, method="GET", data=None, content_type="application/json"):
     if isinstance(data, dict): data = json.dumps(data).encode()
@@ -51,7 +51,7 @@ release = next((r for r in releases if r["tag_name"] == tag), None)
 assert release is None or release["draft"], "Refusing to replace a published release"
 body = (ROOT / "docs/releases" / (version + ".md")).read_text(encoding="utf8")
 body += "\n\n### SHA-256\n\n```text\n" + (ROOT / "dist/SHA256SUMS.txt").read_text() + "```\n"
-metadata = {"tag_name": tag, "target_commitish": commit, "name": "KiTTY-NG " + version,
+metadata = {"tag_name": tag, "target_commitish": commit, "name": "KiTTY-ng " + version,
             "body": body, "draft": True, "prerelease": "-test" in version}
 if release is None:
     release = request(API + "/releases", "POST", metadata)
@@ -62,7 +62,7 @@ for asset in release["assets"]:
 for asset in report["archives"]:
     path = ROOT / "dist" / asset["file"]
     url = release["upload_url"].split("{", 1)[0] + "?name=" + urllib.parse.quote(path.name)
-    uploaded = request(url, "POST", path.read_bytes(), "application/x-apple-diskimage" if path.suffix == ".dmg" else "application/zip")
+    uploaded = request(url, "POST", path.read_bytes(), {".dmg":"application/x-apple-diskimage", ".zip":"application/zip", ".AppImage":"application/octet-stream", ".zst":"application/zstd"}[path.suffix])
     assert uploaded["size"] == path.stat().st_size
     assert uploaded.get("digest") == "sha256:" + asset["sha256"], "Upload checksum mismatch"
     print("Uploaded:", path.name, flush=True)

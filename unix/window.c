@@ -34,6 +34,14 @@
 #include "gtkcompat.h"
 #include "unifont.h"
 #include "gtkmisc.h"
+#ifdef KITTY_NG_LINUX
+#include "linux/transfer.h"
+#include "automation.h"
+#include "cli-language.h"
+#include "linux/icons.h"
+#include "portable.h"
+#include "shortcuts.h"
+#endif
 
 #ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>
@@ -85,6 +93,15 @@ struct clipboard_state {
 typedef struct XpmHolder XpmHolder;    /* only used for GTK 1 */
 
 struct GtkFrontend {
+#ifdef KITTY_NG_LINUX
+    GString *osc_buffer;
+    char *remote_directory;
+    guint reconnect_source;
+    bool connection_started,manual_abort,saved_password_used,input_locked;
+    guint startup_source;
+    char *startup_text;
+    size_t startup_offset;
+#endif
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
     gboolean drawing_area_got_size, drawing_area_realised;
@@ -255,10 +272,18 @@ void fatal_message_box(GtkFrontend *inst, const char *msg)
     common_connfatal_message_box(inst, msg, post_fatal_message_box);
 }
 
+#ifdef KITTY_NG_LINUX
+void restart_session_menuitem(GtkMenuItem *item,gpointer data);
+static gboolean linux_reconnect(gpointer data){GtkFrontend *inst=data;inst->reconnect_source=0;restart_session_menuitem(NULL,inst);return FALSE;}
+#endif
 static void connection_fatal_callback(void *vctx)
 {
     GtkFrontend *inst = (GtkFrontend *)vctx;
     destroy_inst_connection(inst);
+#ifdef KITTY_NG_LINUX
+    int delay=conf_get_int(inst->conf,CONF_kr_reconnect_delay);
+    if(inst->connection_started&&!inst->manual_abort&&delay>0&&!inst->reconnect_source)inst->reconnect_source=g_timeout_add_seconds(MIN(delay,86400),linux_reconnect,inst);
+#endif
 }
 
 static void post_nonfatal_message_box(void *vctx, int result)
@@ -270,6 +295,9 @@ static void post_nonfatal_message_box(void *vctx, int result)
 static void gtk_seat_connection_fatal(Seat *seat, const char *msg)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+#ifdef KITTY_NG_LINUX
+    if(inst->connection_started&&!inst->manual_abort&&conf_get_int(inst->conf,CONF_kr_reconnect_delay)>0){logevent(inst->logctx,msg);inst->exited=true;queue_toplevel_callback(connection_fatal_callback,inst);return;}
+#endif
     if (conf_get_int(inst->conf, CONF_close_on_exit) == FORCE_ON) {
         fatal_message_box(inst, msg);
     } else {
@@ -323,6 +351,11 @@ bool platform_default_b(const char *name, bool def)
 
 int platform_default_i(const char *name, int def)
 {
+#ifdef KITTY_NG_LINUX
+    /* Match the advertised xterm terminal, including SS3 F1-F4 and modifiers.
+     * Explicit modes from saved profiles continue to take precedence. */
+    if (!strcmp(name, "LinuxFunctionKeys")) return FUNKY_XTERM_216;
+#endif
     if (!strcmp(name, "CloseOnExit"))
         return 2;  /* maps to FORCE_ON after painful rearrangement :-( */
     return def;
@@ -338,6 +371,19 @@ static size_t gtk_seat_output(Seat *seat, SeatOutputType type,
                               const void *data, size_t len)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+#ifdef KITTY_NG_LINUX
+    if(!inst->osc_buffer)inst->osc_buffer=g_string_new(NULL);
+    const void *osc_data=len>65536?(const char*)data+len-65536:data;size_t osc_length=MIN(len,65536);
+    g_string_append_len(inst->osc_buffer,osc_data,osc_length);
+    if(inst->osc_buffer->len>65536)g_string_erase(inst->osc_buffer,0,inst->osc_buffer->len-32768);
+    const unsigned char *bytes=(const unsigned char*)inst->osc_buffer->str;size_t n=inst->osc_buffer->len,consumed=0;
+    for(size_t i=0;i+4<n;i++)if(bytes[i]==27&&bytes[i+1]==']'&&bytes[i+2]=='7'&&bytes[i+3]==';'){
+        size_t end=i+4;while(end<n&&bytes[end]!=7&&!(bytes[end]==27&&end+1<n&&bytes[end+1]=='\\'))end++;if(end==n)break;
+        char *value=g_strndup((const char*)bytes+i+4,end-i-4);GUri *uri=g_uri_parse(value,G_URI_FLAGS_NONE,NULL);g_free(value);
+        if(uri){const char *scheme=g_uri_get_scheme(uri),*path=g_uri_get_path(uri);if(scheme&&!strcasecmp(scheme,"file")&&path&&*path=='/'&&!strpbrk(path,"\r\n")){g_free(inst->remote_directory);inst->remote_directory=g_strdup(path);}g_uri_unref(uri);}consumed=end+(bytes[end]==7?1:2);i=consumed-1;
+    }
+    if(consumed)g_string_erase(inst->osc_buffer,0,consumed);
+#endif
     return term_data(inst->term, data, len);
 }
 
@@ -359,10 +405,26 @@ static SeatPromptResult gtk_seat_get_userpass_input(Seat *seat, prompts_t *p)
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     SeatPromptResult spr;
     spr = cmdline_get_passwd_input(p, &inst->cmdline_get_passwd_state, true);
+#ifdef KITTY_NG_LINUX
+    if(spr.kind==SPRK_INCOMPLETE&&!inst->saved_password_used&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(inst->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);inst->saved_password_used=true;return SPR_OK;}}
+#endif
     if (spr.kind == SPRK_INCOMPLETE)
         spr = term_get_userpass_input(inst->term, p);
+#ifdef KITTY_NG_LINUX
+    if(spr_is_abort(spr))inst->manual_abort=true;
+#endif
     return spr;
 }
+
+#ifdef KITTY_NG_LINUX
+typedef struct PromptBridge {GtkFrontend *inst;void(*callback)(void*,SeatPromptResult);void *ctx;} PromptBridge;
+static void prompt_result(void *data,SeatPromptResult result){PromptBridge *bridge=data;if(spr_is_abort(result))bridge->inst->manual_abort=true;void(*callback)(void*,SeatPromptResult)=bridge->callback;void *ctx=bridge->ctx;sfree(bridge);callback(ctx,result);}
+static PromptBridge *prompt_bridge(Seat *seat,void(*callback)(void*,SeatPromptResult),void *ctx){PromptBridge *b=snew(PromptBridge);b->inst=container_of(seat,GtkFrontend,seat);b->callback=callback;b->ctx=ctx;return b;}
+static SeatPromptResult prompt_immediate(PromptBridge *bridge,SeatPromptResult result){if(result.kind!=SPRK_INCOMPLETE){if(spr_is_abort(result))bridge->inst->manual_abort=true;sfree(bridge);}return result;}
+static SeatPromptResult linux_host_key(Seat *seat,const char *host,int port,const char *type,char *key,SeatDialogText *text,HelpCtx help,void(*callback)(void*,SeatPromptResult),void *ctx){PromptBridge *b=prompt_bridge(seat,callback,ctx);return prompt_immediate(b,gtk_seat_confirm_ssh_host_key(seat,host,port,type,key,text,help,prompt_result,b));}
+static SeatPromptResult linux_weak_crypto(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *ctx){PromptBridge *b=prompt_bridge(seat,callback,ctx);return prompt_immediate(b,gtk_seat_confirm_weak_crypto_primitive(seat,text,prompt_result,b));}
+static SeatPromptResult linux_weak_hostkey(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *ctx){PromptBridge *b=prompt_bridge(seat,callback,ctx);return prompt_immediate(b,gtk_seat_confirm_weak_cached_hostkey(seat,text,prompt_result,b));}
+#endif
 
 static bool gtk_seat_is_utf8(Seat *seat)
 {
@@ -401,6 +463,9 @@ StripCtrlChars *gtk_seat_stripctrl_new(
 static void gtk_seat_notify_remote_exit(Seat *seat);
 static void gtk_seat_update_specials_menu(Seat *seat);
 static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status);
+#ifdef KITTY_NG_LINUX
+static void gtk_seat_session_started(Seat *seat);
+#endif
 #ifndef NOT_X_WINDOWS
 static const char *gtk_seat_get_display(Seat *seat, SeatDisplayType dtype);
 static bool gtk_seat_get_windowid(Seat *seat, long *id);
@@ -415,7 +480,11 @@ static const SeatVtable gtk_seat_vt = {
     .sent = nullseat_sent,
     .banner = nullseat_banner_to_stderr,
     .get_userpass_input = gtk_seat_get_userpass_input,
+#ifdef KITTY_NG_LINUX
+    .notify_session_started = gtk_seat_session_started,
+#else
     .notify_session_started = nullseat_notify_session_started,
+#endif
     .notify_remote_exit = gtk_seat_notify_remote_exit,
     .notify_remote_disconnect = nullseat_notify_remote_disconnect,
     .connection_fatal = gtk_seat_connection_fatal,
@@ -423,9 +492,15 @@ static const SeatVtable gtk_seat_vt = {
     .update_specials_menu = gtk_seat_update_specials_menu,
     .get_ttymode = gtk_seat_get_ttymode,
     .set_busy_status = gtk_seat_set_busy_status,
+#ifdef KITTY_NG_LINUX
+    .confirm_ssh_host_key = linux_host_key,
+    .confirm_weak_crypto_primitive = linux_weak_crypto,
+    .confirm_weak_cached_hostkey = linux_weak_hostkey,
+#else
     .confirm_ssh_host_key = gtk_seat_confirm_ssh_host_key,
     .confirm_weak_crypto_primitive = gtk_seat_confirm_weak_crypto_primitive,
     .confirm_weak_cached_hostkey = gtk_seat_confirm_weak_cached_hostkey,
+#endif
     .prompt_descriptions = gtk_seat_prompt_descriptions,
     .is_utf8 = gtk_seat_is_utf8,
     .echoedit_update = nullseat_echoedit_update,
@@ -1040,6 +1115,10 @@ static int return_key(GtkFrontend *inst, char *output, bool *special)
     return end;
 }
 
+#ifdef KITTY_NG_LINUX
+#include "linux/window-actions.h"
+#endif
+
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
@@ -1053,6 +1132,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     const char *event_string = event->string ? event->string : "";
 
     noise_ultralight(NOISE_SOURCE_KEY, event->keyval);
+#ifdef KITTY_NG_LINUX
+    if (kr_linux_shortcut(inst, event) || inst->input_locked) return true;
+#endif
 
 #ifdef OSX_META_KEY_CONFIG
     if (event->state & inst->system_mod_mask)
@@ -2225,6 +2307,10 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
     show_mouseptr(inst, true);
 
     shift = event->state & GDK_SHIFT_MASK;
+#ifdef KITTY_NG_LINUX
+    if(event->button==1 && event->type==GDK_BUTTON_PRESS && (event->state&GDK_CONTROL_MASK) && kr_linux_link(inst,event)) return true;
+    if(inst->input_locked && event->button!=3) return true;
+#endif
     ctrl = event->state & GDK_CONTROL_MASK;
     alt = event->state & inst->meta_mod_mask;
 
@@ -2243,7 +2329,11 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
         }
     }
 
-    if (event->button == 3 && ctrl) {
+    if (event->button == 3 && (ctrl
+#ifdef KITTY_NG_LINUX
+        || !raw_mouse_mode
+#endif
+        )) {
         /* Just in case this happened in mid-select */
         term_cancel_selection_drag(inst->term);
 #if GTK_CHECK_VERSION(3,22,0)
@@ -2445,6 +2535,13 @@ static void destroy_inst_connection(GtkFrontend *inst)
 
 static void delete_inst(GtkFrontend *inst)
 {
+#ifdef KITTY_NG_LINUX
+    if(inst->reconnect_source)g_source_remove(inst->reconnect_source);
+    if(inst->osc_buffer)g_string_free(inst->osc_buffer,TRUE);
+    g_free(inst->remote_directory);
+    if(inst->startup_source)g_source_remove(inst->startup_source);
+    if(inst->startup_text){smemclr(inst->startup_text,strlen(inst->startup_text));sfree(inst->startup_text);}
+#endif
     int dialog_slot;
     for (dialog_slot = 0; dialog_slot < DIALOG_SLOT_LIMIT; dialog_slot++) {
         if (inst->dialogs[dialog_slot]) {
@@ -2537,6 +2634,72 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
     show_mouseptr(inst, true);
     return false;
 }
+
+
+#ifdef KITTY_NG_LINUX
+static gboolean send_startup(gpointer data){GtkFrontend *inst=data;if(!inst->backend||!backend_sendok(inst->backend)){inst->startup_source=0;return FALSE;}if(inst->startup_text&&inst->startup_text[inst->startup_offset]){size_t n=1;const unsigned char *s=(const unsigned char*)inst->startup_text+inst->startup_offset;while((s[n]&192)==128)n++;backend_send(inst->backend,(const char*)s,n);inst->startup_offset+=n;int delay=s[n-1]=='\r'?conf_get_int(inst->conf,CONF_kr_command_delay):conf_get_int(inst->conf,CONF_bcdelay);inst->startup_source=g_timeout_add(MAX(1,MIN(60000,delay)),send_startup,inst);return FALSE;}inst->startup_source=0;return FALSE;}
+static void gtk_seat_session_started(Seat *seat){GtkFrontend *inst=container_of(seat,GtkFrontend,seat);inst->connection_started=true;if(inst->startup_source)g_source_remove(inst->startup_source);if(inst->startup_text){smemclr(inst->startup_text,strlen(inst->startup_text));sfree(inst->startup_text);}char *error=NULL;inst->startup_text=kr_mac_startup_commands(inst->conf,&error);inst->startup_offset=0;if(error){seat_nonfatal(seat,"%s",error);sfree(error);}else if(inst->startup_text&&*inst->startup_text)inst->startup_source=g_timeout_add(MAX(1,MIN(60000,conf_get_int(inst->conf,CONF_initdelay))),send_startup,inst);}
+static void transfer_drop(GtkWidget *widget,GdkDragContext *context,gint x,gint y,GtkSelectionData *selection,guint info,guint time,gpointer data){GtkFrontend *inst=data;char **uris=gtk_selection_data_get_uris(selection);GPtrArray *paths=g_ptr_array_new_with_free_func(g_free);for(int i=0;uris&&uris[i];i++){char *path=g_filename_from_uri(uris[i],NULL,NULL);if(path)g_ptr_array_add(paths,path);}bool valid=paths->len>0;g_ptr_array_add(paths,NULL);if(valid&&!inst->input_locked)kr_linux_upload(inst->conf,GTK_WINDOW(inst->window),(char**)paths->pdata,inst->remote_directory);gtk_drag_finish(context,valid,FALSE,time);g_strfreev(uris);g_ptr_array_free(paths,TRUE);}
+/* Let the menu finish handling its activation event before running a modal
+ * chooser. Keep an independent Conf in case the terminal closes meanwhile. */
+typedef struct TransferMenuAction {
+    GtkWidget *window;
+    Conf *conf;
+    char *directory;
+    bool upload;
+} TransferMenuAction;
+static void free_transfer_menu_action(gpointer data) {
+    TransferMenuAction *action = data;
+    g_object_unref(action->window);
+    conf_free(action->conf);
+    g_free(action->directory);
+    sfree(action);
+}
+static gboolean run_transfer_menu_action(gpointer data) {
+    TransferMenuAction *action = data;
+    if (!gtk_widget_get_realized(action->window)) return G_SOURCE_REMOVE;
+    if (!action->upload) {
+        kr_linux_download(action->conf, GTK_WINDOW(action->window));
+        return G_SOURCE_REMOVE;
+    }
+    GtkWidget *dialog = gtk_file_chooser_dialog_new(
+        kr_mac_translate("Send files..."), GTK_WINDOW(action->window),
+        GTK_FILE_CHOOSER_ACTION_OPEN, kr_mac_translate("Cancel"),
+        GTK_RESPONSE_CANCEL, kr_mac_translate("Open"), GTK_RESPONSE_OK, NULL);
+    gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(dialog), TRUE);
+    gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), g_get_home_dir());
+    if (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_OK) {
+        GSList *files = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER(dialog));
+        GPtrArray *paths = g_ptr_array_new();
+        for (GSList *file = files; file; file = file->next)
+            g_ptr_array_add(paths, file->data);
+        g_ptr_array_add(paths, NULL);
+        if (files) kr_linux_upload(
+            action->conf, gtk_widget_get_realized(action->window)
+                ? GTK_WINDOW(action->window) : NULL,
+            (char **)paths->pdata, action->directory);
+        g_ptr_array_free(paths, TRUE);
+        g_slist_free_full(files, g_free);
+    }
+    gtk_widget_destroy(dialog);
+    return G_SOURCE_REMOVE;
+}
+static void schedule_transfer_menu(GtkFrontend *inst, bool upload) {
+    TransferMenuAction *action = snew(TransferMenuAction);
+    action->window = g_object_ref(inst->window);
+    action->conf = conf_copy(inst->conf);
+    action->directory = g_strdup(inst->remote_directory);
+    action->upload = upload;
+    g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, run_transfer_menu_action,
+                    action, free_transfer_menu_action);
+}
+static void upload_menu(GtkMenuItem *item, gpointer data) {
+    schedule_transfer_menu(data, true);
+}
+static void download_menu(GtkMenuItem *item, gpointer data) {
+    schedule_transfer_menu(data, false);
+}
+#endif
 
 static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 {
@@ -4688,6 +4851,9 @@ void copy_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 void paste_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+#ifdef KITTY_NG_LINUX
+    if(inst->input_locked)return;
+#endif
     term_request_paste(inst->term, MENU_CLIPBOARD);
 }
 
@@ -5090,10 +5256,36 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 
     get_sesslist(&sesslist, true);
     /* skip sesslist.sessions[0] == Default Settings */
+#ifdef KITTY_NG_LINUX
+    GHashTable *folders = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+    g_hash_table_insert(folders, g_strdup(""), inst->sessionsmenu);
+#endif
     for (i = 1; i < sesslist.nsessions; i++) {
-        GtkWidget *menuitem =
-            gtk_menu_item_new_with_label(sesslist.sessions[i]);
-        gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
+        GtkWidget *parent = inst->sessionsmenu;
+        const char *label = sesslist.sessions[i];
+#ifdef KITTY_NG_LINUX
+        const char *slash;
+        while ((slash = strchr(label, '/')) != NULL) {
+            char *path = g_strndup(sesslist.sessions[i], slash - sesslist.sessions[i]);
+            GtkWidget *child = g_hash_table_lookup(folders, path);
+            if (!child) {
+                char *title = g_strndup(label, slash - label);
+                GtkWidget *folderitem = gtk_menu_item_new_with_label(title);
+                child = gtk_menu_new();
+                gtk_menu_item_set_submenu(GTK_MENU_ITEM(folderitem), child);
+                gtk_container_add(GTK_CONTAINER(parent), folderitem);
+                gtk_widget_show(folderitem);
+                g_hash_table_insert(folders, path, child);
+                path = NULL;
+                g_free(title);
+            }
+            g_free(path);
+            parent = child;
+            label = slash + 1;
+        }
+#endif
+        GtkWidget *menuitem = gtk_menu_item_new_with_label(label);
+        gtk_container_add(GTK_CONTAINER(parent), menuitem);
         gtk_widget_show(menuitem);
         g_object_set_data(G_OBJECT(menuitem), "user-data",
                           dupstr(sesslist.sessions[i]));
@@ -5104,6 +5296,9 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
                          G_CALLBACK(saved_session_freedata),
                          inst);
     }
+#ifdef KITTY_NG_LINUX
+    g_hash_table_destroy(folders);
+#endif
     if (sesslist.nsessions <= 1) {
         GtkWidget *menuitem =
             gtk_menu_item_new_with_label("(No sessions)");
@@ -5116,6 +5311,10 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 
 static void set_window_icon(GtkWidget *window, IconCollection icon, int n_icon)
 {
+#ifdef KITTY_NG_LINUX
+    kr_linux_icon(GTK_WINDOW(window));
+    return;
+#endif
 #if GTK_CHECK_VERSION(2,0,0)
     GList *iconlist;
     int n;
@@ -5221,6 +5420,9 @@ static void gtk_seat_update_specials_menu(Seat *seat)
 
 static void start_backend(GtkFrontend *inst)
 {
+#ifdef KITTY_NG_LINUX
+    inst->manual_abort=false;inst->saved_password_used=false;
+#endif
     const struct BackendVtable *vt;
     char *error, *realhost;
 
@@ -5496,6 +5698,16 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
+#ifdef KITTY_NG_LINUX
+    GtkTargetEntry drop_targets[]={{"text/uri-list",0,0}};
+    gtk_drag_dest_set(inst->area,GTK_DEST_DEFAULT_ALL,drop_targets,1,GDK_ACTION_COPY);
+    g_signal_connect(inst->area,"drag-data-received",G_CALLBACK(transfer_drop),inst);
+#endif
+#ifdef KITTY_NG_LINUX
+    gtk_window_set_keep_above(GTK_WINDOW(inst->window),conf_get_bool(inst->conf,CONF_alwaysontop));
+    if(conf_get_bool(inst->conf,CONF_maximize))gtk_window_maximize(GTK_WINDOW(inst->window));
+    if(conf_get_bool(inst->conf,CONF_fullscreen))gtk_window_fullscreen(GTK_WINDOW(inst->window));
+#endif
     gtk_widget_show(inst->area);
     show_scrollbar(inst, conf_get_bool(inst->conf, CONF_scrollbar));
     gtk_widget_show(GTK_WIDGET(inst->hbox));
@@ -5634,9 +5846,14 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
         inst->menu = gtk_menu_new();
 
+#ifdef KITTY_NG_LINUX
+#define KR_MENU_LABEL(title) kr_mac_translate(title)
+#else
+#define KR_MENU_LABEL(title) (title)
+#endif
 #define MKMENUITEM(title, func) do                                      \
         {                                                               \
-            menuitem = gtk_menu_item_new_with_label(title);             \
+            menuitem = gtk_menu_item_new_with_label(KR_MENU_LABEL(title));             \
             gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
             gtk_widget_show(menuitem);                                  \
             g_signal_connect(G_OBJECT(menuitem), "activate",            \
@@ -5645,7 +5862,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
 #define MKSUBMENU(title) do                                             \
         {                                                               \
-            menuitem = gtk_menu_item_new_with_label(title);             \
+            menuitem = gtk_menu_item_new_with_label(KR_MENU_LABEL(title));             \
             gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
             gtk_widget_show(menuitem);                                  \
         } while (0)
@@ -5673,6 +5890,12 @@ void new_session_window(Conf *conf, const char *geometry_string)
         }
         MKSEP();
         MKMENUITEM("Change Settings...", change_settings_menuitem);
+#ifdef KITTY_NG_LINUX
+        MKMENUITEM("Run command…",command_menu);
+        MKMENUITEM("Lock / unlock input",lock_menu);
+        MKMENUITEM(kr_mac_translate("Send files..."),upload_menu);
+        MKMENUITEM(kr_mac_translate("Receive file..."),download_menu);
+#endif
         MKSEP();
         if (use_event_log)
             MKMENUITEM("Event Log", event_log_menuitem);
@@ -5696,6 +5919,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
         s = dupcat("About ", appname);
         MKMENUITEM(s, about_menuitem);
         sfree(s);
+#undef KR_MENU_LABEL
 #undef MKMENUITEM
 #undef MKSUBMENU
 #undef MKSEP

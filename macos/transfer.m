@@ -12,7 +12,7 @@
 static NSMutableArray *jobs;
 static NSString *text(const char *s){return [NSString stringWithUTF8String:s]?:@"";}
 static NSString *tr(NSString *en,NSString *ru){return kr_mac_language()==1?ru:en;}
-static void error(NSString *s){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-NG";a.informativeText=s;[a runModal];}
+static void error(NSString *s){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng";a.informativeText=s;[a runModal];}
 static NSURL *helper(NSString *name){
     if(![@[@"klink",@"kscp",@"ksftp",@"kittygen",@"kageant"]containsObject:name])return nil;
     NSURL *bundle=NSBundle.mainBundle.bundleURL,*path=[bundle URLByAppendingPathComponent:[@"Contents/Helpers/" stringByAppendingString:name]];
@@ -95,7 +95,7 @@ static void launch(Conf *original,BOOL upload,NSArray<NSURL *> *files,NSString *
     if(serialized->len>2097152){smemclr(serialized->s,serialized->len);strbuf_free(serialized);error(@"Session configuration is too large");return;}
     unsigned char header[12]={'K','N','G','M','A','C','1','\n',serialized->len>>24,serialized->len>>16,serialized->len>>8,serialized->len};
     NSMutableData *snapshot=[NSMutableData dataWithBytes:header length:sizeof(header)];[snapshot appendBytes:serialized->s length:serialized->len];smemclr(serialized->s,serialized->len);strbuf_free(serialized);
-    startJob(program,args,snapshot,tr(@"KiTTY-NG — file transfer",@"KiTTY-NG — передача файлов"),nil);
+    startJob(program,args,snapshot,tr(@"KiTTY-ng — file transfer",@"KiTTY-ng — передача файлов"),nil);
 }
 static NSString *askRemote(Conf *conf,BOOL upload,NSString *directory){
     NSAlert *a=[NSAlert new];a.messageText=tr(@"File transfer",@"Передача файлов");a.informativeText=upload?tr(@"Remote destination directory",@"Каталог назначения на сервере"):tr(@"Remote file or directory to download",@"Удалённый файл или каталог для скачивания");

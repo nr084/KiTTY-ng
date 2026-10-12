@@ -1010,7 +1010,7 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
                                      result.updated, result.unchanged, result.failed);
             char *message = result.first_error ? dupprintf("%s\n\nFirst error: %s",
                                                         summary, result.first_error) : dupstr(summary);
-            kr_messagebox(GetActiveWindow(), message, "KiTTY-NG",
+            kr_messagebox(GetActiveWindow(), message, "KiTTY-ng",
                           MB_OK | (result.failed ? MB_ICONWARNING : MB_ICONINFORMATION));
             sfree(result.first_error); sfree(summary); sfree(message);
             return;

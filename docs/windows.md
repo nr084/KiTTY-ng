@@ -1,10 +1,10 @@
-# KiTTY-NG для Windows
+# KiTTY-ng для Windows
 
 [Документация](README.md) | [English](windows.en.md)
 
 Сборки публикуются в [релизах](https://github.com/nr084/kitty-ng/releases). Выберите Windows **x64**, **x86** или **ARM64**, распакуйте архив и запустите соответственно `kitty-ng-x64.exe`, `kitty-ng-x86.exe` или `kitty-ng-arm64.exe`. Установка не требуется. В комплект входят klink, kscp, ksftp, kittygen и kageant на базе утилит PuTTY.
 
-Windows поставляется в трёх архивах: `kitty-ng-0.85-3-x64.zip`, `kitty-ng-0.85-3-x86.zip` и `kitty-ng-0.85-3-arm64.zip`. Все EXE внутри имеют суффикс архитектуры. Например, архив x64 содержит `kitty-ng-x64.exe`, `klink-x64.exe`, `kscp-x64.exe`, `ksftp-x64.exe`, `kittygen-x64.exe` и `kageant-x64.exe`. В остальных архивах используется суффикс `-x86` или `-arm64`. В именах EXE версия не добавляется; встроенные сведения о версии сохраняются. Контрольные суммы архивов приводятся в описании релиза.
+Windows поставляется в трёх архивах: `kitty-ng-0.85-4-x64.zip`, `kitty-ng-0.85-4-x86.zip` и `kitty-ng-0.85-4-arm64.zip`. Все EXE внутри имеют суффикс архитектуры. Например, архив x64 содержит `kitty-ng-x64.exe`, `klink-x64.exe`, `kscp-x64.exe`, `ksftp-x64.exe`, `kittygen-x64.exe` и `kageant-x64.exe`. В остальных архивах используется суффикс `-x86` или `-arm64`. В именах EXE версия не добавляется; встроенные сведения о версии сохраняются. Контрольные суммы архивов приводятся в описании релиза.
 
 Архивы поставляются в портативном режиме: файл `kitty-ng.portable` включает хранение рядом с программой. Для хранения в реестре удалите этот маркер и убедитесь, что в `kitty.ini` нет `savemode=dir`. В обычном режиме используется ветка `HKCU\Software\KiTTY-NG`.
 
@@ -49,4 +49,4 @@ Windows поставляется в трёх архивах: `kitty-ng-0.85-3-x6
 
 ![Настройка сеанса на русском](screenshots/session-ru.png)
 
-![О программе KiTTY-NG](screenshots/about-ru.png)
+![О программе KiTTY-ng](screenshots/about-ru.png)

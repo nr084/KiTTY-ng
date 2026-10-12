@@ -43,7 +43,7 @@ static int test_registry(const char *root)
     assert(!open_settings_r("Registry test"));
     assert(RegOverridePredefKey(HKEY_CURRENT_USER, NULL) == ERROR_SUCCESS);
     RegCloseKey(isolated);
-    puts("PASS: isolated KiTTY-NG registry sessions and host keys");
+    puts("PASS: isolated KiTTY-ng registry sessions and host keys");
     return 0;
 }
 

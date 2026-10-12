@@ -1365,7 +1365,8 @@ CONF_OPTION(disablealtgr, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("D
 CONF_OPTION(scrolllines, VALUE_TYPE(INT), DEFAULT_INT(-1), SAVE_KEYWORD("LinesAtAScroll"),)
 CONF_OPTION(comment, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("Comment"),)
 CONF_OPTION(wakeup_reconnect, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("WakeupReconnect"),)
-CONF_OPTION(kr_always_on_top, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("AlwaysOnTop"),)
+/* Reserved legacy slot: use CONF_alwaysontop as the canonical option. */
+CONF_OPTION(kr_always_on_top, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), LOAD_CUSTOM, SAVE_CUSTOM,)
 CONF_OPTION(kr_shortcuts, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("EnableShortcuts"),)
 CONF_OPTION(kr_hyperlinks, VALUE_TYPE(BOOL), DEFAULT_BOOL(true), SAVE_KEYWORD("EnableHyperlinks"),)
 CONF_OPTION(kr_remote_clipboard, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEYWORD("RemoteClipboardWrite"),)

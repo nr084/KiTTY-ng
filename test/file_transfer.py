@@ -300,7 +300,7 @@ with tempfile.TemporaryDirectory(prefix="file-transfer-test-", dir=binary.parent
             batch.write_text("put cli-upload.bin /home/root/direct-ksftp.bin\nquit\n")
             utility("ksftp", "-b", str(batch))
             assert resolve("/home/root/direct-ksftp.bin").read_bytes() == b"portable-key-cli-payload\x00"
-            print("PASS: moved portable key authenticates KiTTY-NG, Klink, Kscp (SCP/SFTP), Ksftp and file drops from unrelated CWD")
+            print("PASS: moved portable key authenticates KiTTY-ng, Klink, Kscp (SCP/SFTP), Ksftp and file drops from unrelated CWD")
         assert authentications, authentications
         if key_auth: assert set(authentications) == {"publickey"}, authentications
         if scenario in ("all", "scp"): assert commands, "SCP protocol was not exercised"

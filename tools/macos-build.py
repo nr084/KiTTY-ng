@@ -39,13 +39,14 @@ def main():
     signer = next((store/"rcodesign").rglob("rcodesign.exe"))
     version = (ROOT/"VERSION").read_text().strip()
     output = args.output.resolve(); output.mkdir(parents=True, exist_ok=True)
-    report = dict(version=version, stage="native-terminal", runtime_verified=False,
+    report = dict(source_commit=subprocess.check_output(["git","-c","safe.directory="+str(ROOT),"rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
+                  working_tree_dirty=bool(subprocess.check_output(["git","-c","safe.directory="+str(ROOT),"status","--porcelain"],cwd=ROOT)),version=version, stage="native-terminal", runtime_verified=False,
                   architectures=["arm64", "x86_64"], deployment_target=args.deployment_target,
                   sdk=sdk_info, llvm=tool_info,
                   signer=subprocess.check_output([str(signer),"--version"],text=True).strip())
     (ROOT/"build").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="macos-build-", dir=ROOT/"build") as temporary:
-        work = Path(temporary); app = work/"KiTTY-NG.app"
+        work = Path(temporary); app = work/"KiTTY-ng.app"
         macos = app/"Contents/MacOS"; helpers = app/"Contents/Helpers"; resources = app/"Contents/Resources"
         for directory in (macos,helpers,resources):directory.mkdir(parents=True)
         native = output/"macos-core"
@@ -63,7 +64,7 @@ def main():
                 if line.startswith("/") and not line.startswith(("/usr/lib/","/System/Library/")):
                     raise RuntimeError("Non-system runtime dependency: "+line)
             libraries[name]=libs
-        info=dict(CFBundleName="KiTTY-NG",CFBundleDisplayName="KiTTY-NG",CFBundleExecutable="kitty-ng",
+        info=dict(CFBundleName="KiTTY-ng",CFBundleDisplayName="KiTTY-ng",CFBundleExecutable="kitty-ng",
                   CFBundleIdentifier="com.nr084.kitty-ng",CFBundlePackageType="APPL",
                   CFBundleShortVersionString=version.split("-")[0],CFBundleVersion=version.replace("-","."),
                   LSMinimumSystemVersion=args.deployment_target,NSHighResolutionCapable=True,CFBundleIconFile="kitty-ng.icns")
@@ -96,8 +97,8 @@ def main():
             else:raise RuntimeError("Tampered resource was accepted")
         finally:resource.write_bytes(original)
         readme = work/"README-macos.txt"
-        readme.write_text("KiTTY-NG — версия macOS Universal 2 (ARM64 + Intel).\n"
-            "Распакуйте KiTTY-NG.app рядом с Windows EXE, kitty.ini и Sessions.\n"
+        readme.write_text("KiTTY-ng — версия macOS Universal 2 (ARM64 + Intel).\n"
+            "Распакуйте KiTTY-ng.app рядом с Windows EXE, kitty.ini и Sessions.\n"
             "Редактор профилей: Новый / Изменить / Удалить / Дублировать; остальные параметры — дерево Все настройки.\n"
             "Передача файлов: перетащите файл в терминал либо выберите отправку/скачивание в контекстном меню.\n"
             "kscp получает текущие настройки SSH через приватный канал, включая пароль, ключ, сертификат и прокси.\n"
@@ -110,13 +111,13 @@ def main():
             "Нет Developer ID/нотариального заверения; используется локальная ad-hoc подпись.\n"
             "Если macOS блокирует запуск: Настройки системы → Конфиденциальность и безопасность → Всё равно открыть.\n"
             "При AppTranslocation выберите общую портативную папку вручную.\n"
-            "Smoke-test KiTTY-NG.command проверяет утилиты на синтетических ключах в очищаемом временном каталоге.\n"
-            "Для диагностики падения: Diagnose KiTTY-NG.command; журнал kitty-ng-diagnostic.log.\n"
+            "Smoke-test KiTTY-ng.command проверяет утилиты на синтетических ключах в очищаемом временном каталоге.\n"
+            "Для диагностики падения: Diagnose KiTTY-ng.command; журнал kitty-ng-diagnostic.log.\n"
             "Based on PuTTY by Simon Tatham and contributors, and KiTTY by Cyril Dupont.\n",encoding="utf8")
-        diagnostic=work/"Diagnose KiTTY-NG.command"
-        diagnostic.write_bytes((ROOT/"macos/Diagnose KiTTY-NG.command").read_bytes().replace(b"\r\n",b"\n"))
-        smoke=work/"Smoke-test KiTTY-NG.command"
-        smoke.write_bytes((ROOT/"macos/Smoke-test KiTTY-NG.command").read_bytes().replace(b"\r\n",b"\n"))
+        diagnostic=work/"Diagnose KiTTY-ng.command"
+        diagnostic.write_bytes((ROOT/"macos/Diagnose KiTTY-ng.command").read_bytes().replace(b"\r\n",b"\n"))
+        smoke=work/"Smoke-test KiTTY-ng.command"
+        smoke.write_bytes((ROOT/"macos/Smoke-test KiTTY-ng.command").read_bytes().replace(b"\r\n",b"\n"))
         archive=output/f"kitty-ng-{version}-macos-universal.zip"
         with tempfile.NamedTemporaryFile(dir=output,suffix=".zip",delete=False) as pending:pending_path=Path(pending.name)
         try:

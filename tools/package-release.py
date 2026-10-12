@@ -27,7 +27,7 @@ for name in names:
     offset = struct.unpack_from("<I", data, 0x3c)[0]
     assert data[:2] == b"MZ" and data[offset:offset+4] == b"PE\0\0"
     assert struct.unpack_from("<H", data, offset+4)[0] == machine, name
-    assert ("KiTTY-NG " + version).encode("utf-16le") in data, (name, "stale version resource")
+    assert ("KiTTY-ng " + version).encode("utf-16le") in data, (name, "stale version resource")
     fixed_offset = data.find(struct.pack("<I", 0xFEEF04BD))
     assert fixed_offset >= 0, (name, "missing fixed version info")
     fixed = struct.unpack_from("<13I", data, fixed_offset)
@@ -62,6 +62,8 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
         relative = guide.relative_to(root).as_posix()
         if relative not in existing:
             bundle.write(guide, relative)
+    for image in sorted((root / "docs/screenshots").glob("linux-*.png")):
+        bundle.write(image, "docs/screenshots/" + image.name)
     bundle.write(root / "icons/kitty-ng-forum.png", "icons/kitty-ng-forum.png")
     bundle.write(root / "icons/kitty-ng.png", "icons/kitty-ng.png")
     bundle.write(root / "icons/kitty-ng-prompt.txt", "icons/kitty-ng-prompt.txt")

@@ -396,7 +396,7 @@ void kr_file_close(HKEY key)
     if (*p) {
         FileKey *old = *p;
         if (old->session && old->dirty && !savesession(old))
-            kr_messagebox(NULL, "Unable to save portable session", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            kr_messagebox(NULL, "Unable to save portable session", "KiTTY-ng", MB_OK | MB_ICONERROR);
         while (old->values) {
             FileValue *v = old->values;
             old->values = v->next;

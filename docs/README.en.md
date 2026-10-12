@@ -1,4 +1,4 @@
-# KiTTY-NG documentation
+# KiTTY-ng documentation
 
 [Project](../README.en.md) | [Русский](README.md)
 
@@ -6,6 +6,7 @@
 | --- | --- |
 | [Windows](windows.en.md) | Launch, language, utilities and transfers |
 | [macOS Universal](macos.en.md) | DMG, portable setup and shared Windows profiles |
+| [Linux · AppImage](linux.en.md) | AppImage, local Windows build and native validation |
 | [Compatibility](portable.en.md) | KiTTY migration, passwords, keys and relative paths |
 | [Builds](build.en.md) | Local Windows/macOS compilation and versions |
 
@@ -20,6 +21,7 @@ The following reports are maintained in Russian or machine-readable JSON.
 
 ## Release history
 
+- [0.85-4](releases/0.85-4.md) — Windows + macOS Universal + Linux.
 - [0.85-3](releases/0.85-3.md) — Windows + macOS Universal.
 - [0.85-2](releases/0.85-2.md).
 - [0.85-1](releases/0.85-1.md).

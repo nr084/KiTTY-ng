@@ -148,7 +148,7 @@ set_property(SOURCE putty.rc APPEND PROPERTY OBJECT_DEPENDS
   ${CMAKE_CURRENT_SOURCE_DIR}/version.rc2
   ${CMAKE_CURRENT_SOURCE_DIR}/kitty-ng.ico
   ${CMAKE_SOURCE_DIR}/version.h)
-be_list(kitty-ng KiTTY-NG SSH SERIAL OTHERBACKENDS)
+be_list(kitty-ng KiTTY-ng SSH SERIAL OTHERBACKENDS)
 add_dependencies(kitty-ng generated_licence_h)
 
 # Only the output filename varies; keep the upstream-compatible target name.

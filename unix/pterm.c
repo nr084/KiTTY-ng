@@ -47,3 +47,10 @@ void setup(bool single)
     if (single)
         pty_pre_init();
 }
+
+#ifdef KITTY_NG_LINUX
+/* The portable store can validate CA keys; pterm itself has no SSH RNG. */
+void random_read(void *buffer, size_t length) {
+    unreachable("pterm has no cryptographic random consumer");
+}
+#endif

@@ -89,7 +89,7 @@ static bool kr_tray_icon(HWND hwnd, bool add)
     icon.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     icon.uCallbackMessage = WM_KR_TRAY;
     icon.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(IDI_MAINICON));
-    wcscpy(icon.szTip, L"KiTTY-NG");
+    wcscpy(icon.szTip, L"KiTTY-ng");
     return Shell_NotifyIconW(add ? NIM_ADD : NIM_DELETE, &icon) != FALSE;
 }
 #define IDM_SPECIALSEP 0x0200
@@ -437,14 +437,14 @@ static void kr_command_tick(WinGuiSeat *wgs)
         if (strlen(conf_get_str(wgs->conf, CONF_autocommand)) > 65536 ||
             strlen(conf_get_str(wgs->conf, CONF_scriptfilecontent)) > 1048576) {
             kr_cancel_commands(wgs);
-            MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-ng", MB_OK | MB_ICONERROR);
             return;
         }
         const Filename *file = conf_get_filename(wgs->conf, CONF_kr_script_file);
         wchar_t *script = filename_is_null(file) ? kr_command_text(conf_get_str(wgs->conf, CONF_scriptfilecontent), false, true) : kr_read_script(file);
         if (!script) {
             kr_cancel_commands(wgs);
-            MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-ng", MB_OK | MB_ICONERROR);
             return;
         }
         const char *automatic = conf_get_str(wgs->conf, CONF_autocommand);
@@ -457,13 +457,13 @@ static void kr_command_tick(WinGuiSeat *wgs)
             filename_free(reference);
             if (attributes != INVALID_FILE_ATTRIBUTES && !command) {
                 smemclr(script, wcslen(script)*sizeof(wchar_t)); sfree(script); kr_cancel_commands(wgs);
-                MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR);
+                MessageBox(wgs->term_hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-ng", MB_OK | MB_ICONERROR);
                 return;
             }
         }
         if (!command && ((automatic[0] && automatic[1] == ':') || automatic[0] == '\\')) {
             smemclr(script, wcslen(script)*sizeof(wchar_t)); sfree(script); kr_cancel_commands(wgs);
-            MessageBox(wgs->term_hwnd, "Automatic command references an unavailable local script. Select a UTF-8 startup script explicitly.", "KiTTY-NG", MB_OK | MB_ICONERROR);
+            MessageBox(wgs->term_hwnd, "Automatic command references an unavailable local script. Select a UTF-8 startup script explicitly.", "KiTTY-ng", MB_OK | MB_ICONERROR);
             return;
         }
         if (!command) command = kr_command_text(automatic, true, true);
@@ -522,7 +522,7 @@ static void kr_save_window(WinGuiSeat *wgs)
             close_settings_w(writer);
         }
     }
-    if (error) { MessageBox(wgs->term_hwnd, error, "KiTTY-NG", MB_OK | MB_ICONERROR); sfree(error); }
+    if (error) { MessageBox(wgs->term_hwnd, error, "KiTTY-ng", MB_OK | MB_ICONERROR); sfree(error); }
 }
 
 static int kr_test_clipboard_writes;
@@ -1149,7 +1149,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     else if (conf_get_bool(wgs->conf, CONF_maximize) ||
              (conf_get_bool(wgs->conf, CONF_save_windowpos) && conf_get_bool(wgs->conf, CONF_windowstate)))
         ShowWindow(wgs->term_hwnd, SW_MAXIMIZE);
-    if (conf_get_bool(wgs->conf, CONF_kr_always_on_top))
+    if (conf_get_bool(wgs->conf, CONF_alwaysontop))
         SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TOP, 0);
     const Filename *icon = conf_get_filename(wgs->conf, CONF_kr_icon_file);
     size_t icon_length = wcslen(icon->wpath);
@@ -2697,7 +2697,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           case IDM_KR_TOP: {
             bool top = !(GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST);
             SetWindowPos(hwnd, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-            conf_set_bool(wgs->conf, CONF_kr_always_on_top, top);
+            conf_set_bool(wgs->conf, CONF_alwaysontop, top);
             for (size_t i = 0; i < lenof(wgs->popup_menus); i++)
                 CheckMenuItem(wgs->popup_menus[i].menu, IDM_KR_TOP, MF_BYCOMMAND | (top ? MF_CHECKED : MF_UNCHECKED));
             break;
@@ -2718,7 +2718,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             Filename *file = request_file(hwnd, "Select script to run remotely", NULL, false, NULL, true, FILTER_ALL_FILES);
             if (!file) break;
             wchar_t *script = kr_read_script(file); filename_free(file);
-            if (!script) { MessageBox(hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-NG", MB_OK | MB_ICONERROR); break; }
+            if (!script) { MessageBox(hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-ng", MB_OK | MB_ICONERROR); break; }
             kr_cancel_commands(wgs); wgs->kr_commands = script; wgs->kr_commands_started = true;
             wgs->kr_command_due = GetTickCount64(); SetTimer(hwnd, KR_COMMAND_TIMER, 10, NULL);
             break;
@@ -2727,7 +2727,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           case IDM_KR_KEYGEN: {
             DWORD error, status;
             if (!kr_launch_companion((wParam & ~0xF) == IDM_KR_AGENT ? "kageant" : "kittygen", L"", false, &status, &error))
-                MessageBox(hwnd, "Unable to launch the matching-architecture utility.", "KiTTY-NG", MB_OK | MB_ICONERROR);
+                MessageBox(hwnd, "Unable to launch the matching-architecture utility.", "KiTTY-ng", MB_OK | MB_ICONERROR);
             break;
           }
           case SC_VSCROLL:
@@ -2894,7 +2894,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             /* Pass new config data to the logging module */
             kr_apply_transparency(hwnd, wgs->conf);
             kr_load_bindings(wgs);
-            bool top = conf_get_bool(wgs->conf, CONF_kr_always_on_top);
+            bool top = conf_get_bool(wgs->conf, CONF_alwaysontop);
             SetWindowPos(hwnd, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
             for (size_t i = 0; i < lenof(wgs->popup_menus); i++)
                 CheckMenuItem(wgs->popup_menus[i].menu, IDM_KR_TOP, MF_BYCOMMAND | (top ? MF_CHECKED : MF_UNCHECKED));

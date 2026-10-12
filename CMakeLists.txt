@@ -3,6 +3,10 @@ project(kitty-ng LANGUAGES C)
 
 set(CMAKE_C_STANDARD 99)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_compile_definitions(KITTY_NG_LINUX)
+  include_directories(${CMAKE_SOURCE_DIR}/macos ${CMAKE_SOURCE_DIR}/linux)
+endif()
 if(APPLE)
   add_compile_definitions(KITTY_NG_MACOS)
 endif()

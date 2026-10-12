@@ -1,13 +1,13 @@
-# KiTTY-NG for macOS
+# KiTTY-ng for macOS
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** Release 0.85-3 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** Release 0.85-4 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
 ## First launch
 
-1. Open `kitty-ng-0.85-3-macos-universal.dmg`.
-2. Copy `KiTTY-NG.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
+1. Open `kitty-ng-0.85-4-macos-universal.dmg`.
+2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.
 
@@ -18,15 +18,15 @@ Settings remain outside `.app`. The read-only DMG is not suitable for working wi
 The app has a local ad-hoc signature without Developer ID or Apple notarization. If blocked, use **System Settings → Privacy & Security → Open Anyway**. You may re-sign it on Mac:
 
 ```sh
-codesign --force --deep --sign - KiTTY-NG.app
-codesign --verify --deep --strict --verbose=2 KiTTY-NG.app
+codesign --force --deep --sign - KiTTY-ng.app
+codesign --verify --deep --strict --verbose=2 KiTTY-ng.app
 ```
 
 ## Sharing Windows profiles
 
 ```text
-KiTTY-NG/
-├── KiTTY-NG.app
+KiTTY-ng/
+├── KiTTY-ng.app
 ├── kitty-ng-x64.exe
 ├── kscp-x64.exe
 ├── kitty-ng.portable
@@ -79,6 +79,6 @@ See [local builds](build.en.md) for Windows compilation and DMG packaging. Compi
 
 ## Screenshots
 
-![KiTTY-NG — English interface](screenshots/macos-session-en.png)
+![KiTTY-ng — English interface](screenshots/macos-session-en.png)
 
 ![KiTTYgen — English interface](screenshots/macos-kittygen-en.png)

@@ -14,7 +14,7 @@
 #include <sys/time.h>
 
 #include "putty.h"
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/cli-language.h"
 #define printf kr_mac_printf
 #define fprintf kr_mac_fprintf
@@ -27,7 +27,7 @@
 #include "storage.h"
 #include "ssh.h"
 #include "console.h"
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/helper.h"
 #endif
 
@@ -166,7 +166,7 @@ SeatPromptResult console_confirm_ssh_host_key(
     char *keystr, SeatDialogText *text, HelpCtx helpctx,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     if(kr_mac_gui_prompts()&&!console_batch_mode){char *question=kr_mac_dialog_text(text),*reply=kr_mac_askpass("hostkey",question);sfree(question);bool accepted=reply&&(!strcmp(reply,"save")||!strcmp(reply,"once"));if(reply&&!strcmp(reply,"save"))store_host_key(seat,host,port,keytype,keystr);sfree(reply);return accepted?SPR_OK:SPR_USER_ABORT;}
 #endif
     char line[32];
@@ -237,7 +237,7 @@ SeatPromptResult console_confirm_weak_crypto_primitive(
     Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     if(kr_mac_gui_prompts()&&!console_batch_mode){char *question=kr_mac_dialog_text(text),*reply=kr_mac_askpass("confirm",question);sfree(question);bool accepted=reply&&!strcmp(reply,"yes");sfree(reply);return accepted?SPR_OK:SPR_USER_ABORT;}
 #endif
     char line[32];
@@ -281,7 +281,7 @@ SeatPromptResult console_confirm_weak_cached_hostkey(
     Seat *seat, SeatDialogText *text,
     void (*callback)(void *ctx, SeatPromptResult result), void *ctx)
 {
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     if(kr_mac_gui_prompts()&&!console_batch_mode){char *question=kr_mac_dialog_text(text),*reply=kr_mac_askpass("confirm",question);sfree(question);bool accepted=reply&&!strcmp(reply,"yes");sfree(reply);return accepted?SPR_OK:SPR_USER_ABORT;}
 #endif
     char line[32];
@@ -520,7 +520,7 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
         return SPR_SW_ABORT("Cannot answer interactive prompts "
                             "in batch mode");
 
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     if(kr_mac_gui_prompts()){
         for(size_t i=0;i<p->n_prompts;i++){char *question=dupcat(p->name?kr_mac_translate(p->name):"", "\n",p->instruction?kr_mac_translate(p->instruction):"","\n",kr_mac_translate(p->prompts[i]->prompt)),*reply=kr_mac_askpass(p->prompts[i]->echo?"text":"secret",question);sfree(question);if(!reply)return SPR_USER_ABORT;prompt_set_result(p->prompts[i],reply);smemclr(reply,strlen(reply));sfree(reply);}return SPR_OK;
     }

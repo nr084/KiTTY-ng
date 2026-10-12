@@ -880,7 +880,7 @@ static BOOL AddTrayIcon(HWND hwnd)
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
     HICON icon = tnid.hIcon = LoadIcon(hinst, MAKEINTRESOURCE(201));
-    wchar_t *tip = dup_mb_to_wc(CP_UTF8, kr_translate("Kageant (KiTTY-NG authentication agent)"));
+    wchar_t *tip = dup_mb_to_wc(CP_UTF8, kr_translate("Kageant (KiTTY-ng authentication agent)"));
     wcsncpy(tnid.szTip, tip, lenof(tnid.szTip) - 1);
     sfree(tip);
     BOOL result = Shell_NotifyIconW(NIM_ADD, &tnid);
@@ -894,7 +894,7 @@ static BOOL AddTrayIcon(HWND hwnd)
     return result;
 }
 
-/* Profiles come from the same registry/portable backend as KiTTY-NG. */
+/* Profiles come from the same registry/portable backend as KiTTY-ng. */
 static void update_sessions(void)
 {
     if (!putty_path) return;
@@ -1347,7 +1347,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             if (modal_passphrase_hwnd) kr_utility_localize(modal_passphrase_hwnd);
             NOTIFYICONDATAW tip = {0}; tip.cbSize = sizeof(tip);
             tip.hWnd = hwnd; tip.uID = 1; tip.uFlags = NIF_TIP;
-            wchar_t *text = dup_mb_to_wc(CP_UTF8, kr_translate("Kageant (KiTTY-NG authentication agent)"));
+            wchar_t *text = dup_mb_to_wc(CP_UTF8, kr_translate("Kageant (KiTTY-ng authentication agent)"));
             wcsncpy(tip.szTip, text, lenof(tip.szTip) - 1); sfree(text);
             Shell_NotifyIconW(NIM_MODIFY, &tip);
             break;

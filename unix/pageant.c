@@ -17,7 +17,7 @@
 #include <termios.h>
 
 #include "putty.h"
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/cli-language.h"
 #define printf kr_mac_printf
 #define fprintf kr_mac_fprintf
@@ -27,7 +27,7 @@
 #define dupvprintf kr_mac_dupvprintf
 #endif
 
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/helper.h"
 #endif
 #include "ssh.h"
@@ -105,7 +105,7 @@ static int make_pipe_to_askpass(const char *msg)
         /*
          * See comment in fork_and_exec_self() in main-gtk-simple.c.
          */
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
         if(kr_mac_gui_prompts()){kr_mac_exec_askpass(msg);_exit(127);}
 #endif
         execv("/proc/self/exe", (char **)args);
@@ -266,6 +266,9 @@ struct X11Connection {
 };
 
 static char *socketname;
+#ifdef KITTY_NG_LINUX
+static bool foreground_x11;
+#endif
 static enum { SHELL_AUTO, SHELL_SH, SHELL_CSH } shell_type = SHELL_AUTO;
 void pageant_print_env(int pid)
 {
@@ -1154,7 +1157,7 @@ void run_agent(FILE *logfp, const char *symlink_path)
     upc->termination_pid = -1;
     upc->prompt_buf = strbuf_new_nm();
     upc->prompt_type = display ? RTPROMPT_GUI : RTPROMPT_UNAVAILABLE;
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     if(kr_mac_gui_prompts())upc->prompt_type=RTPROMPT_GUI;
 #endif
     pl = pageant_listener_new(&pl_plug, &upc->plc);
@@ -1191,6 +1194,11 @@ void run_agent(FILE *logfp, const char *symlink_path)
     }
 
     conf = conf_new();
+#ifdef KITTY_NG_LINUX
+    /* X11 lifetime connections need a complete configuration for the shared proxy layer. */
+    do_defaults(NULL, conf);
+    conf_set_str(conf, CONF_proxyselection, "");
+#endif
     conf_set_int(conf, CONF_proxy_type, PROXY_NONE);
 
     /*
@@ -1234,6 +1242,10 @@ void run_agent(FILE *logfp, const char *symlink_path)
         smemclr(greeting, greetinglen);
         sfree(greeting);
 
+#ifdef KITTY_NG_LINUX
+        if(foreground_x11){pageant_print_env(getpid());fclose(stdout);}
+        else
+#endif
         pageant_fork_and_print_env(false);
     } else if (life == LIFE_TTY) {
         schedule_timer(TTY_LIFE_POLL_INTERVAL,
@@ -1320,13 +1332,16 @@ void run_agent(FILE *logfp, const char *symlink_path)
         exit(1);
     }
 
+#ifdef KITTY_NG_LINUX
+    if(symlink_path){char *parent=dupstr(symlink_path),*slash=strrchr(parent,'/');if(slash){*slash=0;if(strstartswith(parent,"/tmp/kitty-ng-agent-")){unlink(symlink_path);rmdir(parent);}}sfree(parent);}
+#endif
     strbuf_free(upc->prompt_buf);
     conf_free(conf);
 }
 
 int main(int argc, char **argv)
 {
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     kr_mac_begin_tool();
     for(int i=1;i<argc;i++)if(!strcmp(argv[i],"--language")){
         if(i+1>=argc||(strcmp(argv[i+1],"en")&&strcmp(argv[i+1],"ru"))){fprintf(stderr,"Language must be en or ru\n");return 1;}
@@ -1400,6 +1415,10 @@ int main(int argc, char **argv)
                 }
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
+#ifdef KITTY_NG_LINUX
+            } else if (!strcmp(p,"--foreground-x11")) {
+                life=LIFE_X11;foreground_x11=true;
+#endif
             } else if (!strcmp(p, "--foreground")) {
                 life = LIFE_FOREGROUND;
             } else if (!strcmp(p, "--test-sign")) {

@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 def fetch(url):
-    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "KiTTY-NG macOS build"}), timeout=60)
+    return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "KiTTY-ng macOS build"}), timeout=60)
 def download(url, path, digest):
     sha = hashlib.sha256()
     with fetch(url) as source, path.open("wb") as target:

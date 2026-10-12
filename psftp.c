@@ -9,7 +9,7 @@
 #include <limits.h>
 
 #include "putty.h"
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/cli-language.h"
 #define printf kr_mac_printf
 #define fprintf kr_mac_fprintf

@@ -408,7 +408,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             font.lfWeight = FW_SEMIBOLD;
             HFONT title_font = CreateFontIndirectW(&font);
             if (title_font) {
-                SetPropW(hwnd, L"KiTTY-NG About Font", title_font);
+                SetPropW(hwnd, L"KiTTY-ng About Font", title_font);
                 SendDlgItemMessage(hwnd, IDA_BRAND, WM_SETFONT, (WPARAM)title_font, true);
             }
         }
@@ -416,7 +416,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         char *text = dupprintf(
             "%s\r\n\r\nPuTTY\r\n\302\251 " SHORT_COPYRIGHT_DETAILS
             "\r\n\r\nKiTTY\r\n\302\251 2007-2013 Cyril Dupont"
-            "\r\n\r\nKiTTY-NG\r\n\302\251 %s nr084",
+            "\r\n\r\nKiTTY-ng\r\n\302\251 %s nr084",
             buildinfo_text, __DATE__ + 7);
         sfree(buildinfo_text);
         wchar_t *wide = dup_mb_to_wc(CP_UTF8, text);
@@ -438,7 +438,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         }
         break;
       case WM_DESTROY: {
-        HFONT font = (HFONT)RemovePropW(hwnd, L"KiTTY-NG About Font");
+        HFONT font = (HFONT)RemovePropW(hwnd, L"KiTTY-ng About Font");
         if (font) DeleteObject(font);
         return true;
       }

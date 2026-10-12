@@ -164,7 +164,7 @@ void gui_term_process_cmdline(Conf *conf, char *cmdline)
             } else if (!strcmp(p, "-maximized")) {
                 conf_set_bool(conf, CONF_maximize, true);
             } else if (!strcmp(p, "-top")) {
-                conf_set_bool(conf, CONF_kr_always_on_top, true);
+                conf_set_bool(conf, CONF_alwaysontop, true);
             } else if (!strcmp(p, "-tray")) {
                 conf_set_bool(conf, CONF_sendtotray, true);
             } else if (!strcmp(p, "-test-extensions")) {

@@ -96,7 +96,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     dlgcontrol *c;
     char *str;
 
-    s = ctrl_getset(b, "Connection/Data", "kittyng", "KiTTY-NG");
+    s = ctrl_getset(b, "Connection/Data", "kittyng", "KiTTY-ng");
     c = ctrl_editbox(s, "Saved password", NO_SHORTCUT, 100,
                      HELPCTX(no_help), password_handler, P(NULL), P(NULL));
     c->editbox.password = true;
@@ -115,12 +115,12 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     ctrl_editbox(s, "Alternate destination (user@host:port, optional)", NO_SHORTCUT, 100,
                  HELPCTX(no_help), transfer_string_handler, I(CONF_sftpconnect), P(NULL));
 
-    s = ctrl_getset(b, "Window/Appearance", "kittyng", "KiTTY-NG");
+    s = ctrl_getset(b, "Window/Appearance", "kittyng", "KiTTY-ng");
     kr_add_language_controls(b, s);
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_transparencynumber), ED_INT);
-    s = ctrl_getset(b, "Connection", "kittyng", "KiTTY-NG");
+    s = ctrl_getset(b, "Connection", "kittyng", "KiTTY-ng");
     ctrl_editbox(s, "Reconnect delay in seconds (0 disables)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_kr_reconnect_delay), ED_INT);
@@ -145,9 +145,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                  conf_editbox_handler, I(CONF_bcdelay), ED_INT);
     ctrl_text(s, "Commands run in the remote session after authentication.", HELPCTX(no_help));
 
-    ctrl_settitle(b, "Window/Extensions", "KiTTY-NG window options");
+    ctrl_settitle(b, "Window/Extensions", "KiTTY-ng window options");
     s = ctrl_getset(b, "Window/Extensions", "startup", "Window startup");
-    ctrl_checkbox(s, "Always on top", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_kr_always_on_top));
+    ctrl_checkbox(s, "Always on top", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_alwaysontop));
     ctrl_checkbox(s, "Start maximized", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_maximize));
     ctrl_checkbox(s, "Start full screen", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_fullscreen));
     ctrl_checkbox(s, "Start in system tray", NO_SHORTCUT, HELPCTX(no_help), conf_checkbox_handler, I(CONF_sendtotray));

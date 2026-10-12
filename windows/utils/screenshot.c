@@ -56,7 +56,10 @@ char *save_screenshot(HWND hwnd, Filename *outfile)
         goto out;
     }
 
-    bmSave = CreateCompatibleBitmap(dcWindow, w, h);
+    RECT source_rect; GetWindowRect(hwnd, &source_rect);
+    int source_width = source_rect.right-source_rect.left;
+    int source_height = source_rect.bottom-source_rect.top;
+    bmSave = CreateCompatibleBitmap(dcWindow, source_width, source_height);
     if (!bmSave) {
         err = dupprintf("CreateCompatibleBitmap: %s",
                         win_strerror(GetLastError()));
@@ -68,12 +71,23 @@ char *save_screenshot(HWND hwnd, Filename *outfile)
         goto out;
     }
 
-    /* Render the owned window directly: demos can run hidden or occluded. */
+    /* Render the whole owned window; DWM bounds can be smaller than its DC. */
     if (!PrintWindow(hwnd, dcSave, 0) &&
         !BitBlt(dcSave, 0, 0, w, h, dcWindow, x, y, SRCCOPY)) {
         err = dupprintf("BitBlt: %s", win_strerror(GetLastError()));
         goto out;
     }
+
+    if (source_width > w || source_height > h) {
+        int dx=x-source_rect.left, dy=y-source_rect.top;
+        if(dx>=0 && dy>=0) BitBlt(dcSave,0,0,w,h,dcSave,dx,dy,SRCCOPY);
+    }
+
+    HBITMAP crop = CreateCompatibleBitmap(dcWindow,w,h);
+    HDC cropdc = CreateCompatibleDC(dcWindow);
+    if(!crop || !cropdc){if(crop)DeleteObject(crop);if(cropdc)DeleteDC(cropdc);err=dupstr("Screenshot crop allocation failed");goto out;}
+    SelectObject(cropdc,crop);BitBlt(cropdc,0,0,w,h,dcSave,0,0,SRCCOPY);
+    SelectObject(dcSave,crop);DeleteDC(cropdc);DeleteObject(bmSave);bmSave=crop;
 
     BITMAPINFO bmInfo;
     memset(&bmInfo, 0, sizeof(bmInfo));

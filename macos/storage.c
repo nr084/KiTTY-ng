@@ -6,8 +6,10 @@
 #include "ssh.h"
 #include "portable.h"
 #include "../windows/kittyng-legacy-crypt.h"
+#ifndef KITTY_NG_LINUX
 #include <crt_externs.h>
 #include <mach-o/dyld.h>
+#endif
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
@@ -16,6 +18,9 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <limits.h>
+#ifdef KITTY_NG_LINUX
+#include <sys/random.h>
+#endif
 #include "names.h"
 
 static char *duplicate_part(const char *text,size_t n){char *copy=snewn(n+1,char);memcpy(copy,text,n);copy[n]=0;return copy;}
@@ -26,6 +31,15 @@ struct settings_e { char **names; size_t count, index; };
 struct host_ca_enum { settings_e *entries; };
 static char *root;
 static bool profile_write_ok;
+#ifdef KITTY_NG_LINUX
+#define PORTABLE_FONT_PREFIX "Linux"
+#define PORTABLE_SEED_KEY "linuxseedfile"
+#define PORTABLE_SEED_NAME "kitty-ng-linux.rnd"
+#else
+#define PORTABLE_FONT_PREFIX "Mac"
+#define PORTABLE_SEED_KEY "macseedfile"
+#define PORTABLE_SEED_NAME "kitty-ng-macos.rnd"
+#endif
 static const char *hex = "0123456789ABCDEF";
 static char *join(const char *parent, const char *leaf) { return dupcat(parent,"/",leaf); }
 static bool inside_bundle(const char *path){return strstr(path,".app/")||strlen(path)>=4&&!strcmp(path+strlen(path)-4,".app");}
@@ -37,10 +51,21 @@ void kr_mac_set_root(const char *path) {
 const char *kr_mac_root(void) {
     if (root) return root;
     const char *chosen=getenv("KITTY_NG_PORTABLE_DIR");
+#ifdef KITTY_NG_LINUX
+    char arguments[65536];FILE *command=fopen("/proc/self/cmdline","rb");size_t length=command?fread(arguments,1,sizeof(arguments)-1,command):0;if(command)fclose(command);arguments[length]=0;
+    for(size_t offset=0;offset<length;){char *arg=arguments+offset;offset+=strlen(arg)+1;if(!strcmp(arg,"--portable-dir")&&offset<length)chosen=arguments+offset;}
+#else
     int argc=*_NSGetArgc(); char **argv=*_NSGetArgv();
     for (int i=1;i+1<argc;i++) if (!strcmp(argv[i],"--portable-dir")) chosen=argv[++i];
+#endif
     if (chosen && *chosen) {kr_mac_set_root(chosen);return root;}
     if (!root) {
+#ifdef KITTY_NG_LINUX
+        char executable[PATH_MAX];const char *image=getenv("APPIMAGE");ssize_t count=readlink("/proc/self/exe",executable,sizeof(executable)-1);
+        if(image&&image[0]=='/')snprintf(executable,sizeof(executable),"%s",image);
+        else if(count>=0)executable[count]=0;else executable[0]=0;
+        char *slash=strrchr(executable,'/');if(slash){*slash=0;kr_mac_set_root(*executable?executable:"/");}
+#else
         uint32_t size=0; _NSGetExecutablePath(NULL,&size); char *path=snewn(size,char);
         if (!_NSGetExecutablePath(path,&size)) {
             char *bundle=strstr(path,".app/Contents/");
@@ -49,6 +74,7 @@ const char *kr_mac_root(void) {
             kr_mac_set_root(path);
         }
         sfree(path);
+#endif
     }
     return root;
 }
@@ -101,7 +127,7 @@ static char *configuration(const char *base,const char *key,const char *fallback
     while(cursor&&(line=strsep(&cursor,"\n"))){char *p=line;while(isspace((unsigned char)*p))p++;char *end=p+strlen(p);while(end>p&&isspace((unsigned char)end[-1]))*--end=0;char *eq=strchr(p,'=');if(eq&&*p!=';'&&*p!='#'){*eq++=0;end=p+strlen(p);while(end>p&&isspace((unsigned char)end[-1]))*--end=0;if(!strcmp(p,key)){sfree(result);result=dupstr(eq);}}}sfree(text);return result;
 }
 char *kr_mac_directory_at(const char *base,const char *key){
-    if(!base)return NULL;char *value=configuration(base,!strcmp(key,"seedfile")?"macseedfile":key,!strcmp(key,"seedfile")?"kitty-ng-macos.rnd":key);
+    if(!base)return NULL;char *value=configuration(base,!strcmp(key,"seedfile")?PORTABLE_SEED_KEY:key,!strcmp(key,"seedfile")?PORTABLE_SEED_NAME:key);
     if(isalpha((unsigned char)value[0])&&value[1]==':'){sfree(value);return NULL;}
     for(char *p=value;*p;p++)if(*p=='\\')*p='/';char *result=value[0]=='/'?dupstr(value):join(base,value);sfree(value);char *resolved=realpath(result,NULL);bool forbidden=inside_bundle(result)||(resolved&&inside_bundle(resolved));free(resolved);if(forbidden){sfree(result);return NULL;}return result;
 }
@@ -176,7 +202,7 @@ char *kr_mac_asset_path(const char *stored) {
 }
 static bool asset_key(const char *key){return !strcmp(key,"PublicKeyFile")||!strcmp(key,"DetachedCertificate")||!strcmp(key,"Scriptfile")||!strcmp(key,"IconeFile");}
 Filename *read_setting_filename(settings_r *r,const char *key){char *value=read_setting_s(r,key);if(!value)return NULL;char *path=asset_key(key)?kr_mac_asset_path(value):dupstr(value);Filename *f=filename_from_str(path);sfree(path);sfree(value);return f;}
-FontSpec *read_setting_fontspec(settings_r *r,const char *key){char *name=dupcat("Mac",key,"Name"),*value=read_setting_s(r,name);sfree(name);if(!value)return NULL;FontSpec *f=fontspec_new(value);sfree(value);return f;}
+FontSpec *read_setting_fontspec(settings_r *r,const char *key){char *name=dupcat(PORTABLE_FONT_PREFIX,key,"Name"),*value=read_setting_s(r,name);sfree(name);if(!value)return NULL;FontSpec *f=fontspec_new(value);sfree(value);return f;}
 settings_w *open_settings_w(const char *name,char **error){
     profile_write_ok=false;*error=NULL;char *path=session_path(name);if(!path){*error=dupstr("Select a writable portable directory first");return NULL;}
     settings_r *old=read_path(path);if(old&&old->data->len&&!recognised_data(old->data)){close_settings_r(old);sfree(path);*error=dupstr("Unrecognised profiles are not overwritten");return NULL;}
@@ -184,7 +210,7 @@ settings_w *open_settings_w(const char *name,char **error){
 }
 void write_setting_s(settings_w *w,const char *key,const char *value){MacValue **p=&w->values;while(*p&&strcmp((*p)->key,key))p=&(*p)->next;if(!*p){*p=snew(MacValue);(*p)->key=dupstr(key);(*p)->value=NULL;(*p)->next=NULL;(*p)->written=false;}sfree((*p)->value);(*p)->value=dupstr(value);}
 void write_setting_i(settings_w *w,const char *key,int value){char *s=dupprintf("%d",value);write_setting_s(w,key,s);sfree(s);}
-void write_setting_fontspec(settings_w *w,const char *key,FontSpec *font){char *name=dupcat("Mac",key,"Name");write_setting_s(w,name,font->name);sfree(name);}
+void write_setting_fontspec(settings_w *w,const char *key,FontSpec *font){char *name=dupcat(PORTABLE_FONT_PREFIX,key,"Name");write_setting_s(w,name,font->name);sfree(name);}
 void write_setting_filename(settings_w *w,const char *key,Filename *f){
     const char *path=filename_to_str(f),*base=kr_mac_root();char *canonical=asset_key(key)&&*path?realpath(path,NULL):NULL;if(canonical)path=canonical;
     size_t n=base?strlen(base):0;if(asset_key(key)&&n&&!strncmp(base,path,n)&&path[n]=='/'&&!strstr(path,"/../"))path+=n+1;write_setting_s(w,key,path);free(canonical);
@@ -265,7 +291,13 @@ char *kr_mac_prepare_password(Conf *conf){
     const char *plain=conf_get_str(conf,CONF_password);if(!conf_get_bool(conf,CONF_kr_password_decoded)&&!*plain&&*conf_get_str(conf,CONF_kr_password_encoded))return NULL;
     if(!*plain){conf_set_str(conf,CONF_kr_password_encoded,"");return NULL;}
     char *mode_text=kr_mac_ini("KiTTY","cryptsalt","0");int mode=atoi(mode_text);sfree(mode_text);if(!mode&&!*conf_get_str(conf,CONF_host))return dupstr("A host name is required to save this password");if(mode>1){conf_set_str(conf,CONF_kr_password_encoded,plain);return NULL;}
-    unsigned char random[5];arc4random_buf(random,sizeof(random));const char *alphabet="AZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbn0123456789+/";char seed[5];for(size_t i=0;i<5;i++)seed[i]=alphabet[random[i]%64];
+    unsigned char random[5];
+#ifdef KITTY_NG_LINUX
+    size_t offset=0;while(offset<sizeof(random)){ssize_t count=getrandom(random+offset,sizeof(random)-offset,0);if(count<0&&errno==EINTR)continue;if(count<=0)return dupstr("System randomness is unavailable");offset+=count;}
+#else
+    arc4random_buf(random,sizeof(random));
+#endif
+const char *alphabet="AZERTYUIOPQSDFGHJKLMWXCVBNazertyuiopqsdfghjklmwxcvbn0123456789+/";char seed[5];for(size_t i=0;i<5;i++)seed[i]=alphabet[random[i]%64];
     char *masked=dupstr(plain),*key=mode?dupstr("KiTTY"):dupcat(conf_get_str(conf,CONF_host),conf_get_str(conf,CONF_termtype),"KiTTY");if(!mode)kr_legacy_mask(masked);char *encoded=kr_legacy_encode(masked,key,seed);smemclr(masked,strlen(masked));sfree(masked);smemclr(key,strlen(key));sfree(key);if(!encoded)return dupstr("Unable to encode saved password");conf_set_str(conf,CONF_kr_password_encoded,encoded);smemclr(encoded,strlen(encoded));free(encoded);conf_set_bool(conf,CONF_kr_password_decoded,true);return NULL;
 }
 

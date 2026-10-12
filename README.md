@@ -1,27 +1,28 @@
-# KiTTY-NG
+# KiTTY-ng
 
 **Русский** | [English](README.en.md)
 
-<img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-NG">
+<img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-**Портативный SSH-клиент для Windows и macOS.** Развитие KiTTY на базе PuTTY 0.85: русский и английский интерфейс, управление сеансами, SSH-ключи, передача файлов и автоматизация.
+**Портативный SSH-клиент для Windows, macOS и Linux.** Развитие KiTTY на базе PuTTY 0.85: русский и английский интерфейс, управление сеансами, SSH-ключи, передача файлов и автоматизация.
 
-**macOS Portable и общие Windows-профили.** Держите `KiTTY-NG.app` рядом с Windows EXE и используйте один каталог `Sessions`. Настройки и ключи остаются снаружи приложения; внутренние файловые ссылки можно хранить относительно общей папки.
+**macOS Portable и общие Windows-профили.** Держите `KiTTY-ng.app` рядом с Windows EXE и используйте один каталог `Sessions`. Настройки и ключи остаются снаружи приложения; внутренние файловые ссылки можно хранить относительно общей папки.
 
 ## Скачать
 
-| Платформа | Сборка 0.85-3 | Запуск |
+| Платформа | Сборка 0.85-4 | Запуск |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-macos-universal.dmg) | `KiTTY-NG.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
 ## Первый запуск
 
-1. Скачайте свою сборку. На Windows распакуйте ZIP; на Mac скопируйте `.app` из DMG в доступную для записи папку и извлеките образ.
+1. Скачайте свою сборку. На Windows распакуйте ZIP; на Mac скопируйте `.app` из DMG в доступную для записи папку и извлеките образ. В Linux сделайте AppImage исполняемым (`chmod +x файл.AppImage`) и запустите его; при отсутствии FUSE используйте AppDir или `--appimage-extract-and-run`.
 2. Для существующих настроек разместите клиент рядом с `kitty.ini`, `Sessions` и `SshHostKeys` либо выберите папку профилей. Windows-архивы содержат маркер `kitty-ng.portable`.
 3. Откройте профиль или создайте SSH-сеанс. Выберите язык и нажмите **Применить**.
 
@@ -40,11 +41,11 @@
 
 ### Windows
 
-<img src="docs/screenshots/session-ru.png" width="760" alt="KiTTY-NG — Windows">
+<img src="docs/screenshots/session-ru.png" width="760" alt="KiTTY-ng — Windows">
 
 ### macOS Universal
 
-<img src="docs/screenshots/macos-session-ru.png" width="760" alt="KiTTY-NG — macOS">
+<img src="docs/screenshots/macos-session-ru.png" width="760" alt="KiTTY-ng — macOS">
 
 <details>
 <summary>KiTTYgen — macOS</summary>
@@ -53,13 +54,17 @@
 
 </details>
 
+### Linux · GTK 3
+
+<img src="docs/screenshots/linux-session-ru.png" width="760" alt="KiTTY-ng — Linux">
+
 ## Руководства
 
 - [Документация](docs/README.md).
-- [Windows](docs/windows.md) · [macOS](docs/macos.md).
+- [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-3](docs/releases/0.85-3.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-4](docs/releases/0.85-4.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 
@@ -69,9 +74,9 @@
 
 ## Благодарности и лицензии
 
-Спасибо **Саймону Тэтэму (Simon Tatham)** и всем участникам [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/): их работа составляет основу kitty-ng. Отдельная благодарность **Сирилю Дюпону (Cyril Dupont, cyd01)**, автору [KiTTY](https://github.com/cyd01/KiTTY), за расширения и удобство портативного клиента, совместимость с которым мы сохраняем.
+Спасибо **Саймону Тэтэму (Simon Tatham)** и всем участникам [PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/): их работа составляет основу KiTTY-ng. Отдельная благодарность **Сирилю Дюпону (Cyril Dupont, cyd01)**, автору [KiTTY](https://github.com/cyd01/KiTTY), за расширения и удобство портативного клиента, совместимость с которым мы сохраняем.
 
-Оригинальные уведомления об авторских правах и тексты лицензий PuTTY и KiTTY сохранены в отдельных файлах. kitty-ng — самостоятельный проект nr084, продолжающий эту работу.
+Оригинальные уведомления об авторских правах и тексты лицензий PuTTY и KiTTY сохранены в отдельных файлах. KiTTY-ng — самостоятельный проект nr084, продолжающий эту работу.
 
 База: [PuTTY 0.85](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html). Расширения и совместимость: [KiTTY](https://github.com/cyd01/KiTTY), исходный коммит `75fa2abcd220c17249ff7252f8d5224137001f2d`. История KiTTY сохранена в Git.
 

@@ -1,27 +1,28 @@
-# KiTTY-NG
+# KiTTY-ng
 
 [Русский](README.md) | **English**
 
-<img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-NG">
+<img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-**Portable SSH client for Windows and macOS.** A continuation of KiTTY on PuTTY 0.85, with English and Russian interfaces, session management, SSH keys, file transfers and automation.
+**Portable SSH client for Windows, macOS and Linux.** A continuation of KiTTY on PuTTY 0.85, with English and Russian interfaces, session management, SSH keys, file transfers and automation.
 
-**Portable macOS app with shared Windows profiles.** Keep `KiTTY-NG.app` beside the Windows EXEs and use one `Sessions` directory. Settings and keys stay outside the app; internal file references can be relative to the shared folder.
+**Portable macOS app with shared Windows profiles.** Keep `KiTTY-ng.app` beside the Windows EXEs and use one `Sessions` directory. Settings and keys stay outside the app; internal file references can be relative to the shared folder.
 
 ## Download
 
-| Platform | Release 0.85-3 | Launch |
+| Platform | Release 0.85-4 | Launch |
 | --- | --- | --- |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-3/kitty-ng-0.85-3-macos-universal.dmg) | `KiTTY-NG.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
 ## First launch
 
-1. Download your platform build. Extract the Windows ZIP; on Mac, copy the `.app` from the DMG into a writable folder and eject the image.
+1. Download your platform build. Extract the Windows ZIP; on Mac, copy the `.app` from the DMG into a writable folder and eject the image. On Linux, make the AppImage executable (`chmod +x file.AppImage`) and run it; use AppDir or `--appimage-extract-and-run` without FUSE.
 2. Place the client beside your existing `kitty.ini`, `Sessions` and `SshHostKeys`, or select the profiles folder. Windows archives include `kitty-ng.portable`.
 3. Open a profile or create an SSH session. Choose a language and click **Apply**.
 
@@ -40,11 +41,11 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ### Windows
 
-<img src="docs/screenshots/session-en.png" width="760" alt="KiTTY-NG — Windows">
+<img src="docs/screenshots/session-en.png" width="760" alt="KiTTY-ng — Windows">
 
 ### macOS Universal
 
-<img src="docs/screenshots/macos-session-en.png" width="760" alt="KiTTY-NG — macOS">
+<img src="docs/screenshots/macos-session-en.png" width="760" alt="KiTTY-ng — macOS">
 
 <details>
 <summary>KiTTYgen — macOS</summary>
@@ -53,13 +54,17 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 </details>
 
+### Linux · GTK 3
+
+<img src="docs/screenshots/linux-session-en.png" width="760" alt="KiTTY-ng — Linux">
+
 ## Guides
 
 - [Documentation](docs/README.en.md).
-- [Windows](docs/windows.en.md) · [macOS](docs/macos.en.md).
+- [Windows](docs/windows.en.md) · [macOS](docs/macos.en.md) · [Linux](docs/linux.en.md).
 - [Portable profiles and migration](docs/portable.en.md).
 - [Local builds](docs/build.en.md) · [Migration report](docs/migration.md) (Russian).
-- [0.85-3 release notes](docs/releases/0.85-3.md) · [Roadmap](docs/planned.md) (Russian).
+- [0.85-4 release notes](docs/releases/0.85-4.md) · [Roadmap](docs/planned.md) (Russian).
 
 ## Compatibility and validation
 

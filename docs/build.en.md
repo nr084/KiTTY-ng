@@ -48,6 +48,25 @@ Tools are retained under `_tools/macos`; temporary directories are cleaned. Rebu
 
 ## Release rules
 
-`0.85` is the imported PuTTY base version. The suffix is the KiTTY-NG revision: `0.85-1`, `0.85-2`, `0.85-3`. Tags use `v0.85-3`. The client and all utilities share the embedded version. ZIP/DMG filenames carry the version; Windows EXE filenames carry architecture only.
+`0.85` is the imported PuTTY base version. The suffix is the KiTTY-ng revision: `0.85-1`, `0.85-2`, `0.85-3`, `0.85-4`. Tags use `v0.85-4`. The client and all utilities share the embedded version. ZIP/DMG filenames carry the version; Windows EXE filenames carry architecture only.
 
 Increment the revision only after an explicit release instruction. Documentation updates do not create a release. Existing published releases are retained.
+
+## Linux · AppImage / AppDir
+
+```powershell
+python tools/local-build.py --platform linux
+python tools/linux-package-windows.py
+```
+
+[Linux guide](linux.en.md) · [Руководство Linux](linux.md).
+
+## Complete release build
+
+```powershell
+python tools/release-build.py --build-only
+# After native Linux acceptance:
+python tools/release-build.py --assemble-only
+```
+
+Builds all platforms locally on Windows, checks committed source provenance and requires matching native Linux acceptance before publication.

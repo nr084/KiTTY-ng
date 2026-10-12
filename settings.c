@@ -11,7 +11,7 @@
 #include "kittyng-extensions.h"
 #endif
 #include "storage.h"
-#ifdef KITTY_NG_MACOS
+#if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/portable.h"
 #endif
 #ifndef NO_GSSAPI
@@ -92,7 +92,7 @@ const char *const ttymodes[] = {
     "CS7",      "CS8",      "PARENB",   "PARODD",   NULL
 };
 
-static int default_protocol, default_port;
+static int default_protocol, default_port = 22;
 void settings_set_default_protocol(int newval) { default_protocol = newval; }
 void settings_set_default_port(int newval) { default_port = newval; }
 
@@ -531,7 +531,7 @@ char *save_settings(const char *section, Conf *conf)
 #ifdef _WIN32
     errmsg = kr_prepare_password(conf);
     if (errmsg) return errmsg;
-#elif defined(KITTY_NG_MACOS)
+#elif defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     errmsg = kr_mac_prepare_password(conf);
     if (errmsg) return errmsg;
 #endif
@@ -1092,7 +1092,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     }
     kr_load_proxy(conf);
     kr_load_password(conf);
-#elif defined(KITTY_NG_MACOS)
+#elif defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     kr_mac_load_conf(sesskey, conf);
 #endif
 }

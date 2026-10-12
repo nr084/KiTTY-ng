@@ -48,7 +48,7 @@ void kr_mac_localize_view(NSView *view){
     if([view isKindOfClass:NSSearchField.class]){((NSSearchField*)view).placeholderString=kr_mac_localize_string(@"Quick search");return;}
     if([view isKindOfClass:NSPopUpButton.class]){for(NSMenuItem *item in ((NSPopUpButton*)view).itemArray)item.title=kr_mac_localize_string(item.title);return;}
     if([view isKindOfClass:NSButton.class]){((NSButton*)view).title=kr_mac_localize_string(((NSButton*)view).title);return;}
-    if([view isKindOfClass:NSTextField.class]){if(!((NSTextField*)view).editable)((NSTextField*)view).stringValue=kr_mac_localize_string(((NSTextField*)view).stringValue);return;}
+    if([view isKindOfClass:NSTextField.class]){NSTextField *field=(NSTextField*)view;if(field.placeholderString)field.placeholderString=kr_mac_localize_string(field.placeholderString);if(!((NSTextField*)view).editable)((NSTextField*)view).stringValue=kr_mac_localize_string(((NSTextField*)view).stringValue);return;}
     if([view isKindOfClass:NSTableView.class]){for(NSTableColumn *column in ((NSTableView*)view).tableColumns)column.title=kr_mac_localize_string(column.title);return;}
     if([view isKindOfClass:NSTabView.class]){for(NSTabViewItem *item in ((NSTabView*)view).tabViewItems){item.label=kr_mac_localize_string(item.label);kr_mac_localize_view(item.view);}return;}
     if([view isKindOfClass:NSControl.class])return;

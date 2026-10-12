@@ -35,13 +35,13 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     Russian = kr_mac_language()==1;
     kr_mac_install_status_menu();
     NSMenu *menu = [NSMenu new]; NSMenuItem *appItem = [NSMenuItem new]; [menu addItem:appItem];
-    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"KiTTY-NG"]; appItem.submenu = appMenu;
-    NSMenuItem *about = [[NSMenuItem alloc] initWithTitle:L(@"About KiTTY-NG", @"О программе KiTTY-NG") action:@selector(about:) keyEquivalent:@""]; about.target = self; [appMenu addItem:about];
+    NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"KiTTY-ng"]; appItem.submenu = appMenu;
+    NSMenuItem *about = [[NSMenuItem alloc] initWithTitle:L(@"About KiTTY-ng", @"О программе KiTTY-ng") action:@selector(about:) keyEquivalent:@""]; about.target = self; [appMenu addItem:about];
     NSMenuItem *keygen=[[NSMenuItem alloc]initWithTitle:@"KiTTYgen" action:@selector(keygen:) keyEquivalent:@""];keygen.target=self;[appMenu addItem:keygen];NSMenuItem *agent=[[NSMenuItem alloc]initWithTitle:@"Kageant" action:@selector(agent:) keyEquivalent:@""];agent.target=self;[appMenu addItem:agent];NSMenuItem *authorities=[[NSMenuItem alloc]initWithTitle:L(@"SSH authorities…",@"Центры сертификации SSH…") action:@selector(authorities:) keyEquivalent:@""];authorities.target=self;[appMenu addItem:authorities];
     [appMenu addItem:[NSMenuItem separatorItem]];
-    [appMenu addItemWithTitle:L(@"Quit KiTTY-NG", @"Завершить KiTTY-NG") action:@selector(terminate:) keyEquivalent:@"q"]; NSApp.mainMenu = menu;
+    [appMenu addItemWithTitle:L(@"Quit KiTTY-ng", @"Завершить KiTTY-ng") action:@selector(terminate:) keyEquivalent:@"q"]; NSApp.mainMenu = menu;
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,820,600) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
-    self.window.releasedWhenClosed = NO; self.window.title = @"KiTTY-NG"; self.window.minSize = NSMakeSize(680,420);
+    self.window.releasedWhenClosed = NO; self.window.title = @"KiTTY-ng"; self.window.minSize = NSMakeSize(680,420);
     NSView *view = self.window.contentView;
     NSTextField *notice = [NSTextField wrappingLabelWithString:L(@"macOS preview: portable session browser. SSH terminal is under development.", @"Предварительная версия macOS: просмотр портативных сеансов. SSH-терминал в разработке.")];
 #ifdef KITTY_NG_CLIENT
@@ -141,7 +141,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
 - (void)profilesChanged:(id)sender {[self reload];}
 - (void)upgradeProfiles:(id)sender {if(!kr_mac_select_root(self.root.path.UTF8String))return;int count=kr_mac_upgrade_profiles();NSAlert *alert=[NSAlert new];alert.messageText=L(@"Profiles updated",@"Профили обновлены");alert.informativeText=[NSString stringWithFormat:L(@"Converted portable file links in %d profiles.",@"Переносимые ссылки преобразованы в %d профилях."),count];[alert runModal];[self reload];}
 - (void)applyLanguage:(id)sender {
-    if(!kr_mac_set_language((int)self.languagePicker.indexOfSelectedItem)){NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-NG";alert.informativeText=L(@"Unable to save language",@"Не удалось сохранить язык");[alert runModal];return;}
+    if(!kr_mac_set_language((int)self.languagePicker.indexOfSelectedItem)){NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-ng";alert.informativeText=L(@"Unable to save language",@"Не удалось сохранить язык");[alert runModal];return;}
     [NSNotificationCenter.defaultCenter postNotificationName:@"KiTTYNGLanguageChanged" object:nil];
 
 }
@@ -154,12 +154,12 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseFiles = NO; panel.canChooseDirectories = YES; panel.allowsMultipleSelection = NO; panel.message = L(@"Choose the shared KiTTY portable directory", @"Выберите общий портативный каталог KiTTY");
     if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = panel.URL; self.folder = [self sessionsDirectory]; [self reload]; }
 }
-- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @"KiTTY-NG"; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
+- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @"KiTTY-ng"; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end
 static int askpass(const char *mode,const char *question){
     NSApplication *app=NSApplication.sharedApplication;app.activationPolicy=NSApplicationActivationPolicyAccessory;[app activateIgnoringOtherApps:YES];
-    NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-NG — SSH";alert.informativeText=[NSString stringWithUTF8String:question]?:@"";
+    NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-ng — SSH";alert.informativeText=[NSString stringWithUTF8String:question]?:@"";
     BOOL ru=kr_mac_language()==1;NSString *reply=nil;
     if(!strcmp(mode,"hostkey")){
         [alert addButtonWithTitle:ru?@"Отмена":@"Cancel"];[alert addButtonWithTitle:ru?@"Принять и сохранить":@"Accept and save"];[alert addButtonWithTitle:ru?@"Подключиться один раз":@"Connect once"];

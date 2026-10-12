@@ -1,13 +1,13 @@
-# KiTTY-NG для macOS
+# KiTTY-ng для macOS
 
 [Документация](README.md) | [English](macos.en.md)
 
-**Universal: Apple Silicon и Intel в одном приложении.** Выпуск 0.85-3 поставляется в DMG, требует macOS 13 или новее. Пользователь подтвердил основную работу на MacBook Air M3. Приложение использует нативный интерфейс AppKit и ядро PuTTY 0.85.
+**Universal: Apple Silicon и Intel в одном приложении.** Выпуск 0.85-4 поставляется в DMG, требует macOS 13 или новее. Пользователь подтвердил основную работу на MacBook Air M3. Приложение использует нативный интерфейс AppKit и ядро PuTTY 0.85.
 
 ## Первый запуск
 
-1. Откройте `kitty-ng-0.85-3-macos-universal.dmg`.
-2. Перенесите `KiTTY-NG.app` в доступную для записи папку. Для общих профилей — рядом с Windows EXE, `kitty.ini` и `Sessions`.
+1. Откройте `kitty-ng-0.85-4-macos-universal.dmg`.
+2. Перенесите `KiTTY-ng.app` в доступную для записи папку. Для общих профилей — рядом с Windows EXE, `kitty.ini` и `Sessions`.
 3. Извлеките DMG и запустите приложение из выбранной папки.
 4. Если сеансы не найдены, нажмите **Выбрать каталог…** и укажите общий портативный корень.
 
@@ -18,15 +18,15 @@
 Используется локальная ad-hoc подпись без Developer ID и нотариального заверения Apple. При блокировке: **Настройки системы → Конфиденциальность и безопасность → Всё равно открыть**. При необходимости можно заново подписать приложение на Mac:
 
 ```sh
-codesign --force --deep --sign - KiTTY-NG.app
-codesign --verify --deep --strict --verbose=2 KiTTY-NG.app
+codesign --force --deep --sign - KiTTY-ng.app
+codesign --verify --deep --strict --verbose=2 KiTTY-ng.app
 ```
 
 ## Общие профили с Windows
 
 ```text
-KiTTY-NG/
-├── KiTTY-NG.app
+KiTTY-ng/
+├── KiTTY-ng.app
 ├── kitty-ng-x64.exe
 ├── kscp-x64.exe
 ├── kitty-ng.portable
@@ -73,12 +73,12 @@ SSH CA доступны через меню **Центры сертификац�
 
 ## Диагностика и сборка
 
-В DMG папка `Instructions` содержит инструкции и `.command`-файлы. Для запуска перенесите их рядом с `.app`. `Diagnose KiTTY-NG.command` создаёт диагностический журнал; `Smoke-test KiTTY-NG.command` выполняет нативные проверки на синтетических данных во временной папке.
+В DMG папка `Instructions` содержит инструкции и `.command`-файлы. Для запуска перенесите их рядом с `.app`. `Diagnose KiTTY-ng.command` создаёт диагностический журнал; `Smoke-test KiTTY-ng.command` выполняет нативные проверки на синтетических данных во временной папке.
 
 Локальная компиляция на Windows и упаковка DMG описаны в [руководстве по сборке](build.md). Сборка не требует доступа к Mac; проверка поведения интерфейса требует настоящего Mac.
 
 ## Интерфейс
 
-![KiTTY-NG — русский интерфейс](screenshots/macos-session-ru.png)
+![KiTTY-ng — русский интерфейс](screenshots/macos-session-ru.png)
 
 ![KiTTYgen — русский интерфейс](screenshots/macos-kittygen-ru.png)

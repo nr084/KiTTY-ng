@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+APPDIR=${APPDIR:-$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)}
+export APPDIR
+if [ -z "${KITTY_NG_PORTABLE_DIR:-}" ]; then
+    if [ -n "${APPIMAGE:-}" ]; then
+        KITTY_NG_PORTABLE_DIR=$(dirname -- "$APPIMAGE")
+    else
+        KITTY_NG_PORTABLE_DIR=$(dirname -- "$APPDIR")
+    fi
+    export KITTY_NG_PORTABLE_DIR
+fi
+export LD_LIBRARY_PATH="$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export XDG_DATA_DIRS="$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+export GIO_MODULE_DIR="$APPDIR/usr/lib/gio/modules"
+export GIO_EXTRA_MODULES="$APPDIR/usr/lib/gio/modules"
+export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/share/glib-2.0/schemas"
+program=kitty-ng
+if [ "${1:-}" = --tool ]; then
+    shift
+    case "${1:-}" in klink|kscp|ksftp|kittygen|kageant) program=$1;; *) echo 'Unknown helper' >&2; exit 2;; esac
+    shift
+fi
+exec "$APPDIR/usr/bin/$program" "$@"

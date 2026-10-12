@@ -5,7 +5,14 @@ set(PUTTY_GTK_VERSION "ANY"
 set_property(CACHE PUTTY_GTK_VERSION
   PROPERTY STRINGS ANY 3 2 1 NONE)
 
-set(GTK_FOUND FALSE)
+if(KITTY_NG_TARGET_GTK)
+  if(NOT CMAKE_CROSSCOMPILING)
+    message(FATAL_ERROR "KITTY_NG_TARGET_GTK is only for cross-compilation")
+  endif()
+  include("${KITTY_NG_TARGET_GTK}")
+else()
+  set(GTK_FOUND FALSE)
+endif()
 
 macro(try_pkg_config_gtk VER PACKAGENAME)
   if(NOT GTK_FOUND AND

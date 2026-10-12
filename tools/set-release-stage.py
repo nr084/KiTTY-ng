@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
-parser.add_argument("stage", help="KiTTY-NG revision: 1, 2, ...; legacy test/test-N/stable also accepted")
+parser.add_argument("stage", help="KiTTY-ng revision: 1, 2, ...; legacy test/test-N/stable also accepted")
 args = parser.parse_args()
 revision = int(args.stage) if re.fullmatch(r"[1-9][0-9]*", args.stage) else None
 is_test = bool(re.fullmatch(r"test(?:-(?:[2-9]|[1-9][0-9]+))?", args.stage))
@@ -18,7 +18,7 @@ text = header.read_text()
 text = re.sub(r'^#define PRERELEASE .*\n', '', text, flags=re.M)
 base = re.search(r"^#define RELEASE (\d+\.\d+)$", text, re.M).group(1)
 version = base + ("" if args.stage == "stable" else "-" + args.stage)
-text = re.sub(r'^#define TEXTVER .*$', f'#define TEXTVER "KiTTY-NG {version}"', text, flags=re.M)
+text = re.sub(r'^#define TEXTVER .*$', f'#define TEXTVER "KiTTY-ng {version}"', text, flags=re.M)
 text = re.sub(r'^#define SSHVER .*$', f'#define SSHVER "-Release-{version}"', text, flags=re.M)
 major, minor = map(int, base.split("."))
 text = re.sub(r'^#define BINARY_VERSION .*$',

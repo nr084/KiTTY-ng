@@ -36,6 +36,10 @@
 #include "gtkcompat.h"
 #include "unifont.h"
 #include "gtkmisc.h"
+#ifdef KITTY_NG_LINUX
+#include "gui.h"
+#include "linux/transfer.h"
+#endif
 
 #ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>
@@ -134,6 +138,11 @@ void fork_and_exec_self(int fd_to_close, ...)
         if (fd_to_close >= 0)
             close(fd_to_close);
 
+#ifdef KITTY_NG_LINUX
+        /* Give each child its own AppImage runtime/mount lifetime. */
+        const char *image=getenv("APPIMAGE");
+        if(image&&image[0]=='/')execv(image,args);
+#endif
         execv("/proc/self/exe", args);
         execvp(progname, args);
         perror("exec");
@@ -586,6 +595,9 @@ static void post_initial_config_box(void *vctx, int result)
 
 void session_window_closed(void)
 {
+#ifdef KITTY_NG_LINUX
+    if (kr_linux_transfer_shutdown()) return;
+#endif
     gtk_main_quit();
 }
 
@@ -620,6 +632,9 @@ int main(int argc, char **argv)
     conf = conf_new();
 
     gtkcomm_setup();
+#ifdef KITTY_NG_LINUX
+    if(kr_linux_dispatch(argc,argv))return 0;
+#endif
 
     /*
      * Block SIGPIPE: if we attempt Duplicate Session or similar and
@@ -652,6 +667,10 @@ int main(int argc, char **argv)
     }
 
     if (need_config_box) {
+#ifdef KITTY_NG_LINUX
+        conf_free(conf);
+        return kr_linux_browser();
+#endif
         /*
          * Put up the initial config box, which will pass the provided
          * parameters (with conf updated) to new_session_window() when

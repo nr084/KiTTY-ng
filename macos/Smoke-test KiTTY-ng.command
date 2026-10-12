@@ -3,7 +3,7 @@
 set -eu
 umask 077
 base=${0:A:h}
-app="$base/KiTTY-NG.app"
+app="$base/KiTTY-ng.app"
 helpers="$app/Contents/Helpers"
 log="$base/kitty-ng-smoke-test.log"
 work=$(mktemp -d /tmp/kitty-ng-smoke.XXXXXXXX)
