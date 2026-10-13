@@ -48,7 +48,7 @@ Tools are retained under `_tools/macos`; temporary directories are cleaned. Rebu
 
 ## Release rules
 
-`0.85` is the imported PuTTY base version. The suffix is the KiTTY-ng revision: `0.85-1`, `0.85-2`, `0.85-3`, `0.85-4`. Tags use `v0.85-4`. The client and all utilities share the embedded version. ZIP/DMG filenames carry the version; Windows EXE filenames carry architecture only.
+`0.85` is the imported PuTTY base version. The suffix is the KiTTY-ng revision: `0.85-1`, `0.85-2`, `0.85-3`, `0.85-5`. Tags use `v0.85-5`. The client and all utilities share the embedded version. ZIP/DMG filenames carry the version; Windows EXE filenames carry architecture only.
 
 Increment the revision only after an explicit release instruction. Documentation updates do not create a release. Existing published releases are retained.
 

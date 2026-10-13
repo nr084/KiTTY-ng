@@ -4,7 +4,7 @@
 
 Download the appropriate archive from [Releases](https://github.com/nr084/kitty-ng/releases): **x64**, **x86** or **ARM64**. Extract it and run `kitty-ng-x64.exe`, `kitty-ng-x86.exe` or `kitty-ng-arm64.exe`. No installation is required.
 
-Windows is supplied in three archives: `kitty-ng-0.85-4-x64.zip`, `kitty-ng-0.85-4-x86.zip` and `kitty-ng-0.85-4-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
+Windows is supplied in three archives: `kitty-ng-0.85-5-x64.zip`, `kitty-ng-0.85-5-x86.zip` and `kitty-ng-0.85-5-arm64.zip`. Every executable inside an archive uses the matching architecture suffix. For example, the x64 archive contains:
 
 ```text
 kitty-ng-x64.exe
@@ -61,3 +61,21 @@ The screenshots below show the English interface:
 ![Session configuration](screenshots/session-en.png)
 
 ![About KiTTY-ng](screenshots/about-en.png)
+
+## External WinSCP
+
+Choose **Start WinSCP** in the terminal window menu, or press **Shift+F3** with KiTTY shortcuts enabled. Configure the installed executable in the portable root’s `kitty.ini`:
+
+```ini
+[KiTTY]
+WinSCPPath=C:\Program Files\WinSCP\WinSCP.exe
+
+[Shortcuts]
+winscp={SHIFT}{F3}
+```
+
+Relative paths resolve against the portable root (or the client directory without portable mode); environment variables are expanded. Without an explicit path, KiTTY-ng checks both Program Files locations, WinSCP.exe in the root and the legacy winscpdir setting. An unavailable explicit path is preserved and reported. WinSCP is a separately installed application, not included in the ZIP. Only .exe is supported; legacy BAT wrappers are not executed.
+
+The SSH session supplies SFTP/SCP, host, port, username, remote directory and private key. SFTPConnect can override the destination. The Windows file transfer settings expose WinSCPOptions and WinSCPRawSettings; advanced proxy settings can be supplied through rawsettings. Saved passwords are not exported automatically: WinSCP requests authentication or uses its agent. No complete command line is written to the event log.
+
+[WinSCP command-line documentation](https://winscp.net/eng/docs/commandline).

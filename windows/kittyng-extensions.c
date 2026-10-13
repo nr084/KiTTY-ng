@@ -1,6 +1,7 @@
 #include "putty.h"
 #include "kittyng-portable.h"
 #include "kittyng-extensions.h"
+#include "kittyng-companions.h"
 #include <ctype.h>
 #include <limits.h>
 #include <errno.h>
@@ -102,7 +103,7 @@ char *kr_ini_string(const char *section, const char *name, const char *fallback)
     wchar_t *group = dup_mb_to_wc(CP_UTF8, section), *default_value = dup_mb_to_wc(CP_UTF8, fallback);
     wchar_t *buffer = snewn(65536, wchar_t);
     DWORD count = GetPrivateProfileStringW(group, key, default_value, buffer, 65536, file);
-    char *result = count >= 65535 ? dupstr(fallback) : dup_wc_to_mb(CP_UTF8, buffer, "");
+    char *result = count >= 65535 ? dupstr(fallback) : kr_transfer_to_utf8(buffer);
     sfree(buffer); sfree(key); sfree(file); sfree(group); sfree(default_value); return result;
 }
 

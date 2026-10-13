@@ -30,6 +30,7 @@
 #include "kittyng-extensions.h"
 #include "kittyng-keypaths.h"
 #include "kittyng-companions.h"
+#include "kittyng-winscp.h"
 #define dupprintf kr_printf
 #undef MessageBox
 #define MessageBox kr_messagebox
@@ -73,6 +74,7 @@
 #define IDM_KR_SCRIPT 0x0260
 #define IDM_KR_AGENT 0x0270
 #define IDM_KR_KEYGEN 0x0280
+#define IDM_KR_WINSCP 0x0290
 #define KR_COMMAND_TIMER 0x4B4E4701
 #define KR_EXTENSION_TEST_TIMER 0x4B4E4702
 extern bool kr_test_extensions;
@@ -354,6 +356,7 @@ static void kr_load_bindings(WinGuiSeat *wgs)
         {"script", "{CONTROL}{F2}", IDM_KR_SCRIPT},
         {"sendfile", "{CONTROL}{F3}", IDM_KR_UPLOAD},
         {"getfile", "{CONTROL}{F4}", IDM_KR_DOWNLOAD},
+        {"winscp", "{SHIFT}{F3}", IDM_KR_WINSCP},
         {"tray", "{CONTROL}{F6}", IDM_KR_TRAY},
         {"visible", "{CONTROL}{F7}", IDM_KR_TOP},
         {"protect", "{CONTROL}{F9}", IDM_KR_PROTECT},
@@ -1094,6 +1097,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             kr_append_menu(m, MF_ENABLED, IDM_KR_PROTECT, "Protect terminal input");
             kr_append_menu(m, MF_ENABLED, IDM_KR_AGENT, "Start Kageant");
             kr_append_menu(m, MF_ENABLED, IDM_KR_KEYGEN, "Start KiTTYgen");
+            kr_append_menu(m, MF_ENABLED, IDM_KR_WINSCP, "Start WinSCP");
             AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR)wgs->savedsess_menu,
                        "Sa&ved Sessions");
             kr_append_menu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
@@ -2721,6 +2725,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             if (!script) { MessageBox(hwnd, "Unable to read startup script (UTF-8 text, maximum 1 MiB).", "KiTTY-ng", MB_OK | MB_ICONERROR); break; }
             kr_cancel_commands(wgs); wgs->kr_commands = script; wgs->kr_commands_started = true;
             wgs->kr_command_due = GetTickCount64(); SetTimer(hwnd, KR_COMMAND_TIMER, 10, NULL);
+            break;
+          }
+          case IDM_KR_WINSCP: {
+            DWORD error;
+            if (!kr_launch_winscp(wgs->conf, &error)) {
+                const char *reason = error == ERROR_NOT_SUPPORTED ?
+                    "WinSCP requires an SSH session and an executable (.exe)." :
+                    "Unable to start WinSCP. Check [KiTTY] WinSCPPath in kitty.ini.";
+                MessageBox(hwnd, reason, "KiTTY-ng", MB_OK | MB_ICONERROR);
+            }
             break;
           }
           case IDM_KR_AGENT:

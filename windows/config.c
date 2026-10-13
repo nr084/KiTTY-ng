@@ -115,6 +115,12 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     ctrl_editbox(s, "Alternate destination (user@host:port, optional)", NO_SHORTCUT, 100,
                  HELPCTX(no_help), transfer_string_handler, I(CONF_sftpconnect), P(NULL));
 
+    s = ctrl_getset(b, "Connection/File transfer", "winscp", "WinSCP integration (Windows)");
+    ctrl_editbox(s, "WinSCP additional options", NO_SHORTCUT, 100, HELPCTX(no_help),
+                 transfer_string_handler, I(CONF_winscpoptions), P(NULL));
+    ctrl_editbox(s, "WinSCP additional rawsettings", NO_SHORTCUT, 100, HELPCTX(no_help),
+                 transfer_string_handler, I(CONF_winscprawsettings), P(NULL));
+
     s = ctrl_getset(b, "Window/Appearance", "kittyng", "KiTTY-ng");
     kr_add_language_controls(b, s);
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,

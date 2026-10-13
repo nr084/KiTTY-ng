@@ -20,7 +20,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, LPSTR command, int sh
     int argc;
     wchar_t **argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     if (!argv) return 10;
-    const wchar_t *report = argc >= 2 ? argv[1] : _wgetenv(L"KITTY_NG_PROBE_REPORT");
+    const wchar_t *report = _wgetenv(L"KITTY_NG_PROBE_WINSCP") ?
+        _wgetenv(L"KITTY_NG_PROBE_REPORT") :
+        (argc >= 2 ? argv[1] : _wgetenv(L"KITTY_NG_PROBE_REPORT"));
     if (!report) { LocalFree(argv); return 10; }
     FILE *file = _wfopen(report, L"wb");
     if (!file) { LocalFree(argv); return 11; }

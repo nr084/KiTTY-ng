@@ -7,6 +7,7 @@ add_sources_from_current_dir(utils
   kittyng-tray.c
   kittyng-utility-ui.c
   kittyng-companions.c
+  kittyng-winscp.c
   kittyng-portable.c
   kittyng-keypaths.c
   kittyng-extensions.c

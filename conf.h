@@ -1373,3 +1373,5 @@ CONF_OPTION(kr_remote_clipboard, VALUE_TYPE(BOOL), DEFAULT_BOOL(false), SAVE_KEY
 CONF_OPTION(kr_session_name, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
 CONF_OPTION(proxyselection, VALUE_TYPE(STR), DEFAULT_STR("- Session defined proxy -"), SAVE_KEYWORD("ProxySelection"),)
 CONF_OPTION(kr_proxy_error, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
+CONF_OPTION(winscpoptions, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("WinSCPOptions"),)
+CONF_OPTION(winscprawsettings, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("WinSCPRawSettings"),)

@@ -21,6 +21,7 @@ The following reports are maintained in Russian or machine-readable JSON.
 
 ## Release history
 
+- [0.85-5](releases/0.85-5.md) — WinSCP (Windows); synchronized release for all three platforms.
 - [0.85-4](releases/0.85-4.md) — Windows + macOS Universal + Linux.
 - [0.85-3](releases/0.85-3.md) — Windows + macOS Universal.
 - [0.85-2](releases/0.85-2.md).

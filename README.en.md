@@ -10,13 +10,13 @@
 
 ## Download
 
-| Platform | Release 0.85-4 | Launch |
+| Platform | Release 0.85-5 | Launch |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86_64.tar.zst) | `chmod +x`, launch |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-4/kitty-ng-0.85-4-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
@@ -64,7 +64,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 - [Windows](docs/windows.en.md) · [macOS](docs/macos.en.md) · [Linux](docs/linux.en.md).
 - [Portable profiles and migration](docs/portable.en.md).
 - [Local builds](docs/build.en.md) · [Migration report](docs/migration.md) (Russian).
-- [0.85-4 release notes](docs/releases/0.85-4.md) · [Roadmap](docs/planned.md) (Russian).
+- [0.85-5 release notes](docs/releases/0.85-5.md) · [Roadmap](docs/planned.md) (Russian).
 
 ## Compatibility and validation
 

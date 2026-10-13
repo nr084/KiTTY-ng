@@ -283,8 +283,8 @@
     },
     {
       "id": "external-winscp",
-      "status": "retired",
-      "reason": "Встроенные аргументы и редактор WinSCP не переносятся; перенос файлов обеспечен kscp, внешние приложения настраиваются отдельно.",
+      "status": "ported",
+      "reason": "Windows: внешний WinSCP запускается из меню/Shift+F3; путь WinSCPPath в kitty.ini, параметры сеанса WinSCPOptions/WinSCPRawSettings. Kscp остаётся отдельным встроенным механизмом передачи; пароль сеанса автоматически не экспортируется.",
       "options": [
         "winscpoptions",
         "winscprawsettings"

@@ -349,6 +349,12 @@ def main():
                     check(arch + "/companions", files,
                           [([PYTHON, "test/companion_dispatch.py", directory, arch], None)],
                           compiler=compiler)
+                    if arch == "x64":
+                        files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
+                        files.add("test/windows_menu_runtime.py")
+                        check(arch + "/winscp", files,
+                              [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--winscp-only"], ssh_environment(work))],
+                              compiler=compiler)
                     files = source_dependencies(ninja, directory, [executable, utility_executable("pscp", arch)])
                     files.update({"test/file_transfer.py", "test/kittyng-password-vector.json"})
                     for scenario in ("sftp", "scp", "drop", "key"):

@@ -2,7 +2,7 @@
 
 [English](linux.en.md) · [Документация](README.md)
 
-Нативный GTK 3-клиент KiTTY-ng для Linux входит в общий выпуск **0.85-4**. Поставка: AppImage x86_64 и архив AppDir; установка в систему не требуется.
+Нативный GTK 3-клиент KiTTY-ng для Linux входит в общий выпуск **0.85-5**. Поставка: AppImage x86_64 и архив AppDir; установка в систему не требуется.
 
 ## Архитектура
 
@@ -17,8 +17,8 @@
 Общую папку с Windows/macOS-профилями можно выбрать в главном окне или передать явно:
 
 ```sh
-chmod +x kitty-ng-0.85-4-x86_64.AppImage
-./kitty-ng-0.85-4-x86_64.AppImage --portable-dir '/путь/к/общей папке'
+chmod +x kitty-ng-0.85-5-x86_64.AppImage
+./kitty-ng-0.85-5-x86_64.AppImage --portable-dir '/путь/к/общей папке'
 ```
 
 Без явного выбора приложение использует папку рядом с AppImage. Для распакованного AppDir — папку рядом с AppDir. `Sessions`, `kitty.ini`, `values.ini`, `SshHostKeys` и относительные пути внутри общей папки сохраняют исходный формат KiTTY. Локальный файл случайного состояния Linux называется `kitty-ng-linux.rnd`.
@@ -26,10 +26,10 @@ chmod +x kitty-ng-0.85-4-x86_64.AppImage
 Запуск встроенной утилиты:
 
 ```sh
-./kitty-ng-0.85-4-x86_64.AppImage --keygen
-./kitty-ng-0.85-4-x86_64.AppImage --agent
-./kitty-ng-0.85-4-x86_64.AppImage --tool klink -V
-./kitty-ng-0.85-4-x86_64.AppImage --appimage-extract-and-run
+./kitty-ng-0.85-5-x86_64.AppImage --keygen
+./kitty-ng-0.85-5-x86_64.AppImage --agent
+./kitty-ng-0.85-5-x86_64.AppImage --tool klink -V
+./kitty-ng-0.85-5-x86_64.AppImage --appimage-extract-and-run
 ```
 
 ## Сборка на Windows

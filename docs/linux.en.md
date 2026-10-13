@@ -2,7 +2,7 @@
 
 [Русский](linux.md) · [Documentation](README.en.md)
 
-The native GTK 3 Linux client ships with **0.85-4** as an x86_64 AppImage and an AppDir archive.
+The native GTK 3 Linux client ships with **0.85-5** as an x86_64 AppImage and an AppDir archive.
 
 The GUI uses GTK 3 and the existing PuTTY terminal. SSH, cryptography, SCP/SFTP, terminal processing and key generation share the existing code. Portable profile storage, relative key paths, saved-password compatibility and private configuration pipes reuse the macOS port's common implementation.
 
@@ -13,12 +13,12 @@ The bundle contains `kitty-ng`, `kittygen`, `kageant`, `klink`, `kscp` and `ksft
 The primary format is an **x86_64 AppImage**. A `tar.zst` AppDir archive provides an alternative for systems without FUSE. Native tests run on Ubuntu 26.04, using binaries linked against an Ubuntu 22.04 library baseline. Other distributions are not yet claimed as supported.
 
 ```sh
-chmod +x kitty-ng-0.85-4-x86_64.AppImage
-./kitty-ng-0.85-4-x86_64.AppImage --portable-dir '/path/to/shared folder'
-./kitty-ng-0.85-4-x86_64.AppImage --keygen
-./kitty-ng-0.85-4-x86_64.AppImage --agent
-./kitty-ng-0.85-4-x86_64.AppImage --tool klink -V
-./kitty-ng-0.85-4-x86_64.AppImage --appimage-extract-and-run
+chmod +x kitty-ng-0.85-5-x86_64.AppImage
+./kitty-ng-0.85-5-x86_64.AppImage --portable-dir '/path/to/shared folder'
+./kitty-ng-0.85-5-x86_64.AppImage --keygen
+./kitty-ng-0.85-5-x86_64.AppImage --agent
+./kitty-ng-0.85-5-x86_64.AppImage --tool klink -V
+./kitty-ng-0.85-5-x86_64.AppImage --appimage-extract-and-run
 ```
 
 Select the shared Windows/macOS portable folder in the browser or pass `--portable-dir`. By default the portable root is beside the AppImage, or beside an extracted AppDir. `Sessions`, `kitty.ini`, `values.ini`, `SshHostKeys` and internal relative paths retain the legacy KiTTY format. Linux writes its random-state file to `kitty-ng-linux.rnd`.

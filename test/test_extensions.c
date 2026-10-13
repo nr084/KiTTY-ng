@@ -3,6 +3,7 @@
 #include "kittyng-extensions.h"
 #include "kittyng-portable.h"
 #include "kittyng-keypaths.h"
+#include "kittyng-winscp.h"
 #define CHECK(x) do { if (!(x)) { fprintf(stderr, "FAIL %d: %s\n", __LINE__, #x); return 1; } } while (0)
 const char *const appname = "kitty-ng-extension-test";
 const struct BackendVtable *const backends[] = { NULL };
@@ -15,6 +16,25 @@ void clear_jumplist(void) {}
 int main(void)
 {
     CHECK(kr_portable());
+    Conf *wc = conf_new(); do_defaults(NULL, wc);
+    conf_set_int(wc, CONF_protocol, PROT_SSH);
+    conf_set_str(wc, CONF_host, "2001:db8::1");
+    conf_set_utf8(wc, CONF_username, "user name");
+    conf_set_int(wc, CONF_port, 2222);
+    conf_set_str(wc, CONF_password, "must-not-export-password");
+    conf_set_str(wc, CONF_pscpremotedir, "/a b/%folder");
+    DWORD we; wchar_t *wa = kr_winscp_arguments(wc, &we);
+    CHECK(wa && we == ERROR_SUCCESS);
+    CHECK(wcsstr(wa, L"sftp://[2001:db8::1]:2222/a%20b/%25folder/"));
+    CHECK(wcsstr(wa, L"/username=user name") && !wcsstr(wa, L"must-not-export"));
+    sfree(wa);
+    conf_set_str(wc, CONF_sftpconnect, "other@[::1]:2200");
+    conf_set_int(wc, CONF_winscpprot, 0);
+    wa = kr_winscp_arguments(wc, &we);
+    CHECK(wa && wcsstr(wa,L"scp://[::1]:2200/") && wcsstr(wa,L"/username=other")); sfree(wa);
+    conf_set_str(wc, CONF_sftpconnect, "other@[::1]:bad");
+    CHECK(!kr_winscp_arguments(wc,&we) && we == ERROR_INVALID_PARAMETER);
+    conf_free(wc);
     CHECK(!open_settings_r("unsupported"));
     char *unsupported_error = NULL;
     CHECK(!open_settings_w("unsupported", &unsupported_error) && unsupported_error);

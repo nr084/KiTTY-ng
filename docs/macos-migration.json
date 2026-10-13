@@ -1,7 +1,7 @@
 {
   "scope": "Native AppKit Mac port; separate from the closed Windows KiTTY migration",
-  "version": "0.85-4",
-  "basic_terminal_runtime": "User confirmed previous 0.85-3 on MacBook Air M3; current 0.85-4 Universal structurally validated on Windows, not executed on Mac.",
+  "version": "0.85-5",
+  "basic_terminal_runtime": "User confirmed previous 0.85-3 on MacBook Air M3; current 0.85-5 Universal structurally validated on Windows, not executed on Mac.",
   "decisions": [
     {
       "id": "portable-and-sessions",

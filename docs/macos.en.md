@@ -2,11 +2,11 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** Release 0.85-4 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** Release 0.85-5 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
 ## First launch
 
-1. Open `kitty-ng-0.85-4-macos-universal.dmg`.
+1. Open `kitty-ng-0.85-5-macos-universal.dmg`.
 2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.
