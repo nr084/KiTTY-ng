@@ -1401,5 +1401,11 @@
   "Use an existing proxy profile from the Proxies directory or current registry.": "Выберите профиль из каталога Proxies или текущего реестра.",
   "Selected proxy profile is missing or invalid; connection is blocked.": "Выбранный профиль прокси отсутствует или некорректен; соединение заблокировано.",
   "Automatic command references an unavailable local script. Select a UTF-8 startup script explicitly.": "Автоматическая команда ссылается на недоступный локальный скрипт. Выберите начальный скрипт в формате UTF-8.",
-  "Restore": "Восстановить"
+  "Restore": "Восстановить",
+  "Start WinSCP": "Запустить WinSCP",
+  "WinSCP integration (Windows)": "Интеграция WinSCP (Windows)",
+  "WinSCP additional options": "Дополнительные параметры WinSCP",
+  "WinSCP additional rawsettings": "Дополнительные rawsettings WinSCP",
+  "WinSCP requires an SSH session and an executable (.exe).": "Для WinSCP необходимы сеанс SSH и исполняемый файл (.exe).",
+  "Unable to start WinSCP. Check [KiTTY] WinSCPPath in kitty.ini.": "Не удалось запустить WinSCP. Проверьте [KiTTY] WinSCPPath в kitty.ini."
 }
