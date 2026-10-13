@@ -230,7 +230,8 @@ def main():
 
     try:
         # This directory is owned by this invocation, including on failure.
-        with tempfile.TemporaryDirectory(prefix="local-build-", dir=ROOT) as temporary:
+        # Compile outside the synchronized source folder: sync clients can lock Ninja depfiles.
+        with tempfile.TemporaryDirectory(prefix="kitty-ng-local-build-") as temporary:
             work = Path(temporary).resolve()
             toolchain = args.toolchain.resolve() if args.toolchain else ensure_local_toolchain(ROOT, run)
             wheel_info = {}
