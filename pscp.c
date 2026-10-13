@@ -22,6 +22,9 @@
 #include "putty.h"
 #if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/cli-language.h"
+#ifdef KITTY_NG_MACOS
+#include "macos/helper.h"
+#endif
 #define printf kr_mac_printf
 #define fprintf kr_mac_fprintf
 #define vfprintf kr_mac_vfprintf
@@ -2001,6 +2004,10 @@ static char *transfer_shell_path(const char *path)
 {
 #ifdef _WIN32
     if (kr_companion_utf8()) {
+#elif defined(KITTY_NG_MACOS)
+    if (kr_mac_gui_prompts()) {
+#endif
+#if defined(_WIN32) || defined(KITTY_NG_MACOS)
         strbuf *quoted = strbuf_new();
         put_datalit(quoted, "-- ");
         /* Preserve the usual ~/ expansion without exposing other shell text. */

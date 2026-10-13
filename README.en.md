@@ -70,7 +70,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 KiTTY saved passwords use a reversible format, not a secure secrets vault. Entire profiles encrypted with a master password are unsupported. Retired extensions are listed in the [decision matrix](docs/kitty-migration-decisions.json).
 
-The user confirmed operation on a MacBook Air M3 and Windows ARM64. Automated native Windows checks ran on x64/x86. Mac GSSAPI, SSH CA and Intel runtime scenarios need separate validation; see [verification scope](docs/validation.md) (Russian).
+The user confirmed operation on a MacBook Air M3 and Windows ARM64. Automated native Windows checks ran on x64/x86. The current local macOS build is compiled and tested on Mac: ARM64 and x86_64 through Rosetta, SSH, keys, transfers and AppKit. Physical Intel Macs, macOS 13, GSSAPI and real SSH CA handshakes still require dedicated validation. See the [native Mac report](docs/macos-native-validation.md) (Russian).
 
 ## Acknowledgements and licenses
 

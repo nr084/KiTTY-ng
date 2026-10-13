@@ -24,6 +24,14 @@ static bool read_line(bufchain *input, strbuf *output, bool is_header)
             put_byte(output, c);
             bufchain_consume(input, 1);
 
+            /* The empty line ends the header section. It cannot be
+             * folded, and a zero-length response body may supply no
+             * further byte to trigger the usual lookahead below. */
+            if (is_header && c == '\n' &&
+                (output->len == 1 ||
+                 (output->len == 2 && output->s[0] == '\r')))
+                goto done;
+
             if (!is_header && output->len > 0 &&
                 output->s[output->len - 1] == '\n') {
                 /* If we're looking for just a line, not an HTTP
