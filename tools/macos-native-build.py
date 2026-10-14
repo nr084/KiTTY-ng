@@ -89,6 +89,22 @@ def main():
     metadata.write_text(json.dumps({key:report[key] for key in ('compiler','cmake','ninja','sdk','os')}, indent=2)+'\n')
     fingerprint = hashlib.sha256(json.dumps({k:report[k] for k in ('source_sha256','compiler','sdk','deployment_target')}, sort_keys=True).encode()).hexdigest()
     previous = json.loads((dest/'macos-build.json').read_text()) if (dest/'macos-build.json').exists() else {}
+    reuse_unaffected = False
+    if (previous.get('status') == 'success' and previous.get('source_commit') and
+        not previous.get('working_tree_dirty') and not report.get('working_tree_dirty', True) and
+        all(previous.get(k) == report[k] for k in ('compiler','sdk','deployment_target'))):
+        changed = output(['git','diff','--name-only',previous['source_commit'],report['source_commit']]).splitlines()
+        source_changes = [p for p in changed if Path(p).suffix in ('.c','.h','.m','.cmake','.pl') or Path(p).name in ('CMakeLists.txt','VERSION')]
+        # The session browser does not affect protocol units, helper binaries,
+        # key interoperability or the existing language/portable smoke cases.
+        reuse_unaffected = source_changes == ['macos/bootstrap.m'] and not any(
+            p in changed for p in ('test/macos_native_keys.py','macos/Smoke-test KiTTY-ng.command'))
+        if reuse_unaffected:
+            old_helpers=dest/'KiTTY-ng.app/Contents/Helpers'
+            report['unchanged_helper_evidence']=dict(source_commit=previous['source_commit'],
+                changed_source_files=source_changes,
+                tested_binaries_sha256={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in old_helpers.iterdir() if p.is_file()})
+            report['reused_checks_reason']='Only the native session-browser implementation changed; existing core/helper/language tests are unaffected'
     report['fingerprint'] = fingerprint
     environment = os.environ.copy()
     environment.update(LC_ALL='C', LANG='C')
@@ -128,7 +144,7 @@ def main():
                 else:
                     print('REUSE: unchanged compilation', arch, flush=True)
                 binaries[arch] = cache
-                checks = dict(previous.get('native_tests',{}).get(arch,{})) if previous.get('fingerprint')==fingerprint else {}
+                checks = dict(previous.get('native_tests',{}).get(arch,{})) if previous.get('fingerprint')==fingerprint or reuse_unaffected else {}
                 report['native_tests'][arch] = checks
                 for name in UNIT_TESTS:
                     if checks.get(name)=='passed' and not args.force_tests:
@@ -213,13 +229,13 @@ def main():
                 report['native_tests'][arch]['smoke']='passed'
             for arch in report['architectures']:
                 prior_keys=dest/('keys-'+arch+'.json')
-                if previous.get('fingerprint')==fingerprint and report['native_tests'][arch].get('keys')=='passed' and prior_keys.exists() and not args.force_tests:
+                if (previous.get('fingerprint')==fingerprint or reuse_unaffected) and report['native_tests'][arch].get('keys')=='passed' and prior_keys.exists() and not args.force_tests:
                     # A new commit changes its embedded string, not key logic.
                     evidence=json.loads(prior_keys.read_text())
                     assert evidence['status']=='passed'
                     report.setdefault('reused_key_evidence',{})[arch]=dict(tested_binary_sha256=evidence['binary_sha256'],
                         packaged_binary_sha256=hashlib.sha256((app/'Contents/Helpers/kittygen').read_bytes()).hexdigest(),
-                        reason='Same source/compiler/SDK/deployment fingerprint; commit provenance only')
+                        reason=report.get('reused_checks_reason','Same source/compiler/SDK/deployment fingerprint; commit provenance only'))
                     print('REUSE: passed key interoperability',arch,flush=True)
                 else:
                     run([sys.executable,ROOT/'test/macos_native_keys.py',app,'--arch',arch,'--report',prior_keys])

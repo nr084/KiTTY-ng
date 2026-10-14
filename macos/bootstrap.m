@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/event.h>
 #include <unistd.h>
+#include "version.h"
 #ifdef KITTY_NG_CLIENT
 #include "client.h"
 #include "putty.h"
@@ -18,6 +19,21 @@
 static BOOL Russian;
 static NSString *L(NSString *en, NSString *ru) { return Russian ? ru : en; }
 static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value.UTF8String);NSString *name=decoded?[NSString stringWithUTF8String:decoded]:value;free(decoded);return name?:value;}
+
+@interface SessionTableView : NSTableView
+@end
+@implementation SessionTableView
+- (void)keyDown:(NSEvent *)event {
+    if ((event.keyCode == 36 || event.keyCode == 76) &&
+        !(event.modifierFlags & (NSEventModifierFlagCommand |
+                                 NSEventModifierFlagControl |
+                                 NSEventModifierFlagOption))) {
+        [NSApp sendAction:self.doubleAction to:self.target from:self];
+        return;
+    }
+    [super keyDown:event];
+}
+@end
 
 @interface PortableBrowser : NSObject <NSApplicationDelegate, NSTableViewDataSource, NSTableViewDelegate>
 @property(nonatomic,strong) NSPopUpButton *languagePicker;
@@ -56,8 +72,8 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSButton *choose = [NSButton buttonWithTitle:L(@"Choose folder…", @"Выбрать каталог…") target:self action:@selector(chooseFolder:)]; choose.frame = NSMakeRect(620,508,180,30); choose.autoresizingMask = NSViewMinXMargin|NSViewMinYMargin; [view addSubview:choose];
     self.search = [[NSSearchField alloc] initWithFrame:NSMakeRect(20,466,780,30)]; self.search.placeholderString = L(@"Quick search", @"Быстрый поиск"); self.search.target = self; self.search.action = @selector(searchChanged:); self.search.sendsSearchStringImmediately = YES; self.search.autoresizingMask = NSViewWidthSizable|NSViewMinYMargin; [view addSubview:self.search];
     NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20,120,780,332)]; scroll.hasVerticalScroller = YES; scroll.borderType = NSBezelBorder; scroll.autoresizingMask = NSViewWidthSizable|NSViewHeightSizable;
-    self.table = [[NSTableView alloc] initWithFrame:scroll.bounds]; self.table.dataSource = self; self.table.delegate = self; self.table.target = self; self.table.doubleAction = @selector(enter:);
-    NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:@"name"]; column.title = L(@"Saved sessions", @"Сохранённые сеансы"); column.width = 750; [self.table addTableColumn:column]; self.table.columnAutoresizingStyle = NSTableViewUniformColumnAutoresizingStyle; scroll.documentView = self.table; [view addSubview:scroll];
+    self.table = [[SessionTableView alloc] initWithFrame:scroll.bounds]; self.table.dataSource = self; self.table.delegate = self; self.table.target = self; self.table.doubleAction = @selector(enter:);
+    NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:@"name"]; column.title = L(@"Saved sessions", @"Сохранённые сеансы"); column.width = 750; column.editable = NO; [self.table addTableColumn:column]; self.table.columnAutoresizingStyle = NSTableViewUniformColumnAutoresizingStyle; scroll.documentView = self.table; [view addSubview:scroll];
     self.detail = [NSTextField wrappingLabelWithString:@""]; self.detail.frame = NSMakeRect(20,16,610,52); self.detail.autoresizingMask = NSViewWidthSizable; [view addSubview:self.detail];
 #ifdef KITTY_NG_CLIENT
     NSButton *open = [NSButton buttonWithTitle:L(@"Open", @"Открыть") target:self action:@selector(openSession:)]; open.frame=NSMakeRect(650,40,150,34); open.autoresizingMask=NSViewMinXMargin; [view addSubview:open];
@@ -112,7 +128,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     }
     self.detail.stringValue = [NSString stringWithFormat:@"%@  %@:%@\n%@", values[@"UserName"] ?: @"",values[@"HostName"] ?: @"",values[@"PortNumber"] ?: @"22",values[@"Comment"] ?: @""];
 }
-- (void)enter:(id)sender { NSInteger row = self.table.clickedRow; if (row >= 0 && row < self.rows.count && [self.rows[row][@"directory"] boolValue]) { self.folder = self.rows[row][@"url"]; self.search.stringValue = @""; [self reload]; } else if(row>=0) [self openSession:nil]; }
+- (void)enter:(id)sender { NSInteger row = self.table.selectedRow; if (row >= 0 && row < self.rows.count && [self.rows[row][@"directory"] boolValue]) { self.folder = self.rows[row][@"url"]; self.search.stringValue = @""; [self reload]; } else if(row>=0) [self openSession:nil]; }
 - (NSString *)selectedSession {
     NSInteger row=self.table.selectedRow;if(row<0||row>=self.rows.count||[self.rows[row][@"directory"]boolValue])return nil;
     NSURL *url=self.rows[row][@"url"];NSString *prefix=[[self sessionsDirectory].path stringByAppendingString:@"/"];if(![url.path hasPrefix:prefix])return nil;
@@ -154,7 +170,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseFiles = NO; panel.canChooseDirectories = YES; panel.allowsMultipleSelection = NO; panel.message = L(@"Choose the shared KiTTY portable directory", @"Выберите общий портативный каталог KiTTY");
     if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = panel.URL; self.folder = [self sessionsDirectory]; [self reload]; }
 }
-- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @"KiTTY-ng"; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
+- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @TEXTVER; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end
 static int askpass(const char *mode,const char *question){
