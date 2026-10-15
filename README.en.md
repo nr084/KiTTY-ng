@@ -12,7 +12,7 @@
 
 ## Download
 
-| Platform | Release 0.85-5 | Launch |
+| Platform | Release 0.85-6 | Launch |
 | --- | --- | --- |
 | Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.tar.zst) | `chmod +x`, launch |
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x64.zip) | `kitty-ng-x64.exe` |

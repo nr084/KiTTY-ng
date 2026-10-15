@@ -178,7 +178,10 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end
 static int askpass(const char *mode,const char *question){
-    NSApplication *app=NSApplication.sharedApplication;app.activationPolicy=NSApplicationActivationPolicyAccessory;[app activateIgnoringOtherApps:YES];
+    NSApplication *app=NSApplication.sharedApplication;app.activationPolicy=NSApplicationActivationPolicyAccessory;
+    /* This entry point runs a modal loop instead of -run, so complete launch
+     * explicitly before activating the standalone prompt. */
+    [app finishLaunching];[app activateIgnoringOtherApps:YES];
     NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-ng — SSH";alert.informativeText=[NSString stringWithUTF8String:question]?:@"";
     BOOL ru=kr_mac_language()==1;NSString *reply=nil;
     if(!strcmp(mode,"hostkey")){
