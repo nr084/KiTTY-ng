@@ -2,11 +2,11 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** Release 0.85-5 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** Release 0.85-6 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
 ## First launch
 
-1. Open `kitty-ng-0.85-5-macos-universal.dmg`.
+1. Open `kitty-ng-0.85-6-macos-universal.dmg`.
 2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.
@@ -84,3 +84,7 @@ Captured on this Mac using synthetic profiles and a disposable test key.
 ![KiTTY-ng — English interface](screenshots/macos-session-en.png)
 
 ![KiTTYgen — English interface](screenshots/macos-kittygen-en.png)
+
+## Quick connections and editing
+
+The first Quick connect button opens temporary SSH/22 settings without a session name. Connect starts a temporary connection without writing a profile, Default Settings or password to Sessions. Cmd+A/C/V/X use the standard responder-chain Edit menu; secure fields retain AppKit clipboard restrictions. The terminal keeps Cmd+C/V and forwards control keys to the remote side.

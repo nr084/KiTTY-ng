@@ -29,6 +29,13 @@ int kr_mac_self_test_ui(void){
     CHECK([edit itemAtIndex:2].action==@selector(paste:));
     CHECK([edit itemAtIndex:3].action==@selector(selectAll:));
     for(NSMenuItem *item in edit.itemArray)CHECK(item.target==nil&&item.keyEquivalent.length==1);
+    for(int language=0;language<2;language++){
+        CHECK(kr_mac_set_language(language));kr_mac_localize_menu(app.mainMenu);
+        NSString *title=language?@"Изменить":@"Edit";
+        CHECK([edit.title isEqualToString:title]);
+        CHECK([app.mainMenu.itemArray.lastObject.title isEqualToString:title]);
+        CHECK([[edit itemAtIndex:1].title isEqualToString:language?@"Копировать":@"Copy"]);
+    }
     CHECK(kr_mac_test_keygen_ui()==0);
     puts("PASS: native AppKit language round-trips, search cell/data preserved, stable language names, initial SSH/22 defaults");return 0;
 #undef CHECK

@@ -40,7 +40,10 @@ NSString *kr_mac_localize_string(NSString *text){
 
     for(size_t i=0;i<lenof(ui_strings);i++){NSString *en=[NSString stringWithUTF8String:ui_strings[i].en],*ru=[NSString stringWithUTF8String:ui_strings[i].ru];if([text isEqualToString:en]||[text isEqualToString:ru])return kr_mac_language()?ru:en;}return text;
 }
-void kr_mac_localize_menu(NSMenu *menu){for(NSMenuItem *item in menu.itemArray){item.title=kr_mac_localize_string(item.title);if(item.submenu)kr_mac_localize_menu(item.submenu);}}
+void kr_mac_localize_menu(NSMenu *menu){
+    menu.title=kr_mac_localize_string(menu.title);
+    for(NSMenuItem *item in menu.itemArray){item.title=kr_mac_localize_string(item.title);if(item.submenu)kr_mac_localize_menu(item.submenu);}
+}
 void kr_mac_localize_view(NSView *view){
     if([view.identifier isEqualToString:@"KiTTYNG.RawData"])return;
     /* Never recurse into AppKit controls: their private buttons/cells have

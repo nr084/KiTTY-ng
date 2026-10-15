@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--gui-fixture',type=Path,help='Expose this disposable server for native UI acceptance until the app quits')
     parser.add_argument('--gui-scp',action='store_true')
     parser.add_argument('--gui-automation',action='store_true')
+    parser.add_argument('--gui-key-auth',action='store_true',help='Require the disposable client key in GUI acceptance')
     parser.add_argument('--proxies-only',action='store_true',help='Run only new loopback HTTP/SOCKS5 proxy checks')
     args=parser.parse_args()
     helpers=args.app.resolve()/'Contents/Helpers'
@@ -49,7 +50,7 @@ def main():
         env['KITTY_NG_PORTABLE_DIR']=str(settings)
         env.pop('KITTY_NG_GUI_PROMPTS',None)
         env.pop('SSH_AUTH_SOCK',None)
-        mode={'auth':'password'}
+        mode={'auth':'publickey' if args.gui_fixture and args.gui_key_auth else 'password'}
         gui_state={'connections':0,'commands':[],'outage_injected':False}
         def update_gui():
             if args.gui_fixture:
@@ -263,6 +264,9 @@ def main():
                 return
             if args.gui_fixture:
                 save_profile()
+                if args.gui_key_auth:
+                    empty=root/'empty-passphrase';empty.write_text('\n')
+                    invoke('kittygen',settings/'SSH-Keys/client.openssh','-O','private','-o',settings/'SSH-Keys/client.ppk','--new-passphrase',empty)
                 with profile.open('a') as stream:
                     destination="/приём с пробелами'$(literal)" if args.gui_scp else '/'
                     resolve(destination).mkdir(exist_ok=True)

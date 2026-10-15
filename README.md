@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-Готовится **0.85-6**: быстрое подключение без сохранения сеанса в Linux/macOS и исправление команд редактирования в полях macOS. [Изменения](docs/releases/0.85-6.md). Ссылки ниже ведут на опубликованный выпуск до готовности всех платформ.
+Готовится **0.85-6**: быстрое подключение без сохранения сеанса в Linux/macOS и исправление команд редактирования в полях macOS. [Изменения](docs/releases/0.85-6.md). Ссылки подготовлены для 0.85-6 и станут доступны после общей публикации; её предваряет согласование происхождения всех пакетов.
 
 **Русский** | [English](README.en.md)
 
@@ -12,13 +12,13 @@
 
 ## Скачать
 
-| Платформа | Сборка 0.85-5 | Запуск |
+| Платформа | Сборка 0.85-6 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x86_64.tar.zst) | `chmod +x`, launch |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-5/kitty-ng-0.85-5-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
@@ -66,7 +66,7 @@
 - [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-5](docs/releases/0.85-5.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-6](docs/releases/0.85-6.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 
