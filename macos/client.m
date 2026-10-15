@@ -253,7 +253,7 @@ static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.
 - (void)settings:(id)sender {if(self.session)kr_mac_edit_profile(conf_get_str(self.session->conf,CONF_kr_session_name),true);}
 - (void)showLog:(id)sender {NSAlert *alert=[NSAlert new];alert.messageText=T(@"Event log",@"Журнал событий");NSScrollView *scroll=[[NSScrollView alloc]initWithFrame:NSMakeRect(0,0,650,300)];scroll.hasVerticalScroller=YES;NSTextView *text=[[NSTextView alloc]initWithFrame:scroll.bounds];text.editable=NO;text.string=[self.events componentsJoinedByString:@"\n"];text.font=[NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];scroll.documentView=text;alert.accessoryView=scroll;[alert runModal];}
 - (void)saveWindow {
-    MacSession *s=self.session;if(!s)return;const char *name=conf_get_str(s->conf,CONF_kr_session_name);char *path=kr_mac_profile_path(name);NSData *current=path?[NSData dataWithContentsOfFile:S(path)]:nil;sfree(path);
+    MacSession *s=self.session;if(!s)return;const char *name=conf_get_str(s->conf,CONF_kr_session_name);if(!*name)return;char *path=kr_mac_profile_path(name);NSData *current=path?[NSData dataWithContentsOfFile:S(path)]:nil;sfree(path);
     if(!current||![current isEqualToData:self.profileSource])return;
     if(conf_get_bool(s->conf,CONF_saveonexit)){conf_set_int(s->conf,CONF_width,s->term->cols);conf_set_int(s->conf,CONF_height,s->term->rows);char *failure=save_settings(name,s->conf);bool ok=!failure&&kr_mac_write_succeeded();sfree(failure);if(!ok)return;}
     if(conf_get_bool(s->conf,CONF_save_windowpos)){char *failure=NULL;settings_w *writer=open_settings_w(name,&failure);if(writer){NSRect frame=self.terminalWindow.frame;write_setting_i(writer,"MacWindowX",frame.origin.x);write_setting_i(writer,"MacWindowY",frame.origin.y);write_setting_i(writer,"MacWindowWidth",frame.size.width);write_setting_i(writer,"MacWindowHeight",frame.size.height);close_settings_w(writer);}sfree(failure);}
@@ -317,7 +317,7 @@ static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.
 - (void)copyAll:(id)sender{if(self.session){int clip=CLIP_CLIPBOARD;term_copyall(self.session->term,&clip,1);}}
 - (void)clearHistory:(id)sender{if(self.session)term_clrsb(self.session->term);}
 - (void)resetTerminal:(id)sender{if(self.session)term_pwron(self.session->term,true);}
-- (void)duplicate:(id)sender{if(self.session)kr_mac_open_session(conf_get_str(self.session->conf,CONF_kr_session_name),kr_mac_root());}
+- (void)duplicate:(id)sender{if(self.session)kr_mac_open_conf(self.session->conf);}
 - (void)showBrowser:(id)sender{kr_mac_show_windows();}
 - (void)keyDown:(NSEvent *)event{MacSession *s=self.session;if(!s||!s->term)return;if([self shortcut:event])return;
     if((event.modifierFlags&NSEventModifierFlagCommand)&&(event.keyCode==37||[event.charactersIgnoringModifiers.lowercaseString isEqualToString:@"l"])){s->input_locked=!s->input_locked;return;}if(s->input_locked)return;
@@ -378,10 +378,15 @@ void kr_mac_pump(void){if(pumping||!initialized)return;pumping=true;fd_set read,
 }
 bool kr_mac_select_root(const char *path){char *resolved=realpath(path,NULL);if(!resolved){message("Portable directory is unavailable");return false;}bool different=kr_mac_root()&&strcmp(kr_mac_root(),resolved);if(windows.count&&different){free(resolved);message("Close existing connections before changing the portable directory");return false;}kr_mac_set_root(resolved);bool selected=kr_mac_root()&&!strcmp(kr_mac_root(),resolved);free(resolved);if(!selected)message("Choose a portable directory outside the application bundle");return selected;}
 void kr_mac_open_session(const char *name,const char *path){if(!kr_mac_select_root(path))return;
-if(!initialized){setlocale(LC_CTYPE,"");sk_init();uxsel_init();enable_dit();settings_set_default_protocol(PROT_SSH);settings_set_default_port(22);windows=[NSMutableArray new];initialized=true;}
-    Conf *conf=conf_new();bool exists=load_settings(name,conf);conf_set_str(conf,CONF_kr_session_name,name);if(!exists||!conf_launchable(conf)){conf_free(conf);message("Unable to load a connectable session. Select a saved profile with a host name.");return;}
+    Conf *conf=conf_new();bool exists=load_settings(name,conf);conf_set_str(conf,CONF_kr_session_name,name);
+    if(!exists||!conf_launchable(conf)){conf_free(conf);message("Unable to load a connectable session. Select a saved profile with a host name.");return;}
+    kr_mac_open_conf(conf);conf_free(conf);
+}
+void kr_mac_open_conf(Conf *configuration){
+    if(!initialized){setlocale(LC_CTYPE,"");sk_init();uxsel_init();enable_dit();settings_set_default_protocol(PROT_SSH);settings_set_default_port(22);windows=[NSMutableArray new];initialized=true;}
+    Conf *conf=conf_copy(configuration);const char *name=conf_get_str(conf,CONF_kr_session_name);
     MacTerminal *view=[[MacTerminal alloc]initWithFrame:NSMakeRect(0,0,800,480)];MacSession *s=snew(MacSession);memset(s,0,sizeof(*s));s->conf=conf;view.session=s;char *profile=kr_mac_profile_path(name);view.profileSource=profile?[NSData dataWithContentsOfFile:S(profile)]:nil;sfree(profile);
-    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.title=[@"KiTTY-ng — " stringByAppendingString:S(name)];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
+    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.title=[@"KiTTY-ng — " stringByAppendingString:S(*name?name:conf_get_str(conf,CONF_host))];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
     window.contentView=frame;view.frame=NSInsetRect(frame.bounds,terminalPadding,terminalPadding);[frame addSubview:view];window.releasedWhenClosed=NO;window.delegate=view;window.minSize=NSMakeSize(240,160);view.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;view.terminalWindow=window;[windows addObject:view];[view start];[window center];[window makeKeyAndOrderFront:nil];[window makeFirstResponder:view];
     if(conf_get_bool(conf,CONF_save_windowpos)){settings_r *reader=open_settings_r(name);int x=read_setting_i(reader,"MacWindowX",INT_MIN),y=read_setting_i(reader,"MacWindowY",INT_MIN),w=read_setting_i(reader,"MacWindowWidth",0),h=read_setting_i(reader,"MacWindowHeight",0);close_settings_r(reader);if(x!=INT_MIN&&y!=INT_MIN&&w>=240&&h>=160&&w<=10000&&h<=10000)[window setFrame:NSMakeRect(x,y,w,h) display:YES];}
     if(conf_get_bool(conf,CONF_maximize))[window zoom:nil];if(conf_get_bool(conf,CONF_fullscreen))[window toggleFullScreen:nil];if(conf_get_bool(conf,CONF_sendtotray))[window orderOut:nil];

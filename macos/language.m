@@ -54,3 +54,12 @@ void kr_mac_localize_view(NSView *view){
     if([view isKindOfClass:NSControl.class])return;
     for(NSView *child in view.subviews)kr_mac_localize_view(child);
 }
+
+void kr_mac_add_edit_menu(NSMenu *menu){
+NSMenuItem *editItem=[NSMenuItem new];[menu addItem:editItem];
+    NSMenu *editMenu=[[NSMenu alloc]initWithTitle:kr_mac_localize_string(@"Edit")];editItem.submenu=editMenu;
+    [editMenu addItemWithTitle:kr_mac_localize_string(@"Cut") action:@selector(cut:) keyEquivalent:@"x"];
+    [editMenu addItemWithTitle:kr_mac_localize_string(@"Copy") action:@selector(copy:) keyEquivalent:@"c"];
+    [editMenu addItemWithTitle:kr_mac_localize_string(@"Paste") action:@selector(paste:) keyEquivalent:@"v"];
+    [editMenu addItemWithTitle:kr_mac_localize_string(@"Select all") action:@selector(selectAll:) keyEquivalent:@"a"];
+}

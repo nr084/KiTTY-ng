@@ -200,17 +200,17 @@ static char *profile_fingerprint(const char *name) {
     sfree(path);
     return hash;
 }
-static void edit_profile(bool duplicate, bool fresh) {
+static void edit_profile(bool duplicate, bool fresh, bool quick) {
     bool dir = false;
     char *source = fresh ? NULL : selected(&dir);
     if (dir || (!fresh && !source)) {
         g_free(source);
         return;
     }
-    char *name = duplicate || fresh ? ask(L("Profile name", "Имя профиля"),
+    char *name = quick ? g_strdup("") : duplicate || fresh ? ask(L("Profile name", "Имя профиля"),
                                           fresh ? "" : source, false)
                                     : g_strdup(source);
-    if (!name || !*name) {
+    if (!name || (!quick && !*name)) {
         g_free(source);
         g_free(name);
         return;
@@ -223,10 +223,16 @@ static void edit_profile(bool duplicate, bool fresh) {
         conf_set_int(conf, CONF_port, 22);
     }
     GtkWidget *dialog = gtk_dialog_new_with_buttons(
-        L("Profile settings", "Настройки профиля"), GTK_WINDOW(window),
+        quick ? L("Quick connect", "Быстрое подключение") : L("Profile settings", "Настройки профиля"), GTK_WINDOW(window),
         GTK_DIALOG_MODAL | GTK_DIALOG_USE_HEADER_BAR, L("Cancel", "Отмена"),
         GTK_RESPONSE_CANCEL, L("Advanced…", "Все настройки…"), 2,
-        L("Save", "Сохранить"), GTK_RESPONSE_OK, NULL);
+        quick ? L("Connect", "Подключиться") : L("Save", "Сохранить"), GTK_RESPONSE_OK, NULL);
+    if (quick) {
+        conf_set_str(conf, CONF_kr_session_name, "");
+        conf_set_bool(conf, CONF_save_windowpos, false);
+        conf_set_bool(conf, CONF_saveonexit, false);
+        gtk_widget_hide(gtk_dialog_get_widget_for_response(GTK_DIALOG(dialog), 2));
+    }
     GtkWidget *grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
     gtk_grid_set_column_spacing(GTK_GRID(grid), 16);
@@ -263,6 +269,7 @@ static void edit_profile(bool duplicate, bool fresh) {
         L("Clear saved password", "Очистить пароль"));
     gtk_grid_attach(GTK_GRID(grid), clear_password, 2, 3, 1, 1);
     gtk_widget_show_all(dialog);
+    if (quick) gtk_widget_hide(gtk_dialog_get_widget_for_response(GTK_DIALOG(dialog), 2));
     int result = gtk_dialog_run(GTK_DIALOG(dialog));
     if (result == GTK_RESPONSE_OK || result == 2) {
         const char *porttext = gtk_entry_get_text(GTK_ENTRY(entries[1]));
@@ -307,7 +314,10 @@ static void edit_profile(bool duplicate, bool fresh) {
         }
         g_free(current);
     }
-    if (result == GTK_RESPONSE_OK) {
+    if (result == GTK_RESPONSE_OK && quick) {
+        if (conf_launchable(conf)) launch_duplicate_session(conf);
+        else message(L("Enter a host name", "Введите имя сервера"));
+    } else if (result == GTK_RESPONSE_OK) {
         settings_r *existing = open_settings_r(name);
         if ((duplicate || fresh) && existing) {
             message(L("A profile with this name already exists",
@@ -380,11 +390,14 @@ static void edit_profile(bool duplicate, bool fresh) {
 }
 static void clicked(GtkButton *button, gpointer action) {
     switch (GPOINTER_TO_INT(action)) {
+    case 11:
+        edit_profile(false, true, true);
+        break;
     case 0:
-        edit_profile(false, true);
+        edit_profile(false, true, false);
         break;
     case 1:
-        edit_profile(false, false);
+        edit_profile(false, false, false);
         break;
     case 2: {
         bool dir;
@@ -403,7 +416,7 @@ static void clicked(GtkButton *button, gpointer action) {
         break;
     }
     case 3:
-        edit_profile(true, false);
+        edit_profile(true, false, false);
         break;
     case 4:
         reload();
@@ -589,6 +602,8 @@ int kr_linux_browser(void) {
         gtk_container_add(GTK_CONTAINER(scroll), list);
         gtk_box_pack_start(GTK_BOX(box), scroll, TRUE, TRUE, 0);
         GtkWidget *actions = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+        gtk_box_pack_start(GTK_BOX(box),
+            button(L("Quick connect", "Быстрое подключение"), 11), FALSE, FALSE, 0);
         const char *names[] = {L("New", "Новый"),
                                L("Edit", "Изменить"),
                                L("Delete", "Удалить"),

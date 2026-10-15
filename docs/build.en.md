@@ -37,14 +37,19 @@ Use `python tools/set-release-stage.py 1` for `0.85-1`, `2` for `0.85-2`, and so
 
 ## macOS Universal / DMG
 
-```powershell
-python tools/local-build.py --platform macos
-python tools/macos-dmg.py
+Build macOS on a **Mac**, separately from Windows/Linux. Python 3.14+ with pip and Apple Command Line Tools (`xcode-select --install`) are required.
+
+```sh
+python3 tools/local-build.py --platform macos
+# Reuse installed tools without network access:
+python3 tools/local-build.py --platform macos --offline
 ```
 
-The first command builds all six executables for ARM64 and x86_64, merges and signs them, and creates an intermediate Universal ZIP. The second packages the app and instructions as an HFS+ DMG, preserving executable permissions. Reports: `dist/macos-build.json` and `dist/macos-dmg.json`. The ZIP may be removed after the DMG is prepared.
+The command checks the latest stable LLVM, retains verified LLVM/CMake/Ninja/Pillow under `_tools/macos/native`, uses the system Apple SDK, and records exact tool versions and provenance. It builds all six ARM64/x86_64 executables, merges Universal 2, applies ad-hoc signatures, and runs native unit/CLI/AppKit tests. Rosetta is required for x86_64 execution on Apple Silicon. ZIP and HFS+ DMG packaging uses `ditto`/`hdiutil`; the read-only mounted image is checked for identical contents, valid signatures, and executable permissions.
 
-Tools are retained under `_tools/macos`; temporary directories are cleaned. Rebuild without network access with `python tools/local-build.py --platform macos --offline`. Structural and signature checks on Windows do not replace native AppKit and Gatekeeper checks on Mac.
+Output is under `dist/macos-native`: `KiTTY-ng.app`, Universal ZIP/DMG, `macos-build.json`, `macos-dmg.json`, `SHA256SUMS.txt`, and logs. Existing archives in `dist` are preserved. Temporary directories are removed; installed build tools remain. `--skip-dmg` is available for diagnostics. `--compiler /usr/bin/clang --offline` selects Apple Clang for diagnostic builds; regular builds use the latest stable LLVM.
+
+`test/macos_native_runtime.py` provides network acceptance with synthetic credentials. Paramiko is only needed for its loopback server. See the [native validation report](macos-native-validation.md) for commands and coverage limits. Ad-hoc signatures do not provide Developer ID or Apple notarization.
 
 ## Release rules
 
@@ -64,9 +69,16 @@ python tools/linux-package-windows.py
 ## Complete release build
 
 ```powershell
+# Windows: Windows/Linux packages
 python tools/release-build.py --build-only
-# After native Linux acceptance:
-python tools/release-build.py --assemble-only
 ```
 
-Builds all platforms locally on Windows, checks committed source provenance and requires matching native Linux acceptance before publication.
+```sh
+# Mac: macOS package, then assemble matching Windows/Linux artifacts:
+python3 tools/release-build.py --build-only
+python3 tools/release-build.py --assemble-only
+```
+
+Windows/Linux builds are prepared separately; macOS builds run on a Mac. Release assembly verifies version and commit provenance, matching native macOS/Linux acceptance, and checksums. Publication to the existing GitHub repository requires a separate explicit release request.
+
+An explicit request to update only the Mac asset of an existing release uses `python3 tools/update-macos-release.py --publish` after committing/pushing sources, building on Mac and completing acceptance. It preserves the existing tag and Windows/Linux assets, renames the previous DMG as an archived asset, uploads the new primary DMG and updates Russian release notes. Without `--publish`, it only saves a GitHub state snapshot. New full releases continue to use a new revision.

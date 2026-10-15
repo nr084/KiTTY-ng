@@ -38,14 +38,19 @@ cmake --build --preset windows-x64 --parallel
 
 ## macOS Universal / DMG
 
-```powershell
-python tools/local-build.py --platform macos
-python tools/macos-dmg.py
+Сборка macOS выполняется на **Mac**, отдельно от Windows/Linux. Нужны Python 3.14+ с pip и установленные Apple Command Line Tools (`xcode-select --install`).
+
+```sh
+python3 tools/local-build.py --platform macos
+# Повторная сборка с уже установленными инструментами:
+python3 tools/local-build.py --platform macos --offline
 ```
 
-Первая команда компилирует все шесть исполняемых файлов для ARM64 и x86_64, объединяет и подписывает их и создаёт промежуточный Universal ZIP. Вторая упаковывает приложение и инструкции в HFS+ DMG, сохраняя права запуска. Отчёты: `dist/macos-build.json` и `dist/macos-dmg.json`. ZIP можно удалить после получения DMG.
+Команда проверяет последний стабильный LLVM, сохраняет проверенный компилятор, CMake, Ninja и Pillow в `_tools/macos/native`, использует системный SDK Apple и записывает точные версии и происхождение инструментов. Собирает все шесть файлов ARM64/x86_64, объединяет в Universal 2, подписывает ad-hoc и запускает нативные unit/CLI/AppKit-проверки. Для x86_64 на Apple Silicon нужна Rosetta. Затем создаёт ZIP и HFS+ DMG средствами `ditto`/`hdiutil`, монтирует образ только для чтения и сверяет содержимое, подпись и права запуска.
 
-Инструменты хранятся в `_tools/macos`; временные каталоги очищаются. Повторная компиляция без сети: `python tools/local-build.py --platform macos --offline`. Проверка структуры и подписи на Windows не заменяет нативный запуск AppKit и Gatekeeper на Mac.
+Результат и отчёты: `dist/macos-native/KiTTY-ng.app`, Universal ZIP/DMG, `macos-build.json`, `macos-dmg.json`, `SHA256SUMS.txt` и `logs`. Прежние архивы в `dist` не заменяются. Временные каталоги очищаются; установленный компилятор сохраняется. `--skip-dmg` допустим для диагностики. `--compiler /usr/bin/clang --offline` задаёт Apple Clang для диагностической сборки; обычная сборка использует последний стабильный LLVM.
+
+Сетевые проверки с синтетическими данными выполняет `test/macos_native_runtime.py`; Paramiko нужен только для тестового loopback-сервера. Команды и границы покрытия приведены в [отчёте нативной проверки](macos-native-validation.md). Подпись ad-hoc не заменяет Developer ID и нотариальное заверение Apple.
 
 ## Правила выпусков
 
@@ -62,12 +67,19 @@ python tools/linux-package-windows.py
 
 [Linux guide](linux.en.md) · [Руководство Linux](linux.md).
 
-## Complete release build
+## Сборка полного релизного комплекта
 
 ```powershell
+# Windows: пакеты Windows/Linux
 python tools/release-build.py --build-only
-# После нативной проверки Linux:
-python tools/release-build.py --assemble-only
 ```
 
-Builds all platforms locally on Windows, checks committed source provenance and requires matching native Linux acceptance before publication.
+```sh
+# Mac: пакет macOS; затем сборка комплекта с соответствующими артефактами Windows/Linux:
+python3 tools/release-build.py --build-only
+python3 tools/release-build.py --assemble-only
+```
+
+Windows и Linux собираются отдельно; macOS — на Mac. Для сборки комплекта нужны пакеты всех платформ из одного чистого Git checkout/коммита, совпадающие версии и нативные отчёты macOS/Linux. Команда сверяет их происхождение и контрольные суммы. Публикация в прежний репозиторий GitHub выполняется только по отдельной команде на выпуск; предыдущие релизы и вложения сохраняются.
+
+По прямой команде обновить только Mac-пакет существующего выпуска: зафиксировать и отправить исходники в GitHub, собрать на Mac, выполнить недостающие проверки, затем `python3 tools/update-macos-release.py --publish`. Сценарий проверяет чистый коммит и отчёты, сохраняет прежний DMG под архивным именем, загружает новый основной DMG и обновляет русские заметки. Тег, Windows/Linux-вложения и предыдущие релизы сохраняются. Без `--publish` только сохраняется снимок состояния GitHub для проверки и повторного запуска. Полный новый выпуск выполняется обычной процедурой с новым номером.

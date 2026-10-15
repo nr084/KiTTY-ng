@@ -40,6 +40,13 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-linux-test-') as directory:
   assert process.poll() is None
   def action(name,index=0):
    node=wait(lambda:find(name));rect=node.queryComponent().getExtents(pyatspi.DESKTOP_COORDS);subprocess.run(['xdotool','mousemove','--sync',str(rect.x+rect.width//2),str(rect.y+rect.height//2),'click','1'],check=True)
+  before={str(p.relative_to(portable)):p.read_bytes() for p in (portable/'Sessions').rglob('*') if p.is_file()}
+  action('Quick connect');dialog=wait(lambda:find('Quick connect') and find('Connect'))
+  port=wait(lambda:find('Port'));assert port.queryText().getText(0,-1)=='22'
+  assert not find('Profile name') and not find('Save')
+  action('Cancel')
+  assert before=={str(p.relative_to(portable)):p.read_bytes() for p in (portable/'Sessions').rglob('*') if p.is_file()}
+  print('PASS: Quick connect opens SSH/22 without a profile name; cancel preserves sessions',flush=True)
   entry=find('Search');entry.queryEditableText().setTextContents('DEMO')
   wait(lambda:not find('<Work>'))
   assert find('demo')

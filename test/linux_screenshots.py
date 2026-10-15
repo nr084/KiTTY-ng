@@ -20,8 +20,12 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-shots-') as folder:
      time.sleep(.1)
     assert ids,'Window did not appear'
     time.sleep(1)
-    display=Gdk.Display.get_default();window=GdkX11.X11Window.foreign_new_for_display(display,int(ids[-1]));width=window.get_width();height=window.get_height()
-    picture=Gdk.pixbuf_get_from_window(window,0,0,width,height);assert picture
+    wid=ids[-1]
+    subprocess.run(['xdotool','windowmove','--sync',wid,'0','0'],check=True)
+    time.sleep(.3)
+    geometry=dict(line.split('=',1) for line in subprocess.check_output(['xdotool','getwindowgeometry','--shell',wid],text=True).splitlines() if '=' in line)
+    screen=Gdk.Screen.get_default();window=screen.get_root_window()
+    picture=Gdk.pixbuf_get_from_window(window,int(geometry['X']),int(geometry['Y']),int(geometry['WIDTH']),int(geometry['HEIGHT']));assert picture
     picture.savev(str(args.output/f'linux-{kind}-{lang}.png'),'png',[],[])
    finally:os.killpg(child.pid,signal.SIGTERM);child.wait(timeout=10)
 print('Captured four native Linux windows')

@@ -7,5 +7,6 @@ bool kr_mac_set_language(int language);
 NSString *kr_mac_localize_string(NSString *text);
 void kr_mac_localize_view(NSView *view);
 void kr_mac_localize_menu(NSMenu *menu);
+void kr_mac_add_edit_menu(NSMenu *menu);
 #endif
 #endif

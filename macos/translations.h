@@ -198,3 +198,10 @@
 {"Window / Bell","Окно / Сигнал"},
 {"Window / Colours","Окно / Цвета"},
 {"macOS preview: portable session browser. SSH terminal is under development.","Предварительная версия macOS: просмотр портативных сеансов. SSH-терминал в разработке."},
+
+{"Quick connect","Быстрое подключение"},
+{"Connect","Подключиться"},
+{"Connect without saving a session","Подключение без сохранения сеанса"},
+{"Enter a host name","Введите имя сервера"},
+{"Cut","Вырезать"},
+{"Select all","Выделить всё"},

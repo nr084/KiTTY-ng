@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/event.h>
 #include <unistd.h>
+#include "version.h"
 #ifdef KITTY_NG_CLIENT
 #include "client.h"
 #include "putty.h"
@@ -18,6 +19,21 @@
 static BOOL Russian;
 static NSString *L(NSString *en, NSString *ru) { return Russian ? ru : en; }
 static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value.UTF8String);NSString *name=decoded?[NSString stringWithUTF8String:decoded]:value;free(decoded);return name?:value;}
+
+@interface SessionTableView : NSTableView
+@end
+@implementation SessionTableView
+- (void)keyDown:(NSEvent *)event {
+    if ((event.keyCode == 36 || event.keyCode == 76) &&
+        !(event.modifierFlags & (NSEventModifierFlagCommand |
+                                 NSEventModifierFlagControl |
+                                 NSEventModifierFlagOption))) {
+        [NSApp sendAction:self.doubleAction to:self.target from:self];
+        return;
+    }
+    [super keyDown:event];
+}
+@end
 
 @interface PortableBrowser : NSObject <NSApplicationDelegate, NSTableViewDataSource, NSTableViewDelegate>
 @property(nonatomic,strong) NSPopUpButton *languagePicker;
@@ -39,7 +55,8 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSMenuItem *about = [[NSMenuItem alloc] initWithTitle:L(@"About KiTTY-ng", @"О программе KiTTY-ng") action:@selector(about:) keyEquivalent:@""]; about.target = self; [appMenu addItem:about];
     NSMenuItem *keygen=[[NSMenuItem alloc]initWithTitle:@"KiTTYgen" action:@selector(keygen:) keyEquivalent:@""];keygen.target=self;[appMenu addItem:keygen];NSMenuItem *agent=[[NSMenuItem alloc]initWithTitle:@"Kageant" action:@selector(agent:) keyEquivalent:@""];agent.target=self;[appMenu addItem:agent];NSMenuItem *authorities=[[NSMenuItem alloc]initWithTitle:L(@"SSH authorities…",@"Центры сертификации SSH…") action:@selector(authorities:) keyEquivalent:@""];authorities.target=self;[appMenu addItem:authorities];
     [appMenu addItem:[NSMenuItem separatorItem]];
-    [appMenu addItemWithTitle:L(@"Quit KiTTY-ng", @"Завершить KiTTY-ng") action:@selector(terminate:) keyEquivalent:@"q"]; NSApp.mainMenu = menu;
+    [appMenu addItemWithTitle:L(@"Quit KiTTY-ng", @"Завершить KiTTY-ng") action:@selector(terminate:) keyEquivalent:@"q"]; kr_mac_add_edit_menu(menu);
+    NSApp.mainMenu = menu;
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,820,600) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
     self.window.releasedWhenClosed = NO; self.window.title = @"KiTTY-ng"; self.window.minSize = NSMakeSize(680,420);
     NSView *view = self.window.contentView;
@@ -56,14 +73,16 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSButton *choose = [NSButton buttonWithTitle:L(@"Choose folder…", @"Выбрать каталог…") target:self action:@selector(chooseFolder:)]; choose.frame = NSMakeRect(620,508,180,30); choose.autoresizingMask = NSViewMinXMargin|NSViewMinYMargin; [view addSubview:choose];
     self.search = [[NSSearchField alloc] initWithFrame:NSMakeRect(20,466,780,30)]; self.search.placeholderString = L(@"Quick search", @"Быстрый поиск"); self.search.target = self; self.search.action = @selector(searchChanged:); self.search.sendsSearchStringImmediately = YES; self.search.autoresizingMask = NSViewWidthSizable|NSViewMinYMargin; [view addSubview:self.search];
     NSScrollView *scroll = [[NSScrollView alloc] initWithFrame:NSMakeRect(20,120,780,332)]; scroll.hasVerticalScroller = YES; scroll.borderType = NSBezelBorder; scroll.autoresizingMask = NSViewWidthSizable|NSViewHeightSizable;
-    self.table = [[NSTableView alloc] initWithFrame:scroll.bounds]; self.table.dataSource = self; self.table.delegate = self; self.table.target = self; self.table.doubleAction = @selector(enter:);
-    NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:@"name"]; column.title = L(@"Saved sessions", @"Сохранённые сеансы"); column.width = 750; [self.table addTableColumn:column]; self.table.columnAutoresizingStyle = NSTableViewUniformColumnAutoresizingStyle; scroll.documentView = self.table; [view addSubview:scroll];
+    self.table = [[SessionTableView alloc] initWithFrame:scroll.bounds]; self.table.dataSource = self; self.table.delegate = self; self.table.target = self; self.table.doubleAction = @selector(enter:);
+    NSTableColumn *column = [[NSTableColumn alloc] initWithIdentifier:@"name"]; column.title = L(@"Saved sessions", @"Сохранённые сеансы"); column.width = 750; column.editable = NO; [self.table addTableColumn:column]; self.table.columnAutoresizingStyle = NSTableViewUniformColumnAutoresizingStyle; scroll.documentView = self.table; [view addSubview:scroll];
     self.detail = [NSTextField wrappingLabelWithString:@""]; self.detail.frame = NSMakeRect(20,16,610,52); self.detail.autoresizingMask = NSViewWidthSizable; [view addSubview:self.detail];
 #ifdef KITTY_NG_CLIENT
     NSButton *open = [NSButton buttonWithTitle:L(@"Open", @"Открыть") target:self action:@selector(openSession:)]; open.frame=NSMakeRect(650,40,150,34); open.autoresizingMask=NSViewMinXMargin; [view addSubview:open];
 #endif
-    NSArray *actions=@[@[L(@"New",@"Новый"),NSStringFromSelector(@selector(newProfile:))],@[L(@"Edit",@"Изменить"),NSStringFromSelector(@selector(editProfile:))],@[L(@"Delete",@"Удалить"),NSStringFromSelector(@selector(deleteProfile:))],@[L(@"Duplicate",@"Дублировать"),NSStringFromSelector(@selector(duplicateProfile:))],@[L(@"Refresh",@"Обновить"),NSStringFromSelector(@selector(profilesChanged:))],@[L(@"Upgrade profiles",@"Обновить профили"),NSStringFromSelector(@selector(upgradeProfiles:))]];
-    CGFloat bx=20;for(NSArray *action in actions){NSButton *button=[NSButton buttonWithTitle:action[0] target:self action:NSSelectorFromString(action[1])];button.frame=NSMakeRect(bx,82,[action[1] isEqualToString:NSStringFromSelector(@selector(upgradeProfiles:))]?150:112,28);[view addSubview:button];bx+=120;}
+    NSArray *actions=@[@[L(@"Quick connect",@"Быстрое подключение"),NSStringFromSelector(@selector(quickConnect:))],@[L(@"New",@"Новый"),NSStringFromSelector(@selector(newProfile:))],@[L(@"Edit",@"Изменить"),NSStringFromSelector(@selector(editProfile:))],@[L(@"Delete",@"Удалить"),NSStringFromSelector(@selector(deleteProfile:))],@[L(@"Duplicate",@"Дублировать"),NSStringFromSelector(@selector(duplicateProfile:))],@[L(@"Refresh",@"Обновить"),NSStringFromSelector(@selector(profilesChanged:))],@[L(@"Upgrade profiles",@"Обновить профили"),NSStringFromSelector(@selector(upgradeProfiles:))]];
+    NSStackView *actionBar=[NSStackView new];actionBar.orientation=NSUserInterfaceLayoutOrientationHorizontal;actionBar.spacing=8;actionBar.distribution=NSStackViewDistributionFillProportionally;actionBar.frame=NSMakeRect(20,82,980,28);actionBar.autoresizingMask=NSViewWidthSizable;[view addSubview:actionBar];
+    for(NSArray *action in actions){NSButton *button=[NSButton buttonWithTitle:action[0] target:self action:NSSelectorFromString(action[1])];[actionBar addArrangedSubview:button];}
+    [self.window setContentSize:NSMakeSize(1020,600)];self.window.minSize=NSMakeSize(1020,420);actionBar.frame=NSMakeRect(20,82,980,28);
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(profilesChanged:) name:@"KiTTYNGProfilesChanged" object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(languageChanged:) name:@"KiTTYNGLanguageChanged" object:nil];
     self.root = kr_mac_root()?[NSURL fileURLWithPath:[NSString stringWithUTF8String:kr_mac_root()] isDirectory:YES]:NSBundle.mainBundle.bundleURL.URLByDeletingLastPathComponent;
@@ -71,6 +90,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
     if ([self.root.path containsString:@"/AppTranslocation/"]) [self chooseFolder:nil]; else [self reload];
 }
+- (void)quickConnect:(id)sender{kr_mac_quick_connect();}
 - (NSURL *)sessionsDirectory {
 #ifdef KITTY_NG_CLIENT
     char *path=kr_mac_directory_at(self.root.path.UTF8String,"Sessions");
@@ -112,7 +132,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     }
     self.detail.stringValue = [NSString stringWithFormat:@"%@  %@:%@\n%@", values[@"UserName"] ?: @"",values[@"HostName"] ?: @"",values[@"PortNumber"] ?: @"22",values[@"Comment"] ?: @""];
 }
-- (void)enter:(id)sender { NSInteger row = self.table.clickedRow; if (row >= 0 && row < self.rows.count && [self.rows[row][@"directory"] boolValue]) { self.folder = self.rows[row][@"url"]; self.search.stringValue = @""; [self reload]; } else if(row>=0) [self openSession:nil]; }
+- (void)enter:(id)sender { NSInteger row = self.table.selectedRow; if (row >= 0 && row < self.rows.count && [self.rows[row][@"directory"] boolValue]) { self.folder = self.rows[row][@"url"]; self.search.stringValue = @""; [self reload]; } else if(row>=0) [self openSession:nil]; }
 - (NSString *)selectedSession {
     NSInteger row=self.table.selectedRow;if(row<0||row>=self.rows.count||[self.rows[row][@"directory"]boolValue])return nil;
     NSURL *url=self.rows[row][@"url"];NSString *prefix=[[self sessionsDirectory].path stringByAppendingString:@"/"];if(![url.path hasPrefix:prefix])return nil;
@@ -154,7 +174,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseFiles = NO; panel.canChooseDirectories = YES; panel.allowsMultipleSelection = NO; panel.message = L(@"Choose the shared KiTTY portable directory", @"Выберите общий портативный каталог KiTTY");
     if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = panel.URL; self.folder = [self sessionsDirectory]; [self reload]; }
 }
-- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @"KiTTY-ng"; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
+- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @TEXTVER; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end
 static int askpass(const char *mode,const char *question){
@@ -179,7 +199,7 @@ int main(int argc,const char **argv){@autoreleasepool{
     if(argc==2&&!strcmp(argv[1],"--self-test-ui"))return kr_mac_self_test_ui();
     if(argc==3&&!strcmp(argv[1],"--self-test-portable"))return kr_mac_self_test(argv[2]);
     if(argc==3&&!strcmp(argv[1],"--agent-watch")){char *end;long pid=strtol(argv[2],&end,10);if(*end||pid<=1)return 1;int q=kqueue();if(q<0)return 1;struct kevent event;EV_SET(&event,pid,EVFILT_PROC,EV_ADD|EV_ONESHOT,NOTE_EXIT,0,NULL);if(kevent(q,&event,1,NULL,0,NULL)<0){close(q);return 0;}int status=kevent(q,NULL,0,&event,1,NULL);close(q);return status<0?1:0;}
-    if(argc==4&&!strcmp(argv[1],"--askpass"))return askpass(argv[2],argv[3]);
+    if(argc==4&&!strcmp(argv[1],"--askpass")){NSApplication.sharedApplication.mainMenu=[NSMenu new];kr_mac_add_edit_menu(NSApp.mainMenu);return askpass(argv[2],argv[3]);}
     NSApplication *app=NSApplication.sharedApplication;app.activationPolicy=NSApplicationActivationPolicyRegular;
     __attribute__((objc_precise_lifetime)) PortableBrowser *delegate=[PortableBrowser new];app.delegate=delegate;[app run];
 }return 0;}

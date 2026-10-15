@@ -132,7 +132,9 @@ def main():
         subprocess.run([sys.executable, str(ROOT / "tools/linux-cross-build.py"), *remaining], cwd=ROOT, check=True)
         return
     if platform_args.platform == "macos":
-        subprocess.run([sys.executable, str(ROOT / "tools/macos-build.py"), *remaining], cwd=ROOT, check=True)
+        if sys.platform != "darwin":
+            platform_parser.error("macOS builds now run on a Mac; use python3 tools/local-build.py --platform macos on macOS")
+        subprocess.run([sys.executable, str(ROOT / "tools/macos-native-build.py"), *remaining], cwd=ROOT, check=True)
         return
     # Keep diagnostics readable in Russian paths and redirected Windows logs.
     os.environ["PYTHONUTF8"] = "1"

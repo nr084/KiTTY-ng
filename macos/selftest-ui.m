@@ -21,6 +21,14 @@ int kr_mac_self_test_ui(void){
         CHECK([cell.title isEqualToString:title]&&cell.image==image);CHECK([picker itemAtIndex:0].title&&[[picker itemAtIndex:0].title isEqualToString:@"English"]);CHECK([[picker itemAtIndex:1].title isEqualToString:@"Русский"]);CHECK(picker.indexOfSelectedItem==1);
     }
     Conf *conf=conf_new();load_settings("Default Settings",conf);CHECK(conf_get_int(conf,CONF_protocol)==PROT_SSH);CHECK(conf_get_int(conf,CONF_port)==22);conf_free(conf);
+    app.mainMenu=[NSMenu new];kr_mac_add_edit_menu(app.mainMenu);
+    NSMenu *edit=app.mainMenu.itemArray.lastObject.submenu;
+    CHECK(edit.numberOfItems==4);
+    CHECK([edit itemAtIndex:0].action==@selector(cut:));
+    CHECK([edit itemAtIndex:1].action==@selector(copy:));
+    CHECK([edit itemAtIndex:2].action==@selector(paste:));
+    CHECK([edit itemAtIndex:3].action==@selector(selectAll:));
+    for(NSMenuItem *item in edit.itemArray)CHECK(item.target==nil&&item.keyEquivalent.length==1);
     CHECK(kr_mac_test_keygen_ui()==0);
     puts("PASS: native AppKit language round-trips, search cell/data preserved, stable language names, initial SSH/22 defaults");return 0;
 #undef CHECK

@@ -67,7 +67,7 @@ All five helpers in `Contents/Helpers` are Universal: `klink`, `kscp`, `ksftp`, 
 
 ## Special scenarios and limitations
 
-SSH CA settings use `SshHostCAs`; automatic synchronization with the Windows registry CA store is not available. GSSAPI uses the system GSS.framework and requires valid Kerberos credentials. These scenarios, Intel runtime and the macOS 13 deployment baseline require separate native validation.
+SSH CA settings use `SshHostCAs`; automatic synchronization with the Windows registry CA store is not available. GSSAPI uses the system GSS.framework and requires valid Kerberos credentials. Real OpenSSH host and user certificate handshakes pass on arm64 and x86_64 through Rosetta. Kerberos credentials, physical Intel hardware and the macOS 13 baseline require a separate environment.
 
 Saved KiTTY passwords are reversible. Entire profiles encrypted with a master password are unsupported. Retaining an unknown field does not imply support for its retired extension. See the [macOS matrix](macos-migration.json), [verification scope](validation.md) and [roadmap](planned.md) (technical reports in Russian).
 
@@ -75,9 +75,11 @@ Saved KiTTY passwords are reversible. Entire profiles encrypted with a master pa
 
 The DMG's `Instructions` folder contains guides and diagnostic `.command` files. Copy these beside the app before use. The diagnostic command produces a log; the smoke-test command uses synthetic data in a temporary directory.
 
-See [local builds](build.en.md) for Windows compilation and DMG packaging. Compilation does not require a Mac; native UI validation does.
+Compilation, signing, DMG packaging and native tests now run on a Mac: [build guide](build.en.md). See the [13 October 2026 native validation report](macos-native-validation.md) for coverage and limits.
 
 ## Screenshots
+
+Captured on this Mac using synthetic profiles and a disposable test key.
 
 ![KiTTY-ng — English interface](screenshots/macos-session-en.png)
 

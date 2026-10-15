@@ -2,9 +2,10 @@
 import argparse,os,pwd,secrets,signal,subprocess,tempfile,time,sys
 from pathlib import Path
 import pyatspi
-parser=argparse.ArgumentParser();parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--debug',action='store_true');parser.add_argument('--existing-account',action='store_true');args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
+parser=argparse.ArgumentParser();parser.add_argument('--binary',type=Path,required=True);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--debug',action='store_true');parser.add_argument('--existing-account',action='store_true');parser.add_argument('--quick-only',action='store_true');args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
 root=pyatspi.Registry.getDesktop(0)
 def nodes(n):
+ n.clearCache()
  yield n
  for i in range(n.childCount):
   try:yield from nodes(n.getChildAtIndex(i))
@@ -54,6 +55,24 @@ try:
    process=subprocess.Popen([str(args.binary)],env=env,stdout=log,stderr=log,start_new_session=True)
    try:
     wait(lambda:find('Native'));table=next(n for n in nodes(root) if n.getRoleName()=='table');table.queryTable().addRowSelection(0)
+    if args.quick_only:
+     before={p.name:p.read_bytes() for p in (portable/'Sessions').iterdir()}
+     click('Quick connect');wait(lambda:find('Connect'))
+     find('Host').queryEditableText().setTextContents('127.0.0.1')
+     find('User name').queryEditableText().setTextContents(account)
+     find('Saved password').queryEditableText().setTextContents(password)
+     find('Startup command').queryEditableText().setTextContents('touch '+str(marker))
+     click('Connect');click('Accept');wait(marker.exists,35)
+     assert before=={p.name:p.read_bytes() for p in (portable/'Sessions').iterdir()}
+     quick_windows=subprocess.check_output(['xdotool','search','--name','kittyng-test@'],text=True).split()
+     for wid in quick_windows:
+      subprocess.run(['xdotool','windowactivate','--sync',wid,'type','--clearmodifiers','exit'],check=True)
+      subprocess.run(['xdotool','key','Return'],check=True)
+     wait(lambda:not subprocess.run(['xdotool','search','--name','kittyng-test@'],capture_output=True,text=True).stdout.strip())
+     time.sleep(1);marker.unlink()
+     assert before=={p.name:p.read_bytes() for p in (portable/'Sessions').iterdir()}
+     print('PASS: Quick connect authenticates SSH and closes without saving a session or password',flush=True)
+     sys.exit(0)
     click('Edit');dialog=wait(lambda:find('Profile settings'));entry=next(n for n in nodes(dialog) if n.name=='Saved password');entry.queryEditableText().setTextContents(password);click('Save')
     assert password not in (portable/'Sessions/Native').read_text()
     click('Open');click('Accept');wait(marker.exists,35)

@@ -6,6 +6,7 @@
 #include "language.h"
 #include "cli-language.h"
 #include "editor.h"
+#include "client.h"
 #include <limits.h>
 static NSMutableArray *editors;
 static NSString *S(const char *s){return [NSString stringWithUTF8String:s]?:[[NSString alloc]initWithBytes:s length:strlen(s) encoding:NSWindowsCP1251StringEncoding]?:@"";}
@@ -44,6 +45,7 @@ static NSString *enumTitle(const char *name){NSString *text=S(name);if([text isE
 @property(nonatomic,strong) NSArray *optionTree;
 @property(nonatomic,strong) NSOutlineView *tree;
 @property(nonatomic) BOOL duplicate;
+@property(nonatomic) BOOL quick;
 @end
 @implementation MacEditor
 - (NSInteger)outlineView:(NSOutlineView*)view numberOfChildrenOfItem:(id)item{return item?[item[@"children"]count]:self.optionTree.count;}
@@ -62,11 +64,14 @@ static NSString *enumTitle(const char *name){NSString *text=S(name);if([text isE
 - (void)selectFile:(NSButton*)sender{NSTextField *field=self.fields[@(sender.tag)];NSOpenPanel *panel=[NSOpenPanel openPanel];if([panel runModal]==NSModalResponseOK)field.stringValue=panel.URL.path;}
 - (void)save:(id)sender{
     if(![self.window makeFirstResponder:nil])return;
-    NSString *name=[self.name.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];if(!name.length)return;
+    NSString *name=[self.name.stringValue stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];if(!self.quick&&!name.length)return;
     if(self.duplicate&&[name isEqualToString:self.original]){NSAlert *a=[NSAlert new];a.messageText=L(@"Session already exists",@"Сеанс уже существует");[a runModal];return;}
-    char *path=kr_mac_profile_path(name.UTF8String);if(!path){NSBeep();return;}NSString *target=S(path);sfree(path);
+    NSString *target=nil;
+    if(!self.quick){
+    char *path=kr_mac_profile_path(name.UTF8String);if(!path){NSBeep();return;}target=S(path);sfree(path);
     if(![name isEqualToString:self.original]&&[NSFileManager.defaultManager fileExistsAtPath:target]){NSAlert *a=[NSAlert new];a.messageText=L(@"Session already exists",@"Сеанс уже существует");[a runModal];return;}
     if(self.original.length){char *current=kr_mac_profile_path(self.original.UTF8String);NSData *data=current?[NSData dataWithContentsOfFile:S(current)]:nil;sfree(current);if(!data||![data isEqualToData:self.source]){NSAlert *a=[NSAlert new];a.messageText=L(@"Profile changed outside this editor; reopen it",@"Профиль изменён извне; откройте его заново");[a runModal];return;}}
+    }
     Conf *candidate=conf_copy(self.conf);
     if(self.changes.count){settings_r *overlay=kr_mac_copy_reader(self.reader);for(NSString *key in self.changes)kr_mac_override_read(overlay,key.UTF8String,[self.changes[key]UTF8String]);load_open_settings(overlay,candidate);close_settings_r(overlay);conf_set_str(candidate,CONF_password,conf_get_str(self.conf,CONF_password));conf_set_bool(candidate,CONF_kr_password_decoded,conf_get_bool(self.conf,CONF_kr_password_decoded));}
 
@@ -84,6 +89,11 @@ static NSString *enumTitle(const char *name){NSString *text=S(name);if([text isE
     if(conf_get_int(candidate,CONF_proxy_port)<1||conf_get_int(candidate,CONF_proxy_port)>65535||conf_get_int(candidate,CONF_serspeed)<1){conf_free(candidate);NSBeep();return;}
     if(self.clearPassword.state==NSControlStateValueOn){conf_set_str(candidate,CONF_password,"");conf_set_str(candidate,CONF_kr_password_encoded,"");conf_set_bool(candidate,CONF_kr_password_decoded,true);}
     else if(strcmp(conf_get_str(candidate,CONF_password),self.password.stringValue.UTF8String)){conf_set_str(candidate,CONF_password,self.password.stringValue.UTF8String);conf_set_bool(candidate,CONF_kr_password_decoded,true);}
+    if(self.quick){
+        if(!conf_launchable(candidate)){conf_free(candidate);NSAlert *a=[NSAlert new];a.messageText=L(@"Enter a host name",@"Введите имя сервера");[a runModal];return;}
+        conf_set_str(candidate,CONF_kr_session_name,"");conf_set_bool(candidate,CONF_save_windowpos,false);conf_set_bool(candidate,CONF_saveonexit,false);
+        kr_mac_open_conf(candidate);conf_free(candidate);[self.window close];return;
+    }
     if(self.original.length&&![name isEqualToString:self.original]){char *old=kr_mac_profile_path(self.original.UTF8String);NSString *parent=target.stringByDeletingLastPathComponent;[NSFileManager.defaultManager createDirectoryAtPath:parent withIntermediateDirectories:YES attributes:nil error:nil];BOOL copied=old&&[NSFileManager.defaultManager copyItemAtPath:S(old) toPath:target error:nil];sfree(old);if(!copied){conf_free(candidate);NSBeep();return;}}
     char *failure=save_settings(name.UTF8String,candidate);conf_free(candidate);if(failure||!kr_mac_write_succeeded()){NSAlert *a=[NSAlert new];a.messageText=L(@"Unable to save session",@"Не удалось сохранить сеанс");a.informativeText=failure?S(kr_mac_translate(failure)):@"";sfree(failure);[a runModal];return;}
     [NSNotificationCenter.defaultCenter postNotificationName:@"KiTTYNGProfilesChanged" object:nil];[self.window close];
@@ -159,4 +169,14 @@ void kr_mac_edit_profile(const char *name,bool existing){open_profile_editor(nam
 void kr_mac_duplicate_profile(const char *source,const char *name){
     MacEditor *editor=open_profile_editor(source,true);
     if(editor){editor.duplicate=YES;editor.name.stringValue=S(name);}
+}
+
+void kr_mac_quick_connect(void){
+    MacEditor *editor=open_profile_editor("",false);if(!editor)return;
+    editor.quick=YES;editor.name.hidden=YES;
+    editor.window.title=L(@"Quick connect",@"Быстрое подключение");
+    for(NSView *view in editor.window.contentView.subviews){
+        if([view isKindOfClass:NSButton.class]&&((NSButton*)view).action==@selector(save:))((NSButton*)view).title=L(@"Connect",@"Подключиться");
+        if([view isKindOfClass:NSTextField.class]&&[[(NSTextField*)view stringValue]isEqualToString:L(@"Session name / folder",@"Имя сеанса / папка")]){((NSTextField*)view).stringValue=L(@"Connect without saving a session",@"Подключение без сохранения сеанса");view.frame=NSMakeRect(20,675,850,25);}
+    }
 }
