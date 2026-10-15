@@ -6,8 +6,11 @@ base=${0:A:h}
 app="$base/KiTTY-ng.app"
 helpers="$app/Contents/Helpers"
 log="$base/kitty-ng-smoke-test.log"
+# Preserve the caller's stderr: EXIT may run while the test group redirects
+# stdout/stderr to the log, so reading that log there must not append to itself.
+exec 3>&2
 work=$(mktemp -d /tmp/kitty-ng-smoke.XXXXXXXX)
-trap 'result=$?; if (( result != 0 )); then cat "$log"; fi; rm -rf -- "$work"' EXIT
+trap 'result=$?; if (( result != 0 )); then cat "$log" >&3; fi; rm -rf -- "$work"' EXIT
 export KITTY_NG_PORTABLE_DIR="$work"
 unset KITTY_NG_GUI_PROMPTS
 runner=()

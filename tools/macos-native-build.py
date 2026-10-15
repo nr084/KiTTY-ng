@@ -99,7 +99,7 @@ def main():
         # Changed localization/UI smoke cases are rerun separately below.
         reuse_unaffected = bool(source_changes) and set(source_changes)<=set((
             'macos/bootstrap.m','macos/language.m','macos/selftest-ui.m')) and not any(
-            p in changed for p in ('test/macos_native_keys.py','macos/Smoke-test KiTTY-ng.command'))
+            p in changed for p in ('test/macos_native_keys.py',))
         if reuse_unaffected:
             old_helpers=dest/'KiTTY-ng.app/Contents/Helpers'
             report['unchanged_helper_evidence']=dict(source_commit=previous['source_commit'],
@@ -146,7 +146,7 @@ def main():
                     print('REUSE: unchanged compilation', arch, flush=True)
                 binaries[arch] = cache
                 checks = dict(previous.get('native_tests',{}).get(arch,{})) if previous.get('fingerprint')==fingerprint or reuse_unaffected else {}
-                if reuse_unaffected and any(p in source_changes for p in ('macos/language.m','macos/selftest-ui.m')):
+                if reuse_unaffected and (any(p in source_changes for p in ('macos/language.m','macos/selftest-ui.m')) or 'macos/Smoke-test KiTTY-ng.command' in changed):
                     checks.pop('smoke',None)
                 report['native_tests'][arch] = checks
                 for name in UNIT_TESTS:
