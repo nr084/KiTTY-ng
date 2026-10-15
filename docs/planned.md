@@ -10,7 +10,7 @@
 
 ## Выпуск 0.85-6
 
-Windows/Linux: сборки и быстрое подключение Linux подготовлены, скриншоты обновлены. macOS: проверить Cmd+C/V/X/A и быстрое подключение нативно, обновить скриншоты, собрать Universal DMG. [Передача в Mac-чат](releases/0.85-6-macos-handoff.md).
+Выпуск опубликован: Windows x64/x86/ARM64, Linux AppImage/AppDir и macOS Universal DMG. Быстрое подключение Linux/macOS и команды редактирования macOS проверены, скриншоты обновлены. [Заметки выпуска](releases/0.85-6.md).
 
 ## Windows: запуск WinSCP из меню сеанса
 

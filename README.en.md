@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**0.85-6 is in preparation**: unsaved quick connections on Linux/macOS and standard editing shortcuts in macOS fields. [Release notes](docs/releases/0.85-6.md). Download links are prepared for 0.85-6 and become available after coordinated publication of all packages.
+**0.85-6 is available**: unsaved quick connections on Linux/macOS and standard editing shortcuts in macOS fields. [Release notes](docs/releases/0.85-6.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-6).
 
 [Русский](README.md) | **English**
 
