@@ -156,10 +156,9 @@ static void frame_focus(TabFrame *f)
 {
     if (f->selected < 0 || f->selected >= f->count) return;
     HWND page = f->pages[f->selected];
-    DWORD thread = GetWindowThreadProcessId(page, NULL), own = GetCurrentThreadId();
-    bool attached = thread != own && AttachThreadInput(own, thread, TRUE);
-    SetFocus(page);
-    if (attached) AttachThreadInput(own, thread, FALSE);
+    /* Let the terminal's own thread take focus after tab selection finishes.
+     * Attaching/detaching queues here loses the foreground input target. */
+    PostMessageW(page, KR_WM_TAB_FOCUS, (WPARAM)f->frame, 0);
 }
 static int tab_px(TabFrame *f,int value) {return MulDiv(value,f->dpi,96);}
 static RECT tab_close_rect(TabFrame *f,int index)
@@ -363,10 +362,15 @@ static bool frame_add(TabFrame *f, HWND page)
     for (int i=0;i<f->count;i++) if (f->pages[i]==page) return true;
     LONG_PTR old = GetWindowLongPtrW(page,GWL_STYLE);
     ShowWindow(page,SW_HIDE);
+    /* SetParent needs WS_CHILD in place to establish the cross-thread input
+     * relationship. Setting it afterwards leaves separate keyboard queues. */
+    SetWindowLongPtrW(page,GWL_STYLE,(old & ~(WS_POPUP|WS_CAPTION|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SYSMENU))|WS_CHILD);
     SetLastError(0);
     HWND previous = SetParent(page,f->frame);
-    if (!previous && GetLastError()) {ShowWindow(page,SW_SHOW);return false;}
-    SetWindowLongPtrW(page,GWL_STYLE,(old & ~(WS_POPUP|WS_CAPTION|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SYSMENU))|WS_CHILD);
+    if (!previous && GetLastError()) {
+        SetWindowLongPtrW(page,GWL_STYLE,old);
+        ShowWindow(page,SW_SHOW);return false;
+    }
     SetWindowPos(page,NULL,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED);
     f->pages[f->count++]=page;f->selected=f->count-1;
     frame_refresh(f);frame_layout(f);SetForegroundWindow(f->frame);frame_focus(f);

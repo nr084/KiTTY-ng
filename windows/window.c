@@ -2662,6 +2662,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             kr_messagebox(hwnd, message, "File transfer", MB_OK | MB_ICONERROR); sfree(message);
         }
         return 0;
+      case KR_WM_TAB_FOCUS:
+        /* Ignore stale requests for hidden tabs or a background frame. */
+        if (wParam && (HWND)wParam == kr_tabs_parent(hwnd) &&
+            IsWindowVisible(hwnd) && GetForegroundWindow() == (HWND)wParam)
+            SetFocus(hwnd);
+        return 0;
       case KR_WM_TAB_CLOSE_WARNING:
         return !wgs->session_closed && conf_get_bool(wgs->conf, CONF_warn_on_close);
       case KR_WM_TAB_CLOSE:

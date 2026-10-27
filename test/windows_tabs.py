@@ -58,6 +58,32 @@ def accept():
    if done.is_set():break
    raise
 threading.Thread(target=accept,daemon=True).start()
+class GuiThreadInfo(ctypes.Structure):
+ _fields_=[('cbSize',w.DWORD),('flags',w.DWORD),('active',w.HWND),('focus',w.HWND),('capture',w.HWND),('menu',w.HWND),('move',w.HWND),('caret',w.HWND),('rect',w.RECT)]
+
+class KeyboardInput(ctypes.Structure):
+ _fields_=[('vk',w.WORD),('scan',w.WORD),('flags',w.DWORD),('time',w.DWORD),('extra',ctypes.c_size_t)]
+class InputUnion(ctypes.Union):
+ _fields_=[('key',KeyboardInput),('mouse_padding',ctypes.c_byte*(32 if ctypes.sizeof(ctypes.c_void_p)==8 else 24))]
+class Input(ctypes.Structure):
+ _fields_=[('type',w.DWORD),('data',InputUnion)]
+u.SendInput.argtypes=[w.UINT,ctypes.POINTER(Input),ctypes.c_int];u.SendInput.restype=w.UINT
+
+def keyboard(page,index,letter):
+ # Real keyboard routing: posting WM_CHAR directly bypasses focus bugs.
+ info=GuiThreadInfo();info.cbSize=ctypes.sizeof(info)
+ thread=u.GetWindowThreadProcessId(page,None)
+ time.sleep(.2)
+ assert u.GetGUIThreadInfo(thread,ctypes.byref(info))
+ assert info.focus==page, f'Keyboard focus lost: expected {page:#x}, got {info.focus}; active={info.active}'
+ before={i:bytes(data) for i,data in received.items()}
+ events=(Input*2)()
+ for i,event in enumerate(events):
+  event.type=1;event.data.key=KeyboardInput(0,ord(letter),4|(2 if i else 0),0,0)
+ assert u.SendInput(2,events,ctypes.sizeof(Input))==2
+ wait(lambda:bytes(received[index])==before[index]+letter.encode())
+ assert all(bytes(received[i])==data for i,data in before.items() if i!=index), 'Input reached inactive connection'
+
 binary=Path(sys.argv[1]).resolve();pids=set();processes=[]
 with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent) as folder:
  root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n')
@@ -74,15 +100,28 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   assert u.IsWindowVisible(second) and not u.IsWindowVisible(first)
   u.PostMessageW(second,0x102,ord('B'),0);wait(lambda:received.get(2)==b'B');assert received[1]==b''
   scale=u.GetDpiForWindow(host)/96
+  # Activate the host through a real click, as the user does.
+  point=w.POINT(round(250*scale),round(15*scale));u.ClientToScreen(strip,ctypes.byref(point))
+  u.SetCursorPos(point.x,point.y);u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
+  time.sleep(.2)
   def mouse(message,x,y=15,buttons=0):
-   u.SendMessageW(strip,message,buttons,(round(y*scale)<<16)|round(x*scale))
+   point=w.POINT(round(x*scale),round(y*scale));u.ClientToScreen(strip,ctypes.byref(point))
+   u.SetCursorPos(point.x,point.y)
+   if message==0x201:u.mouse_event(2,0,0,0,0)
+   elif message==0x202:u.mouse_event(4,0,0,0,0)
+   time.sleep(u.GetDoubleClickTime()/1000+.05 if message==0x202 else .1)
   mouse(0x201,35,buttons=1);mouse(0x200,250,buttons=1);mouse(0x202,250)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==1)
   assert u.IsWindowVisible(first) and len(channels)==2
+  keyboard(first,1,'x')
   mouse(0x201,250,buttons=1);mouse(0x200,35,buttons=1);mouse(0x202,35)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==0)
   mouse(0x201,250,buttons=1);mouse(0x202,250)
   wait(lambda:u.IsWindowVisible(second))
+  keyboard(second,2,'y')
+  for x,page,index,letter in [(35,first,1,'a'),(250,second,2,'b')]*2:
+   mouse(0x201,x,buttons=1);mouse(0x202,x)
+   keyboard(page,index,letter)
   if '--screenshot' in sys.argv:
    from PIL import ImageGrab
    target=Path(sys.argv[sys.argv.index('--screenshot')+1]);target.parent.mkdir(parents=True,exist_ok=True)
@@ -115,6 +154,7 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   x=sum(groups[-1])//len(groups[-1]);y=pixels.height//2
   u.SendMessageW(strip,0x201,1,(y<<16)|x);u.SendMessageW(strip,0x202,0,(y<<16)|x)
   wait(lambda:not u.IsWindow(third));wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
+  keyboard(second,2,'r')
   assert not any(cls(h)=='#32770' and pid(h) in pids for h in enum())
   u.SendMessageW(strip,0x201,1,(round(15*scale)<<16)|round(250*scale));u.SendMessageW(strip,0x202,0,(round(15*scale)<<16)|round(250*scale))
   def tab_menu(command_index):
@@ -144,11 +184,12 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   wait(lambda:u.SendMessageW(strip,0x1304,0,0)==1)
   wait(lambda:not u.IsWindowVisible(strip) and u.IsWindowVisible(first))
   assert not any(cls(h)=='#32770' and pid(h) in pids for h in enum())
-  u.PostMessageW(first,0x102,ord('A'),0);wait(lambda:received[1]==b'A')
+  keyboard(first,1,'z')
   # Whole-window close must still warn; Cancel keeps the connection alive.
   u.PostMessageW(host,0x10,0,0)
   dialog=wait(lambda:next((h for h in enum() if pid(h)==pid(host) and cls(h)=='#32770'),None))
   u.PostMessageW(dialog,0x111,2,0);wait(lambda:not u.IsWindow(dialog));assert u.IsWindow(first)
+  keyboard(first,1,'q')
   u.PostMessageW(host,0x111,0x7101,0);wait(lambda:not u.IsWindow(host))
   (root/'kitty.ini').write_text('[KiTTY]\nSessionTabs=0\n',encoding='utf-16')
   plain=launch()
