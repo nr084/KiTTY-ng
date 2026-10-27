@@ -86,7 +86,7 @@ bool kr_tabs_duplicate(HWND terminal)
     wchar_t exe[32768];
     if (!GetModuleFileNameW(NULL, exe, lenof(exe))) return false;
     wchar_t *line = snewn(32832, wchar_t);
-    swprintf(line, 32832, L"\"%ls\" --kitty-tab-host=%p", exe, terminal);
+    swprintf(line, 32832, L"\"%ls\" --kitty-tab-host=%p --language %ls", exe, terminal, kr_language()?L"ru":L"en");
     STARTUPINFOW si = { .cb = sizeof(si) }; PROCESS_INFORMATION pi;
     BOOL ok = CreateProcessW(exe, line, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
     sfree(line);
@@ -431,10 +431,11 @@ static LRESULT CALLBACK frame_proc(HWND hwnd, UINT message, WPARAM wp, LPARAM lp
 }
 bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
 {
-    const char prefix[]="--kitty-tab-host="; HWND source; char extra;
+    const char prefix[]="--kitty-tab-host="; HWND source; char extra, language[3];
     if (strncmp(command,prefix,sizeof(prefix)-1)) return false;
     *result=1;
-    if (sscanf(command+sizeof(prefix)-1,"%p%c",&source,&extra)!=1 || !same_executable(source)) return true;
+    if (sscanf(command+sizeof(prefix)-1,"%p --language %2s%c",&source,language,&extra)!=2 ||
+        (strcmp(language,"en") && strcmp(language,"ru")) || !same_executable(source)) return true;
     WNDCLASSEXW wc={ .cbSize=sizeof(wc), .lpfnWndProc=frame_proc, .hInstance=instance,
         .hCursor=LoadCursor(NULL,IDC_ARROW),.hbrBackground=(HBRUSH)(COLOR_BTNFACE+1),.lpszClassName=TAB_CLASS };
     wc.hIcon=(HICON)GetClassLongPtrW(source,GCLP_HICON);wc.hIconSm=(HICON)GetClassLongPtrW(source,GCLP_HICONSM);

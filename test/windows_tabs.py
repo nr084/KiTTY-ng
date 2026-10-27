@@ -122,6 +122,9 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
    u.PostMessageW(strip,0x204,2,(12<<16)|25);u.PostMessageW(strip,0x205,0,(12<<16)|25)
    popup=wait(lambda:next((h for h in enum() if cls(h)=='#32768' and pid(h)==pid(host)),None))
    menu=u.SendMessageW(popup,0x1e1,0,0)
+   caption=ctypes.create_unicode_buffer(100)
+   u.GetMenuStringW.argtypes=[w.HMENU,w.UINT,w.LPWSTR,ctypes.c_int,w.UINT]
+   u.GetMenuStringW(menu,0,caption,100,0x400);assert caption.value=="Close tab",caption.value
    u.GetMenuState.argtypes=[w.HMENU,w.UINT,w.UINT]
    assert u.GetMenuState(menu,2,0x400)&3, 'First tab must not move left'
    rect=w.RECT();u.GetMenuItemRect.argtypes=[w.HWND,w.HMENU,w.UINT,ctypes.POINTER(w.RECT)]
