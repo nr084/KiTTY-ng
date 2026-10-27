@@ -11,7 +11,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parent
 DOCS = ("README.md", "README.en.md", "README.ru.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
-        "PUTTY-LICENCE.txt", "KITTY-LICENCE.txt", "EMBEDDED-SSH.md", "RELEASE-1.1.0.md", "CHANGELOG.md", "VALIDATION.md", "PUBLICATION.md", "kittyngfs.example.ini")
+        "PUTTY-LICENCE.txt", "KITTY-LICENCE.txt", "EMBEDDED-SSH.md", "RELEASE-1.1.1.md", "CHANGELOG.md", "VALIDATION.md", "PUBLICATION.md", "kittyngfs.example.ini")
 SOURCE_FILES = (*DOCS, "pluginst.inf", "CMakeLists.txt", "build-cross.sh", "build-windows.cmd",
                 "build-local.py", "package.py", ".gitignore", "AGENTS.md", "PLAN.md", "REVIEW.md")
 

@@ -409,9 +409,50 @@ static void test_bounded_malformed_corpus(void)
         sf_entries_free(entries, count); finish(&f);
     }
 }
+
+static void data_reply(Fake *f, uint32_t id, unsigned char value, size_t n)
+{
+    Bytes b = reply(103, id); unsigned char *data = malloc(n ? n : 1);
+    CHECK(data); memset(data, value, n); string_n(&b, data, n); free(data); packet(f, &b);
+}
+static void test_batch_reads(void)
+{
+    Fake f; SfClient c; SfHandle h = {1,{0}}; size_t got, n;
+    unsigned char *data = malloc(SF_READ_BATCH); CHECK(data);
+    start(&f, &c, 0);
+    /* Reverse reply order, >4GiB offsets, all requests sent before receiving. */
+    for (unsigned i=SF_READ_WINDOW; i; --i) data_reply(&f, i, (unsigned char)i, SF_MAX_DATA);
+    CHECK(sf_read_batch(&c, &h, UINT64_C(0x100000007), data, SF_READ_BATCH, &got)==SF_OK);
+    CHECK(got==SF_READ_BATCH);
+    for (unsigned i=0;i<SF_READ_WINDOW;++i) CHECK(data[i*SF_MAX_DATA]==i+1);
+    const unsigned char *r=request(&f,1,&n);
+    CHECK(r[0]==5 && at32(r+10)==1 && at32(r+14)==7);
+    finish(&f);
+    start(&f,&c,0);data_reply(&f,2,'B',SF_MAX_DATA);data_reply(&f,1,'A',17);
+    CHECK(sf_read_batch(&c,&h,0,data,2*SF_MAX_DATA,&got)==SF_OK && got==17);
+    CHECK(f.cursor==f.input.size && c.alive); /* surplus data drained, no skipped hole */
+    status(&f,3,SF_FX_EOF,"");
+    CHECK(sf_read_batch(&c,&h,17,data,1,&got)==SF_EOF && !got);finish(&f);
+    start(&f,&c,0);status(&f,2,SF_FX_EOF,"");data_reply(&f,1,'A',11);
+    CHECK(sf_read_batch(&c,&h,0,data,2*SF_MAX_DATA,&got)==SF_OK && got==11);finish(&f);
+    start(&f,&c,0);data_reply(&f,1,'A',1);data_reply(&f,1,'A',1);
+    CHECK(sf_read_batch(&c,&h,0,data,2*SF_MAX_DATA,&got)==SF_ERR && !c.alive);finish(&f);
+    start(&f,&c,0);data_reply(&f,100,'A',1);
+    CHECK(sf_read_batch(&c,&h,0,data,1,&got)==SF_ERR && !c.alive);finish(&f);
+    start(&f,&c,0);data_reply(&f,1,'A',2);
+    CHECK(sf_read_batch(&c,&h,0,data,1,&got)==SF_ERR && !c.alive);finish(&f);
+    start(&f,&c,0);status(&f,1,SF_FX_PERMISSION_DENIED,"denied");
+    CHECK(sf_read_batch(&c,&h,0,data,2*SF_MAX_DATA,&got)==SF_ERR && !c.alive);finish(&f);
+    start(&f,&c,0);c.next_id=UINT32_MAX;data_reply(&f,1,'B',1);data_reply(&f,UINT32_MAX,'A',SF_MAX_DATA);
+    CHECK(sf_read_batch(&c,&h,0,data,SF_MAX_DATA+1,&got)==SF_OK && got==SF_MAX_DATA+1);finish(&f);
+    start(&f,&c,0);size_t before=f.output.size;
+    CHECK(sf_read_batch(&c,&h,UINT64_MAX-1,data,2,&got)==SF_ERR && c.alive && before==f.output.size);finish(&f);
+    free(data);
+}
 #define RUN(test) do { test(); ++tests_run; } while (0)
 int main(void)
 {
+    RUN(test_batch_reads);
     RUN(test_handshake);
     RUN(test_open_read_write_close);
     RUN(test_stat_and_attributes);

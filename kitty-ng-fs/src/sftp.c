@@ -3,7 +3,7 @@
  * Wire format: draft-ietf-secsh-filexfer-02 (SFTP v3).
  * Extension: OpenSSH PROTOCOL, posix-rename@openssh.com, revision 1.
  *
- * One outstanding request per client keeps ownership and cancellation simple.
+ * Metadata/writes are sequential; downloads use a bounded batch of READs.
  * Received sizes, names, handles, attribute flags and request IDs are validated
  * before use. A framing failure permanently invalidates this connection.
  */
@@ -638,6 +638,66 @@ int sf_read(SfClient *c, const SfHandle *handle, uint64_t offset, void *buffer,
     *received = size;
     release(&r);
     return SF_OK;
+}
+
+/* Pipeline a bounded window. Match IDs, drain all replies, and return only the
+ * contiguous prefix when a server produces short reads. Never skip a hole. */
+int sf_read_batch(SfClient *c, const SfHandle *handle, uint64_t offset,
+                  void *buffer, size_t capacity, size_t *received)
+{
+    uint32_t ids[SF_READ_WINDOW];
+    size_t lengths[SF_READ_WINDOW] = {0}, requested[SF_READ_WINDOW];
+    unsigned char seen[SF_READ_WINDOW] = {0};
+    size_t count, i, j;
+    if (received) *received = 0;
+    if (!received || !buffer || !capacity || capacity > SF_READ_BATCH ||
+        offset > UINT64_MAX - capacity)
+        return error_text(c, SF_FX_FAILURE, "Invalid SFTP batch read range");
+    count = (capacity + SF_MAX_DATA - 1) / SF_MAX_DATA;
+    for (i = 0; i < count; ++i) {
+        Buffer b;
+        requested[i] = capacity - i * SF_MAX_DATA;
+        if (requested[i] > SF_MAX_DATA) requested[i] = SF_MAX_DATA;
+        ids[i] = request_begin(c, &b, FXP_READ);
+        put_handle(&b, handle); put_u64(&b, offset + i * SF_MAX_DATA);
+        put_u32(&b, (uint32_t)requested[i]);
+        int result = send_packet(c, &b); release(&b);
+        if (result != SF_OK) { c->alive = 0; return SF_ERR; }
+    }
+    for (i = 0; i < count; ++i) {
+        Buffer r = {0};
+        uint32_t id;
+        if (receive_packet(c, &r) != SF_OK) return SF_ERR;
+        r.pos = 1; id = get_u32(&r);
+        for (j = 0; j < count && ids[j] != id; ++j) {}
+        if (r.bad || j == count || seen[j]) {
+            release(&r); return protocol_error(c, "Invalid or duplicate SFTP batch reply ID");
+        }
+        seen[j] = 1;
+        if (r.data[0] == FXP_DATA) {
+            size_t size;
+            const unsigned char *data = get_string(&r, &size);
+            if (r.bad || r.pos != r.size || !size || size > requested[j]) {
+                release(&r); return protocol_error(c, "Invalid SFTP batch data length");
+            }
+            memcpy((unsigned char *)buffer + j * SF_MAX_DATA, data, size);
+            lengths[j] = size;
+        } else {
+            int result = r.data[0] == FXP_STATUS ? read_status(c, &r, 0, 1) :
+                protocol_error(c, "Unexpected SFTP batch response");
+            if (result != SF_EOF) {
+                release(&r); c->alive = 0; return SF_ERR;
+            }
+        }
+        release(&r);
+    }
+    for (i = 0; i < count; ++i) {
+        *received += lengths[i];
+        if (lengths[i] < requested[i]) break;
+    }
+    c->last_status = *received ? SF_FX_OK : SF_FX_EOF;
+    c->error[0] = 0;
+    return *received ? SF_OK : SF_EOF;
 }
 
 int sf_write(SfClient *c, const SfHandle *handle, uint64_t offset,

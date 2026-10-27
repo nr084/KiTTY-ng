@@ -2,19 +2,19 @@
 
 [Русский](README.md) | **English** · [KiTTY-ng](https://github.com/nr084/KiTTY-ng)
 
-**SFTP in Total Commander using portable KiTTY-ng profiles.** Version 1.1.0 embeds SSH and SFTP into the x86/x64 WFX DLL. File transfers require no Klink, Plink or separate crypto DLL.
+**SFTP in Total Commander using portable KiTTY-ng profiles.** Version 1.1.1 embeds SSH and SFTP into the x86/x64 WFX DLL. File transfers require no Klink, Plink or separate crypto DLL.
 
-> **1.1.0 is a substantial feature release:** embedded SSH/SFTP, password prompts and server-key confirmation inside TC. See [implementation and validation notes](EMBEDDED-SSH.md).
+> **1.1.1:** faster downloads on higher-latency connections, with transferred MiB shown in the TC log. Embedded SSH/SFTP requires no Klink. See [implementation and validation notes](EMBEDDED-SSH.md).
 
-## Download 1.1.0
+## Download 1.1.1
 
 | Package | Contents |
 | --- | --- |
-| [Plugin x86 + x64](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.0/kitty-ng-fs-1.1.0-x86-x64.zip) | TC installer with documentation; no source code |
-| [Source code](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.0/kitty-ng-fs-1.1.0-source.zip) | C11, CMake, artwork, tests and packaging; no compiled DLLs |
-| [Checksums](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.0/SHA256SUMS.txt) | SHA-256 for both archives |
+| [Plugin x86 + x64](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/kitty-ng-fs-1.1.1-x86-x64.zip) | TC installer with documentation; no source code |
+| [Source code](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/kitty-ng-fs-1.1.1-source.zip) | C11, CMake, artwork, tests and packaging; no compiled DLLs |
+| [Checksums](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/SHA256SUMS.txt) | SHA-256 for both archives |
 
-The plugin has its own release cycle: plugin **1.1.0**, client **0.85-6**. KiTTY-ng/Klink, user profiles and keys are not bundled.
+The plugin has its own release cycle: plugin **1.1.1**, client **0.85-6**. KiTTY-ng/Klink, user profiles and keys are not bundled.
 
 ## Dots in session names
 

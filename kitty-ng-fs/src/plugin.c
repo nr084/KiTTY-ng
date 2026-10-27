@@ -46,8 +46,8 @@ typedef struct {
 } FindList;
 typedef struct {
     const wchar_t *source, *target;
-    int percent, cancelled;
-    ULONGLONG last_poll;
+    int percent, cancelled, reported_percent;
+    ULONGLONG last_poll, last_transfer_log;
 } Operation;
 
 static HINSTANCE module_instance;
@@ -118,8 +118,7 @@ static int poll_operation(void *unused)
     int abort = 0;
     (void)unused;
     if (operation.cancelled) return 1;
-    if (now - operation.last_poll < 80) return 0;
-    operation.last_poll = now;
+    if (now - operation.last_poll < 80 && operation.percent == operation.reported_percent) return 0;
     if (progress_w)
         abort = progress_w(plugin_number, (wchar_t *)(operation.source ? operation.source : L""),
                            (wchar_t *)(operation.target ? operation.target : L""), operation.percent);
@@ -130,6 +129,10 @@ static int poll_operation(void *unused)
         WideCharToMultiByte(CP_ACP, 0, operation.target ? operation.target : L"", -1, target, sizeof(target), NULL, NULL);
         abort = progress_a(plugin_number, source, target, operation.percent);
     }
+    /* TC may spend time processing messages or a pause inside its callback.
+     * Rate-limit from completion, not entry, to avoid a callback busy-loop. */
+    operation.last_poll = GetTickCount64();
+    operation.reported_percent = operation.percent;
     if (abort) operation.cancelled = 1;
     return operation.cancelled;
 }
@@ -508,6 +511,24 @@ static int transfer_percent(uint64_t done, uint64_t total)
     return p > 99 ? 99 : p;
 }
 
+/* WFX ProgressProc accepts whole percentages only. Keep its value truthful,
+ * and also report transferred MiB so the first <1% is visible in TC's log. */
+static void transfer_update(uint64_t done, uint64_t total)
+{
+    ULONGLONG now = GetTickCount64();
+    operation.percent = transfer_percent(done, total);
+    if (done && (!operation.last_transfer_log || now-operation.last_transfer_log >= 1000)) {
+        wchar_t message[160];
+        if (total)
+            swprintf(message, 160, L"Передано: %.2f / %.2f МиБ (%d%%)",
+                     (double)done/1048576.0, (double)total/1048576.0, operation.percent);
+        else
+            swprintf(message, 160, L"Передано: %.2f МиБ", (double)done/1048576.0);
+        operation.last_transfer_log = now;
+        log_message(MSGTYPE_DETAILS, message);
+    }
+}
+
 static int local_exists(const wchar_t *path, DWORD *attributes)
 {
     DWORD error;
@@ -566,7 +587,7 @@ int WINAPI FsGetFileW(wchar_t *remote_name, wchar_t *local_name, int flags, Remo
     HANDLE file = INVALID_HANDLE_VALUE;
     SfHandle handle;
     SfAttrs attrs;
-    unsigned char buffer[SF_MAX_DATA];
+    unsigned char *buffer = NULL;
     uint64_t offset = 0;
     size_t got;
     DWORD attributes, written;
@@ -594,8 +615,10 @@ int WINAPI FsGetFileW(wchar_t *remote_name, wchar_t *local_name, int flags, Remo
     file = CreateFileW(temporary, GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file == INVALID_HANDLE_VALUE) { result = FS_FILE_WRITEERROR; goto done; }
     temp_created = 1;
+    buffer = malloc(SF_READ_BATCH);
+    if (!buffer) { result = FS_FILE_WRITEERROR; goto done; }
     for (;;) {
-        status = sf_read(&c->sf, &handle, offset, buffer, sizeof(buffer), &got);
+        status = sf_read_batch(&c->sf, &handle, offset, buffer, SF_READ_BATCH, &got);
         if (status == SF_EOF) break;
         if (status != SF_OK) goto remote_error;
         if (!got || offset > UINT64_MAX - got) goto remote_error;
@@ -604,7 +627,7 @@ int WINAPI FsGetFileW(wchar_t *remote_name, wchar_t *local_name, int flags, Remo
         }
         if (!WriteFile(file, buffer, (DWORD)got, &written, NULL) || written != got) { result = FS_FILE_WRITEERROR; goto done; }
         offset += got;
-        operation.percent = transfer_percent(offset, (attrs.flags & SF_ATTR_SIZE) ? attrs.size : 0);
+        transfer_update(offset, (attrs.flags & SF_ATTR_SIZE) ? attrs.size : 0);
         if (poll_operation(NULL)) { result = FS_FILE_USERABORT; goto done; }
     }
     opened = 0;
@@ -638,7 +661,7 @@ done:
     if (file != INVALID_HANDLE_VALUE) CloseHandle(file);
     if (temp_created && !committed) DeleteFileW(temporary);
     if (c && operation.cancelled) connection_close(c);
-    free(remote); free(local); free(temporary);
+    free(buffer); free(remote); free(local); free(temporary);
     leave_plugin(); return result;
 }
 
@@ -698,7 +721,7 @@ int WINAPI FsPutFileW(wchar_t *local_name, wchar_t *remote_name, int flags)
         if (offset > size || got > size - offset) { result = FS_FILE_READERROR; goto done; }
         if (sf_write(&c->sf, &handle, offset, buffer, got) != SF_OK) goto remote_error;
         offset += got;
-        operation.percent = transfer_percent(offset, size);
+        transfer_update(offset, size);
         if (poll_operation(NULL)) { result = FS_FILE_USERABORT; goto done; }
     }
     if (offset != size || !GetFileInformationByHandle(file, &end_info) ||

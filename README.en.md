@@ -2,7 +2,7 @@
 
 **0.85-6 is available**: unsaved quick connections on Linux/macOS and standard editing shortcuts in macOS fields. [Release notes](docs/releases/0.85-6.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-6).
 
-**Total Commander plugin: [kitty-ng-fs 1.1.0](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.0)** — embedded SSH/SFTP without Klink, with password prompts and server-key confirmation in TC. Installer and source code are available as separate archives.
+**Total Commander plugin: [kitty-ng-fs 1.1.1](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.1)** — embedded SSH/SFTP without Klink, with password prompts and server-key confirmation in TC. Installer and source code are available as separate archives.
 
 [Русский](README.md) | **English**
 
@@ -45,11 +45,11 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 [KiTTY-ng FS](kitty-ng-fs/README.en.md) is a separate **Windows x86/x64** WFX plugin. Access SFTP in Total Commander through the embedded PuTTY/KiTTY-ng engine and existing portable SSH sessions: nested groups, transfers, renaming, directories and Unix permissions.
 
-[Download plugin 1.1.0](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.0/kitty-ng-fs-1.1.0-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.0/kitty-ng-fs-1.1.0-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
+[Download plugin 1.1.1](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/kitty-ng-fs-1.1.1-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/kitty-ng-fs-1.1.1-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
 
 **Name compatibility:** `mail.example.ru` is displayed as `mail·example·ru`, without moving its suffix to the extension column. Original connection names and remote filenames are preserved; old session paths remain supported.
 
-**New in 1.1.0:** file connections run inside WFX without external executables. Passwords, keyboard-interactive, PPK keys and server-key confirmation are handled through TC. Client and plugin releases are independent; installed KiTTY-ng is only needed for the optional terminal command.
+**New in 1.1.1:** pipelined downloads improve throughput on higher-latency connections; the log shows transferred MiB. File connections run inside WFX without external executables. Passwords, keyboard-interactive, PPK keys and server-key confirmation are handled through TC. Client and plugin releases are independent; installed KiTTY-ng is only needed for the optional terminal command.
 
 ## Screenshots
 

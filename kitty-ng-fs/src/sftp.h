@@ -11,6 +11,8 @@ extern "C" {
 
 #define SF_MAX_PACKET (1024u * 1024u)
 #define SF_MAX_DATA 32768u
+#define SF_READ_WINDOW 32u
+#define SF_READ_BATCH (SF_MAX_DATA * SF_READ_WINDOW)
 #define SF_MAX_HANDLE 256u
 #define SF_MAX_PATH_BYTES 32768u
 
@@ -97,6 +99,8 @@ int sf_open(SfClient *client, const char *path, uint32_t flags,
 int sf_close(SfClient *client, const SfHandle *handle);
 int sf_read(SfClient *client, const SfHandle *handle, uint64_t offset,
             void *buffer, size_t capacity, size_t *received);
+int sf_read_batch(SfClient *client, const SfHandle *handle, uint64_t offset,
+                  void *buffer, size_t capacity, size_t *received);
 int sf_write(SfClient *client, const SfHandle *handle, uint64_t offset,
              const void *buffer, size_t size);
 int sf_setstat(SfClient *client, const char *path, const SfAttrs *attrs);
