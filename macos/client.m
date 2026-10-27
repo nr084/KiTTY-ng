@@ -22,7 +22,7 @@
 #include <limits.h>
 
 static const CGFloat terminalPadding = 12;
-@class MacTerminal;
+@class MacTerminal,MacTabHost;
 typedef struct MacSession {
     Seat seat; TermWin termwin; LogPolicy logpolicy;
     __unsafe_unretained MacTerminal *view;
@@ -61,6 +61,8 @@ void uxsel_input_remove(uxsel_id *id){}
 @interface MacTerminal : NSView <NSTextInputClient,NSWindowDelegate,NSMenuItemValidation>
 @property(assign) MacSession *session;
 @property(nonatomic,strong) NSWindow *terminalWindow;
+@property(nonatomic,weak) MacTabHost *host;
+@property(nonatomic,strong) NSString *sessionTitle;
 @property(nonatomic,strong) NSFont *font;
 @property(nonatomic,strong) NSFont *boldFont;
 @property(nonatomic,strong) NSFont *wideFont;
@@ -93,6 +95,8 @@ void uxsel_input_remove(uxsel_id *id){}
 - (void)paste:(id)sender;
 - (void)copy:(id)sender;
 - (void)duplicate:(id)sender;
+- (void)disposeSession;
+- (void)updateSessionTitle:(NSString*)title;
 - (BOOL)validateMenuItem:(NSMenuItem *)item;
 @end
 /* Keep margins outside the terminal view: drawing, selection, IME and mouse
@@ -109,6 +113,8 @@ void uxsel_input_remove(uxsel_id *id){}
 }
 @end
 static NSSize terminalContentSize(MacTerminal *view,int cols,int rows){return NSMakeSize(cols*view.cellWidth+2*terminalPadding,rows*view.cellHeight+2*terminalPadding);}
+#include "session-tabs.h"
+static void open_conf_in_host(Conf *configuration,MacTabHost *host);
 static MacSession *TW(TermWin *w){return container_of(w,MacSession,termwin);}
 static MacSession *SEAT(Seat *w){return container_of(w,MacSession,seat);}
 static NSColor *colour(MacSession *s,unsigned index,optionalrgb actual){rgb c=actual.enabled?(rgb){actual.r,actual.g,actual.b}:s->palette[index<OSC4_NCOLOURS?index:OSC4_COLOUR_fg];return [NSColor colorWithSRGBRed:c.r/255.0 green:c.g/255.0 blue:c.b/255.0 alpha:1];}
@@ -168,7 +174,7 @@ static void cursor_pos(TermWin *w,int x,int y){}
 static void mouse_mode(TermWin *w,bool enabled){TW(w)->raw_mouse=enabled;}
 static void mouse_pointer(TermWin *w,bool enabled){}
 static void scrollbar(TermWin *w,int total,int start,int page){}
-static void bell(TermWin *w,int mode){NSBeep();if(conf_get_bool(TW(w)->conf,CONF_foreground_on_bell))[TW(w)->view.terminalWindow makeKeyAndOrderFront:nil];}
+static void bell(TermWin *w,int mode){NSBeep();if(conf_get_bool(TW(w)->conf,CONF_foreground_on_bell)){[TW(w)->view.host selectPage:TW(w)->view];[TW(w)->view.terminalWindow makeKeyAndOrderFront:nil];}}
 static void clip_write(TermWin *w,int clipboard,wchar_t *text,int *attrs,truecolour *colours,int len,bool deselect){NSString *s=[[NSString alloc]initWithBytes:text length:len*sizeof(wchar_t) encoding:NSUTF32LittleEndianStringEncoding];if(s){[NSPasteboard.generalPasteboard clearContents];[NSPasteboard.generalPasteboard setString:s forType:NSPasteboardTypeString];}}
 static void clip_paste(TermWin *w,int clipboard){[TW(w)->view paste:nil];}
 static void remote_clipboard(TermWin *w,const char *encoded){
@@ -178,8 +184,8 @@ static void remote_clipboard(TermWin *w,const char *encoded){
     NSString *text=[[NSString alloc]initWithData:data encoding:NSUTF8StringEncoding];if(text){[NSPasteboard.generalPasteboard clearContents];[NSPasteboard.generalPasteboard setString:text forType:NSPasteboardTypeString];}
 }
 static void refresh(TermWin *w){[TW(w)->view setNeedsDisplay:YES];}
-static void request_resize(TermWin *w,int cols,int rows){MacSession *s=TW(w);if(cols>0&&rows>0&&cols<=1000&&rows<=1000)[s->view.terminalWindow setContentSize:terminalContentSize(s->view,cols,rows)];term_resize_request_completed(s->term);}
-static void title(TermWin *w,const char *text,int cp){TW(w)->view.terminalWindow.title=[@"KiTTY-ng — " stringByAppendingString:S(text)];}
+static void request_resize(TermWin *w,int cols,int rows){MacSession *s=TW(w);if(cols>0&&rows>0&&cols<=1000&&rows<=1000&&s->view.host.selected==s->view){NSSize size=terminalContentSize(s->view,cols,rows);if(s->view.host.pages.count>1)size.height+=macTabHeight;[s->view.terminalWindow setContentSize:size];}term_resize_request_completed(s->term);}
+static void title(TermWin *w,const char *text,int cp){[TW(w)->view updateSessionTitle:[@"KiTTY-ng — " stringByAppendingString:S(text)]];}
 static void icon_title(TermWin *w,const char *text,int cp){}
 static void minimized(TermWin *w,bool state){if(state)[TW(w)->view.terminalWindow miniaturize:nil];else[TW(w)->view.terminalWindow deminiaturize:nil];}
 static void maximized(TermWin *w,bool state){NSWindow *window=TW(w)->view.terminalWindow;if(window.zoomed!=state)[window zoom:nil];}
@@ -195,9 +201,9 @@ static bool eof(Seat *seat){return true;}
 static void started(Seat *seat){SEAT(seat)->started=true;}
 static uint64_t now(void){return NSProcessInfo.processInfo.systemUptime*1000;}
 static void cancel_commands(MacSession *s){if(s->commands){smemclr(s->commands,strlen(s->commands));sfree(s->commands);s->commands=NULL;}s->command_index=0;}
-static void exited(Seat *seat){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);s->view.terminalWindow.title=[s->view.terminalWindow.title stringByAppendingString:T(@" — closed",@" — закрыто")];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.terminalWindow close];});}}
+static void exited(Seat *seat){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);[s->view updateSessionTitle:[s->view.sessionTitle stringByAppendingString:T(@" — closed",@" — закрыто")]];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.host closePage:owner];});}}
 static void fatal(Seat *seat,const char *error){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);int delay=conf_get_int(s->conf,CONF_kr_reconnect_delay);
-    if(delay>0&&!s->manual_abort){s->reconnect_due=now()+(uint64_t)delay*1000;[s->view.events addObject:S(error)];s->view.terminalWindow.title=T(@"KiTTY-ng — reconnecting…",@"KiTTY-ng — переподключение…");}else message(error);
+    if(delay>0&&!s->manual_abort){s->reconnect_due=now()+(uint64_t)delay*1000;[s->view.events addObject:S(error)];[s->view updateSessionTitle:T(@"KiTTY-ng — reconnecting…",@"KiTTY-ng — переподключение…")];}else message(error);
 }
 static void nonfatal_seat(Seat *seat,const char *error){message(error);}
 static NSString *dialog_text(SeatDialogText *text){NSMutableString *s=[NSMutableString new];for(size_t i=0;i<text->nitems;i++)if(text->items[i].type!=SDT_BATCH_ABORT)[s appendFormat:@"%@\n\n",S(text->items[i].text)];return s;}
@@ -316,7 +322,7 @@ int kr_mac_test_session_menu_ui(void){
     return terminalMenu(self,NO);
 }
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
-    MacSession *s=self.session;if(!s||s->closed||!s->conf)return NO;
+    MacSession *s=self.session;if(!s||!s->conf)return NO;
     NSString *name=item.representedObject;
     if([name isEqualToString:@"toggleTop:"])item.state=conf_get_bool(s->conf,CONF_alwaysontop)?NSControlStateValueOn:NSControlStateValueOff;
     if([name isEqualToString:@"toggleLock:"])item.state=s->input_locked?NSControlStateValueOn:NSControlStateValueOff;
@@ -361,7 +367,7 @@ int kr_mac_test_session_menu_ui(void){
     [self registerForDraggedTypes:@[NSPasteboardTypeFileURL]];
     [self loadBindings];s->seat.vt=&seat_vt;s->termwin.vt=&term_vt;s->logpolicy.vt=&log_vt;s->view=self;
     init_ucs(&s->ucs,conf_get_str(s->conf,CONF_line_codepage),conf_get_bool(s->conf,CONF_utf8_override),CS_UTF8,conf_get_int(s->conf,CONF_vtmode));s->term=term_init(s->conf,&s->ucs,&s->termwin);s->logctx=log_init(&s->logpolicy,s->conf);term_provide_logctx(s->term,s->logctx);
-    [self.terminalWindow setContentSize:terminalContentSize(self,MAX(20,conf_get_int(s->conf,CONF_width)),MAX(8,conf_get_int(s->conf,CONF_height)))];term_size(s->term,MAX(8,self.bounds.size.height/self.cellHeight),MAX(20,self.bounds.size.width/self.cellWidth),conf_get_int(s->conf,CONF_savelines));
+    if(self.host.pages.count==1)[self.terminalWindow setContentSize:terminalContentSize(self,MAX(20,conf_get_int(s->conf,CONF_width)),MAX(8,conf_get_int(s->conf,CONF_height)))];term_size(s->term,MAX(8,self.bounds.size.height/self.cellHeight),MAX(20,self.bounds.size.width/self.cellWidth),conf_get_int(s->conf,CONF_savelines));
     [NSWorkspace.sharedWorkspace.notificationCenter addObserver:self selector:@selector(woke:) name:NSWorkspaceDidWakeNotification object:nil];
     [self connect];
     if(conf_get_bool(s->conf,CONF_alwaysontop))self.terminalWindow.level=NSFloatingWindowLevel;
@@ -394,7 +400,7 @@ int kr_mac_test_session_menu_ui(void){
     if(n){term_keyinput(s->term,CS_UTF8,(const char*)data,n);s->command_index+=n;s->command_due=now()+(data[n-1]=='\r'?conf_get_int(s->conf,CONF_kr_command_delay):delay);}
 }
 - (void)setFrameSize:(NSSize)size{[super setFrameSize:size];if(self.session&&self.session->term&&self.cellWidth>0){int cols=MAX(1,size.width/self.cellWidth),rows=MAX(1,size.height/self.cellHeight);term_size(self.session->term,rows,cols,conf_get_int(self.session->conf,CONF_savelines));if(self.session->backend)backend_size(self.session->backend,cols,rows);[self setNeedsDisplay:YES];}}
-- (void)drawRect:(NSRect)rect{[((self.session&&self.session->term)?colour(self.session,OSC4_COLOUR_bg,optionalrgb_none):NSColor.blackColor) setFill];NSRectFill(rect);if(self.session&&self.session->term){self.session->painting=true;term_paint(self.session->term,0,0,self.session->term->cols-1,self.session->term->rows-1,true);self.session->painting=false;}}
+- (void)drawRect:(NSRect)rect{NSRectClip(self.bounds);rect=NSIntersectionRect(rect,self.bounds);[((self.session&&self.session->term)?colour(self.session,OSC4_COLOUR_bg,optionalrgb_none):NSColor.blackColor) setFill];NSRectFill(rect);if(self.session&&self.session->term){self.session->painting=true;term_paint(self.session->term,0,0,self.session->term->cols-1,self.session->term->rows-1,true);self.session->painting=false;}}
 - (void)sendText:(NSString *)text{MacSession *s=self.session;if(!s||!s->backend||s->input_locked)return;NSData *data=[text dataUsingEncoding:NSUTF32LittleEndianStringEncoding];term_keyinputw(s->term,data.bytes,data.length/sizeof(wchar_t));}
 - (void)insertText:(id)value replacementRange:(NSRange)range{NSString *text=[value isKindOfClass:NSAttributedString.class]?[value string]:value;[self unmarkText];[self sendText:text];}
 - (void)loadBindings {
@@ -413,7 +419,8 @@ int kr_mac_test_session_menu_ui(void){
 - (void)copyAll:(id)sender{if(self.session){int clip=CLIP_CLIPBOARD;term_copyall(self.session->term,&clip,1);}}
 - (void)clearHistory:(id)sender{if(self.session)term_clrsb(self.session->term);}
 - (void)resetTerminal:(id)sender{if(self.session)term_pwron(self.session->term,true);}
-- (void)duplicate:(id)sender{if(self.session)kr_mac_open_conf(self.session->conf);}
+- (void)duplicate:(id)sender{if(self.session)open_conf_in_host(self.session->conf,self.host.tabsEnabled?self.host:nil);}
+- (void)updateSessionTitle:(NSString*)title{self.sessionTitle=title;[self.host refresh];}
 - (void)showBrowser:(id)sender{kr_mac_show_windows();}
 - (void)keyDown:(NSEvent *)event{MacSession *s=self.session;if(!s||!s->term)return;if([self shortcut:event])return;
     if((event.modifierFlags&NSEventModifierFlagCommand)&&(event.keyCode==37||[event.charactersIgnoringModifiers.lowercaseString isEqualToString:@"l"])){s->input_locked=!s->input_locked;return;}if(s->input_locked)return;
@@ -465,7 +472,7 @@ int kr_mac_test_session_menu_ui(void){
 - (void)doCommandBySelector:(SEL)selector{if(selector==@selector(insertNewline:))[self sendText:@"\r"];else if(selector==@selector(insertTab:))[self sendText:@"\t"];else if(selector==@selector(deleteBackward:))[self sendText:@"\177"];}
 - (void)windowDidBecomeKey:(NSNotification *)note{if(self.session)term_set_focus(self.session->term,true);}
 - (void)windowDidResignKey:(NSNotification *)note{if(self.session)term_set_focus(self.session->term,false);}
-- (void)windowWillClose:(NSNotification *)note{MacSession *s=self.session;if(s){s->closed=true;s->started=false;s->reconnect_due=0;cancel_commands(s);[self saveWindow];[NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];if(s->ldisc)ldisc_free(s->ldisc);if(s->backend)backend_free(s->backend);if(s->term)term_free(s->term);if(s->logctx)log_free(s->logctx);conf_free(s->conf);delete_callbacks_for_context(s);expire_timer_context(s);sfree(s);self.session=NULL;}self.terminalWindow.delegate=nil;self.terminalWindow=nil;[windows removeObject:self];}
+- (void)disposeSession{MacSession *s=self.session;if(s){s->closed=true;s->started=false;s->reconnect_due=0;cancel_commands(s);[self saveWindow];[NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];if(s->ldisc)ldisc_free(s->ldisc);if(s->backend)backend_free(s->backend);if(s->term)term_free(s->term);if(s->logctx)log_free(s->logctx);conf_free(s->conf);delete_callbacks_for_context(s);expire_timer_context(s);sfree(s);self.session=NULL;}self.terminalWindow=nil;self.host=nil;[windows removeObject:self];}
 @end
 void kr_mac_pump(void){if(pumping||!initialized)return;pumping=true;fd_set read,write,except;FD_ZERO(&read);FD_ZERO(&write);FD_ZERO(&except);int state,flags,fd,maxfd=-1;
     for(fd=first_fd(&state,&flags);fd>=0;fd=next_fd(&state,&flags)){if(fd>=FD_SETSIZE)continue;if(flags&1)FD_SET(fd,&read);if(flags&2)FD_SET(fd,&write);if(flags&4)FD_SET(fd,&except);maxfd=MAX(maxfd,fd);}
@@ -478,14 +485,22 @@ void kr_mac_open_session(const char *name,const char *path){if(!kr_mac_select_ro
     if(!exists||!conf_launchable(conf)){conf_free(conf);message("Unable to load a connectable session. Select a saved profile with a host name.");return;}
     kr_mac_open_conf(conf);conf_free(conf);
 }
-void kr_mac_open_conf(Conf *configuration){
+void kr_mac_open_conf(Conf *configuration){open_conf_in_host(configuration,nil);}
+static void open_conf_in_host(Conf *configuration,MacTabHost *host){
     if(!initialized){setlocale(LC_CTYPE,"");sk_init();uxsel_init();enable_dit();settings_set_default_protocol(PROT_SSH);settings_set_default_port(22);windows=[NSMutableArray new];initialized=true;}
+    BOOL newWindow=host==nil;if(!host)host=[MacTabHost new];
     Conf *conf=conf_copy(configuration);const char *name=conf_get_str(conf,CONF_kr_session_name);
-    MacTerminal *view=[[MacTerminal alloc]initWithFrame:NSMakeRect(0,0,800,480)];MacSession *s=snew(MacSession);memset(s,0,sizeof(*s));s->conf=conf;view.session=s;char *profile=kr_mac_profile_path(name);view.profileSource=profile?[NSData dataWithContentsOfFile:S(profile)]:nil;sfree(profile);
-    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.tabbingMode=NSWindowTabbingModeDisallowed;window.title=[@"KiTTY-ng — " stringByAppendingString:S(*name?name:conf_get_str(conf,CONF_host))];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
-    window.contentView=frame;view.frame=NSInsetRect(frame.bounds,terminalPadding,terminalPadding);[frame addSubview:view];window.releasedWhenClosed=NO;window.delegate=view;window.minSize=NSMakeSize(240,160);view.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;view.terminalWindow=window;[windows addObject:view];[view start];[window center];[window makeKeyAndOrderFront:nil];[window makeFirstResponder:view];
-    if(conf_get_bool(conf,CONF_save_windowpos)){settings_r *reader=open_settings_r(name);int x=read_setting_i(reader,"MacWindowX",INT_MIN),y=read_setting_i(reader,"MacWindowY",INT_MIN),w=read_setting_i(reader,"MacWindowWidth",0),h=read_setting_i(reader,"MacWindowHeight",0);close_settings_r(reader);if(x!=INT_MIN&&y!=INT_MIN&&w>=240&&h>=160&&w<=10000&&h<=10000)[window setFrame:NSMakeRect(x,y,w,h) display:YES];}
-    if(conf_get_bool(conf,CONF_maximize))[window zoom:nil];if(conf_get_bool(conf,CONF_fullscreen))[window toggleFullScreen:nil];if(conf_get_bool(conf,CONF_sendtotray))[window orderOut:nil];
+    MacTerminal *view=[[MacTerminal alloc]initWithFrame:NSMakeRect(0,0,800,480)];view.clipsToBounds=YES;MacSession *s=snew(MacSession);memset(s,0,sizeof(*s));s->conf=conf;view.session=s;
+    char *profile=kr_mac_profile_path(name);view.profileSource=profile?[NSData dataWithContentsOfFile:S(profile)]:nil;sfree(profile);
+    view.sessionTitle=[@"KiTTY-ng — " stringByAppendingString:S(*name?name:conf_get_str(conf,CONF_host))];
+    [windows addObject:view];[host addPage:view];[view start];NSWindow *window=host.window;
+    if(newWindow){
+        [window center];
+        if(conf_get_bool(conf,CONF_save_windowpos)){settings_r *reader=open_settings_r(name);int x=read_setting_i(reader,"MacWindowX",INT_MIN),y=read_setting_i(reader,"MacWindowY",INT_MIN),w=read_setting_i(reader,"MacWindowWidth",0),h=read_setting_i(reader,"MacWindowHeight",0);close_settings_r(reader);if(x!=INT_MIN&&y!=INT_MIN&&w>=240&&h>=160&&w<=10000&&h<=10000)[window setFrame:NSMakeRect(x,y,w,h) display:YES];}
+        if(conf_get_bool(conf,CONF_maximize))[window zoom:nil];if(conf_get_bool(conf,CONF_fullscreen))[window toggleFullScreen:nil];
+    }
+    [window makeKeyAndOrderFront:nil];[window makeFirstResponder:view];
+    if(newWindow&&conf_get_bool(conf,CONF_sendtotray))[window orderOut:nil];
 }
 
 void kr_mac_show_windows(void){for(MacTerminal *view in [windows copy])[view.terminalWindow makeKeyAndOrderFront:nil];for(NSWindow *window in NSApp.windows)if([window.title isEqualToString:@"KiTTY-ng"])[window makeKeyAndOrderFront:nil];}

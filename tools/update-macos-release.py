@@ -31,13 +31,16 @@ def main():
     parser.add_argument('--publish',action='store_true',help='Requires a new explicit user instruction for this update')
     parser.add_argument('--replace-current-macos',action='store_true',help='Explicit user-authorized in-place Mac update, without retaining another Mac asset')
     parser.add_argument('--output',type=Path,default=ROOT/'dist/macos-native')
+    parser.add_argument('--notes',type=Path,help='Append reviewed Mac update notes while preserving current release notes')
+    parser.add_argument('--archive-suffix',default='previous-build',help='Distinct suffix for the retained previous Mac DMG')
     args=parser.parse_args()
     version=(ROOT/'VERSION').read_text().strip();tag='v'+version
     name=f'kitty-ng-{version}-macos-universal.dmg'
-    archived=f'kitty-ng-{version}-macos-universal-windows-build.dmg'
+    assert args.archive_suffix and all(c.isalnum() or c=='-' for c in args.archive_suffix)
+    archived=f'kitty-ng-{version}-macos-universal-{args.archive_suffix}.dmg'
     dest=args.output.resolve()
     commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
-    snapshot=dest/(f'github-before-macos-replacement-{commit[:12]}.json' if args.replace_current_macos else 'github-before-macos-update.json')
+    snapshot=dest/f'github-before-macos-update-{commit[:12]}.json'
     release=api('releases/tags/'+tag)
     assert not release['draft'] and not release['prerelease']
     if not snapshot.exists():
@@ -72,7 +75,9 @@ def main():
     cert=json.loads((dest/'certificates.json').read_text());assert cert['status']=='passed'
     for binary,digest in cert['binaries_sha256'].items():
         assert accepted_helper(binary,digest),'Certificate evidence must cover shipped or unchanged helper logic'
-    assert json.loads((dest/'gui-acceptance.json').read_text())['status']=='passed'
+    gui=json.loads((dest/'gui-acceptance.json').read_text())
+    assert gui['status']=='passed' and gui['source_sha256']==report['source_sha256']
+    assert gui['packaged_main_sha256']==hashlib.sha256((dest/'KiTTY-ng.app/Contents/MacOS/kitty-ng').read_bytes()).hexdigest()
     if args.replace_current_macos:
         keyboard=json.loads((dest/'browser-keyboard.json').read_text())
         assert keyboard['status']=='passed' and set(keyboard['architectures'])=={'arm64','x86_64'}
@@ -86,7 +91,7 @@ def main():
     asset=next(asset for asset in release['assets'] if asset['id']==original['id'])
     assert asset['size']==original['size'] and asset['digest']==original['digest']
     if not args.replace_current_macos and asset['name']==name:
-        asset=api('releases/assets/'+str(asset['id']),dict(name=archived,label='Предыдущая Mac-сборка на Windows (архив)'))
+        asset=api('releases/assets/'+str(asset['id']),dict(name=archived,label='Предыдущая Mac-сборка (архив)'))
     if not args.replace_current_macos:assert asset['name']==archived
     release=api('releases/tags/'+tag)
     uploaded=next((asset for asset in release['assets'] if asset['name']==name),None)
@@ -97,7 +102,10 @@ def main():
         release=api('releases/tags/'+tag)
         uploaded=next(asset for asset in release['assets'] if asset['name']==name)
     assert uploaded['digest']=='sha256:'+digest and uploaded['size']==path.stat().st_size
-    body=(ROOT/f'docs/releases/{version}.md').read_text()
+    body=release['body'].split('### SHA-256',1)[0].rstrip() if args.notes else (ROOT/f'docs/releases/{version}.md').read_text()
+    if args.notes:
+        notes=args.notes.read_text(encoding='utf8').strip()
+        if notes not in body:body+='\n\n'+notes
     body+=f'\n\nИсходники обновлённого Mac-пакета: [{commit[:12]}](https://github.com/{REPO}/commit/{commit}). Исходный тег и Windows/Linux-пакеты сохранены.\n\n### SHA-256\n\n```text\n'
     for asset in sorted(release['assets'],key=lambda item:item['name']):
         assert asset['digest'].startswith('sha256:')

@@ -1,8 +1,8 @@
 # KiTTY-ng
 
-**0.85-7 is available**: compact session tabs on Windows/Linux and native session duplication on macOS. [Release notes](docs/releases/0.85-7.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
+**0.85-7 is available**: compact session tabs on Windows, Linux and macOS. [Release notes](docs/releases/0.85-7.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
 
-**macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Mac tabs remain deferred.
+**macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
 
 **Total Commander plugin: [kitty-ng-fs 1.1.1](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.1)** — embedded SSH/SFTP without Klink, with password prompts and server-key confirmation in TC. Installer and source code are available as separate archives.
 
@@ -36,7 +36,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ## Features
 
-- macOS 0.85-7: duplicate into a separate window, including temporary connections, and a top menu for the active session. Mac tabs remain deferred.
+- macOS 0.85-7: native tabs, temporary connection duplication without saving profiles, and a top menu for the active session. [Details](docs/tabs.en.md).
 - Windows/Linux tabs in 0.85-7: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
 
 - Session folders, case-insensitive quick search, editing and duplication.
@@ -64,7 +64,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ### macOS Universal
 
-<img src="docs/screenshots/macos-session-en.png" width="760" alt="KiTTY-ng — macOS">
+<img src="docs/screenshots/macos-tabs-en.png" width="760" alt="KiTTY-ng — macOS">
 
 <details>
 <summary>KiTTYgen — macOS</summary>

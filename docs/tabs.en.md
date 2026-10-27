@@ -1,4 +1,4 @@
-# Session tabs — Windows and Linux
+# Session tabs — Windows, Linux and macOS
 
 [Documentation](README.en.md) · [Русский](tabs.md)
 
@@ -21,8 +21,10 @@ SessionTabs=0
 
 Use `SessionTabs=1` to enable tabs. A missing setting also means enabled. Saved session files retain their existing format.
 
-macOS tabs require a separate native implementation and validation on a Mac; this implementation covers Windows and Linux.
+macOS uses a native AppKit implementation with the same behavior. The strip scrolls horizontally when tabs exceed the window width. Each tab has independent settings, terminal state, scrollback and SSH connection. Duplicated quick connections remain temporary. The top Session menu targets the active tab.
 
 ![Windows tabs](screenshots/windows-tabs-en.png)
 
 ![Linux tabs](screenshots/linux-tabs-en.png)
+
+![macOS tabs](screenshots/macos-tabs-en.png)

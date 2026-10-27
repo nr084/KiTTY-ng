@@ -38,6 +38,7 @@ int kr_mac_self_test_ui(void){
         CHECK([[edit itemAtIndex:1].title isEqualToString:language?@"Копировать":@"Copy"]);
     }
     CHECK(kr_mac_test_session_menu_ui()==0);
+    CHECK(kr_mac_test_tabs_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);
     puts("PASS: native AppKit language round-trips, search cell/data preserved, stable language names, initial SSH/22 defaults");return 0;
 #undef CHECK

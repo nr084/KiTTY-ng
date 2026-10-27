@@ -10,6 +10,7 @@ void kr_mac_open_conf(struct conf_tag *conf);
 @class NSMenu;
 void kr_mac_add_session_menu(NSMenu *menu);
 int kr_mac_test_session_menu_ui(void);
+int kr_mac_test_tabs_ui(void);
 #endif
 void kr_mac_pump(void);
 char *kr_mac_directory_at(const char *base,const char *key);

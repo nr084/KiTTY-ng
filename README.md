@@ -1,8 +1,8 @@
 # KiTTY-ng
 
-**Выпущен 0.85-7**: компактные вкладки сеансов в Windows/Linux и нативное дублирование сеансов macOS. [Изменения](docs/releases/0.85-7.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
+**Выпущен 0.85-7**: компактные вкладки сеансов в Windows, Linux и macOS. [Изменения](docs/releases/0.85-7.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
 
-**macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Вкладки macOS отложены.
+**macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Нативные вкладки сеансов включены.
 
 **Плагин Total Commander: [kitty-ng-fs 1.1.1](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.1)** — встроенный SSH/SFTP без Klink, с вводом пароля и подтверждением ключа сервера в TC. Плагин и исходники доступны отдельными архивами.
 
@@ -36,7 +36,7 @@
 
 ## Возможности
 
-- macOS 0.85-7: дублирование в отдельное окно, включая временные подключения, и верхнее меню активного сеанса. Mac-вкладки отложены.
+- macOS 0.85-7: нативные вкладки, дублирование временных подключений без записи профиля и верхнее меню активного сеанса. [Подробнее](docs/tabs.md).
 - Вкладки Windows/Linux в 0.85-7: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
 
 - Папки сеансов, быстрый поиск без учёта регистра, редактирование и дублирование.
@@ -64,7 +64,7 @@
 
 ### macOS Universal
 
-<img src="docs/screenshots/macos-session-ru.png" width="760" alt="KiTTY-ng — macOS">
+<img src="docs/screenshots/macos-tabs-ru.png" width="760" alt="KiTTY-ng — macOS">
 
 <details>
 <summary>KiTTYgen — macOS</summary>

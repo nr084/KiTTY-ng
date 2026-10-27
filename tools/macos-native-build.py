@@ -77,7 +77,7 @@ def main():
         ninja=output([ninja, '--version']), sdk=dict(path=sdk, version=output(['xcrun','--show-sdk-version'])),
         os=output(['sw_vers']), source_sha256=source_hash(), source_commit=None,
         runtime_verified=False, native_tests={})
-    report['llvm']=json.loads(candidates[-1].read_text()) if candidates and compiler.resolve().is_relative_to(candidates[-1].parent) else None
+    report['llvm']=json.loads(candidates[-1].read_text()) if candidates and compiler.resolve().is_relative_to(candidates[-1].parent.resolve()) else None
     report['build_packages']=json.loads((STORE/'packages.json').read_text())
     report['command_line_tools']=output(['pkgutil','--pkg-info','com.apple.pkg.CLTools_Executables'])
     git = subprocess.run(['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True)

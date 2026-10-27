@@ -2,7 +2,7 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** The upcoming 0.85-7 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** The 0.85-7 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
 ## First launch
 
@@ -48,7 +48,7 @@ Unknown profile fields are retained. Mac font and window geometry settings use s
 
 New SSH profiles use port **22**. Choose **English / Русский → Apply** in the main window. KiTTYgen has a dropdown and Kageant has a language menu. The default follows the macOS language; a saved choice takes precedence. Remote output and user data are not translated.
 
-In 0.85-7 the top **Session** menu and terminal context menu expose the same commands. **Duplicate session** opens an independent connection in a separate window using the current settings. Quick connections and their copies stay temporary: no name prompt, new profile, Sessions or Default Settings writes, including when closing. Temporary session settings reopen without saving a profile. The top menu targets the active terminal and is disabled in other windows. Terminal menus exclude AutoFill. Native macOS tabs remain deferred.
+In 0.85-7 the top **Session** menu and terminal context menu expose the same commands. **Duplicate session** opens an independent connection in a new tab of the current window; `SessionTabs=0` opens a separate window. Quick connections and their copies stay temporary: no name prompt, new profile, Sessions or Default Settings writes, including when closing. Temporary session settings reopen without saving a profile. The top menu targets the active terminal and is disabled in other windows. Terminal menus exclude AutoFill. The tab strip is hidden for one session. Click to switch; drag or use the context menu to reorder. The red close button and Close tab end only that tab without confirmation; closing the entire window respects WarnOnClose. Set `SessionTabs=0` in the `[KiTTY]` section of `kitty.ini` to disable tabs for new windows. [Tab guide](tabs.en.md).
 
 ![macOS session menu](screenshots/macos-session-menu-en.png)
 
@@ -87,7 +87,7 @@ Compilation, signing, DMG packaging and native tests now run on a Mac: [build gu
 
 Captured on this Mac using synthetic profiles and a disposable test key.
 
-![KiTTY-ng — English interface](screenshots/macos-session-en.png)
+![KiTTY-ng — English tabs](screenshots/macos-tabs-en.png)
 
 ![KiTTYgen — English interface](screenshots/macos-kittygen-en.png)
 
