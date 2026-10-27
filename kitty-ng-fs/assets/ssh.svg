@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#68ddff"/>
+      <stop offset="1" stop-color="#218ce1"/>
+    </linearGradient>
+  </defs>
+  <!-- A blue terminal and a connected green endpoint: never a folder. -->
+  <path d="M17 34h12v7l6 3H11l6-3z" fill="#8ba6c0" stroke="#173148" stroke-width="1.7" stroke-linejoin="round"/>
+  <rect x="2" y="5" width="40" height="31" rx="5" fill="url(#rim)" stroke="#173148" stroke-width="1.7"/>
+  <rect x="5.5" y="8.5" width="33" height="24" rx="2.7" fill="#102738"/>
+  <path d="m11 14 7 6-7 6m14 0h6" fill="none" stroke="#55ee93" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="39" cy="36" r="8" fill="#19a876" stroke="#e8fff5" stroke-width="1.7"/>
+  <path d="M35.5 36h7m-3-3 3 3-3 3" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

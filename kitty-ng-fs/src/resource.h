@@ -1,0 +1,10 @@
+#define IDI_PLUGIN 1
+#define IDI_SSH 2
+#define IDI_SETTINGS 3
+#define IDD_SETTINGS 101
+#define IDC_ROOT 1001
+#define IDC_BROWSE 1002
+#define IDC_REMOTE_ROOT 1003
+#define IDC_TIMEOUT 1004
+#define IDC_AUTHOR 1005
+#define IDC_HOMEPAGE 1006

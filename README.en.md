@@ -6,7 +6,7 @@
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-**Portable SSH client for Windows, macOS and Linux.** A continuation of KiTTY on PuTTY 0.85, with English and Russian interfaces, session management, SSH keys, file transfers and automation.
+**SSH, files and portable sessions on Windows, macOS and Linux.** KiTTY-ng builds on KiTTY and PuTTY 0.85 with a terminal, connection management, keys and automation in English and Russian. The separate **kitty-ng-fs** SFTP plugin brings saved sessions to Total Commander.
 
 **Portable macOS app with shared Windows profiles.** Keep `KiTTY-ng.app` beside the Windows EXEs and use one `Sessions` directory. Settings and keys stay outside the app; internal file references can be relative to the shared folder.
 
@@ -38,6 +38,14 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 - KiTTYgen, Kageant and authentication settings from the current session.
 - Post-login commands and UTF-8 scripts, delays and reconnection.
 - Terminal settings, shortcuts, English and Russian interfaces.
+
+## Total Commander · kitty-ng-fs
+
+[KiTTY-ng FS](kitty-ng-fs/README.en.md) is a separate **Windows x86/x64** WFX plugin. Access SFTP in Total Commander through Klink and existing portable SSH sessions: nested groups, transfers, renaming, directories and Unix permissions.
+
+[Download plugin 1.0.2](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
+
+Client and plugin releases are independent. Install KiTTY-ng/Klink separately; the plugin uses a working saved login without interactive password/MFA prompts.
 
 ## Screenshots
 

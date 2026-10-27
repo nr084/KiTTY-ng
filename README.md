@@ -6,7 +6,7 @@
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-**Портативный SSH-клиент для Windows, macOS и Linux.** Развитие KiTTY на базе PuTTY 0.85: русский и английский интерфейс, управление сеансами, SSH-ключи, передача файлов и автоматизация.
+**SSH, файлы и портативные сеансы на Windows, macOS и Linux.** KiTTY-ng развивает KiTTY на базе PuTTY 0.85: терминал, управление подключениями, ключи и автоматизация с русским и английским интерфейсом. Для Total Commander доступен отдельный SFTP-плагин **kitty-ng-fs**.
 
 **macOS Portable и общие Windows-профили.** Держите `KiTTY-ng.app` рядом с Windows EXE и используйте один каталог `Sessions`. Настройки и ключи остаются снаружи приложения; внутренние файловые ссылки можно хранить относительно общей папки.
 
@@ -14,7 +14,7 @@
 
 | Платформа | Сборка 0.85-6 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.tar.zst) | `chmod +x`, launch |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86_64.tar.zst) | `chmod +x`, запуск |
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-6/kitty-ng-0.85-6-arm64.zip) | `kitty-ng-arm64.exe` |
@@ -38,6 +38,14 @@
 - Генератор KiTTYgen, агент Kageant и настройки аутентификации текущего сеанса.
 - Автокоманды и UTF-8-скрипты после входа, задержки и переподключение.
 - Настройки терминала, горячие клавиши, русский и английский интерфейс.
+
+## Total Commander · kitty-ng-fs
+
+[KiTTY-ng FS](kitty-ng-fs/README.md) — отдельный WFX-плагин для **Windows x86/x64**. Открывает SFTP в панелях Total Commander через Klink и существующие портативные SSH-сеансы: вложенные группы, передача файлов, переименование, каталоги и Unix-права.
+
+[Скачать плагин 1.0.2](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-x86-x64.zip) · [Исходники отдельно](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-source.zip) · [Установка и ограничения](kitty-ng-fs/README.md)
+
+Клиент и плагин выпускаются независимо. KiTTY-ng/Klink устанавливаются отдельно; плагин использует готовый сохранённый вход без интерактивного запроса пароля/MFA.
 
 ## Интерфейс
 

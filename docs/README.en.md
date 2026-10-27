@@ -9,6 +9,7 @@
 | [Linux · AppImage](linux.en.md) | AppImage, local Windows build and native validation |
 | [Compatibility](portable.en.md) | KiTTY migration, passwords, keys and relative paths |
 | [Builds](build.en.md) | Local Windows/macOS compilation and versions |
+| [kitty-ng-fs](../kitty-ng-fs/README.en.md) | Total Commander SFTP plugin for Windows x86/x64 |
 
 ## Technical reports
 

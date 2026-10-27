@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- Pixel-conscious silhouette for the 16/20/24px WFX list. -->
+  <path d="M13 5h1v6h-3" fill="none" stroke="#2ba9ff" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="6" y="1" width="8.5" height="8" rx="1.2" fill="#c8d9eb" stroke="#173148" stroke-width=".7"/>
+  <rect x="7.2" y="2.3" width="6" height="5.4" rx=".5" fill="#102738"/>
+  <path d="m8.4 3.3 1.7 1.4-1.7 1.4m3 .1h.8" fill="none" stroke="#55ee93" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M4.8 12h3.1v2l1.1.6H3.6l1.2-.6z" fill="#b8cde1" stroke="#173148" stroke-width=".6"/>
+  <rect x=".7" y="6.1" width="10.5" height="7.7" rx="1.4" fill="#dae7f4" stroke="#173148" stroke-width=".7"/>
+  <rect x="1.9" y="7.4" width="8.1" height="5.1" rx=".6" fill="#102738"/>
+  <path d="m3.1 8.4 1.8 1.5-1.8 1.4m3.5.1h1.8" fill="none" stroke="#55ee93" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -9,6 +9,7 @@
 | [Linux · AppImage](linux.md) | AppImage, локальная сборка на Windows и нативные проверки |
 | [Совместимость](portable.md) | Переход с KiTTY, пароли, ключи и относительные пути |
 | [Сборка](build.md) | Локальная компиляция Windows/macOS и версии |
+| [kitty-ng-fs](../kitty-ng-fs/README.md) | SFTP-плагин Total Commander для Windows x86/x64 |
 
 ## Технические отчёты
 
