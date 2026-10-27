@@ -102,10 +102,13 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   scale=u.GetDpiForWindow(host)/96
   u.GetForegroundWindow.restype=w.HWND
   u.SetForegroundWindow.argtypes=[w.HWND]
-  assert u.SetForegroundWindow(host)
+  u.SetForegroundWindow(host)
+  # A preceding GUI suite may own foreground permission. Activate through the
+  # title bar if necessary, without selecting or dragging a tab.
+  rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));u.SetCursorPos(rect.left+100,rect.top+10)
+  if u.GetForegroundWindow()!=host:
+   u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
   wait(lambda:u.GetForegroundWindow()==host)
-  # Keep the physical pointer off the strip during deterministic drag messages.
-  rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));u.SetCursorPos(rect.left+25,rect.top+10)
   def mouse(message,x,y=15,buttons=0):
    u.SendMessageW(strip,message,buttons,(round(y*scale)<<16)|round(x*scale))
    time.sleep(.1)
