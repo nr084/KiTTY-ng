@@ -12,10 +12,14 @@ follow Christian Ghisler's published Total Commander filesystem plugin SDK:
 https://ghisler.github.io/WFX-SDK/contents.htm . The SDK sample implementation
 is not incorporated into this plugin.
 
-KiTTY-ng / Klink is launched as an external executable supplied by the user.
-No KiTTY-ng executable, private key, saved session, password, host-key cache,
-or source implementation is bundled. KiTTY-ng's own license and notices apply
-to that separately obtained software: https://github.com/nr084/KiTTY-ng .
+The development build statically links the existing PuTTY/KiTTY-ng SSH,
+cryptography, settings and portable-storage code from this repository.
+PuTTY: Simon Tatham and contributors; KiTTY: Cyril Dupont and contributors.
+The full MIT notices are included in PUTTY-LICENCE.txt and KITTY-LICENCE.txt.
+Standalone source packages include the exact engine sources under engine/.
+No Klink executable, user private key, session, password or host-key cache
+is bundled. The optional terminal command still launches a separately
+installed KiTTY-ng GUI; it is not used for file transfers.
 
 The SFTP implementation was written for this plugin against the public SFTP
 v3 wire description and OpenSSH extension documentation. OpenSSH source is
@@ -26,5 +30,4 @@ support and Windows SDK import interfaces are provided under their respective
 LLVM and mingw-w64 licenses. Windows system DLLs/UCRT are provided by Windows;
 no non-system runtime DLL is required by the import table.
 
-Tests were executed using temporary Wine and Paramiko installations and an
-official KiTTY-ng release. These testing tools are not bundled.
+Historical release tests used Wine and an official KiTTY-ng release. The embedded development tests use native Windows WFX harnesses and a loopback Paramiko server with synthetic keys. These testing tools are not bundled.

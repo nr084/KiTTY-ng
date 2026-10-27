@@ -57,6 +57,8 @@ static tProgressProc progress_a;
 static tProgressProcW progress_w;
 static tLogProc log_a;
 static tLogProcW log_w;
+static tRequestProc request_a;
+static tRequestProcW request_w;
 static Config config;
 static wchar_t module_dir[KG_PATH], ini_path[KG_PATH];
 static KgProfiles profiles;
@@ -75,6 +77,34 @@ static void log_message(int type, const wchar_t *message)
         if (WideCharToMultiByte(CP_ACP, 0, message, -1, text, sizeof(text), NULL, NULL))
             log_a(plugin_number, type, text);
     }
+}
+
+static int request_input(void *ctx, int kind, const wchar_t *title,
+                         const wchar_t *text, wchar_t *result, size_t cap)
+{
+    (void)ctx;
+    if (!result || !cap || cap > INT_MAX) return 0;
+    result[0] = 0;
+    if (request_w) return request_w(plugin_number, kind, (wchar_t *)title,
+                                   (wchar_t *)text, result, (int)cap);
+    if (request_a) {
+        char heading[512], body[16384], answer[4096] = {0};
+        if (!WideCharToMultiByte(CP_ACP, 0, title, -1, heading, sizeof(heading), NULL, NULL) ||
+            !WideCharToMultiByte(CP_ACP, 0, text, -1, body, sizeof(body), NULL, NULL)) return 0;
+        BOOL ok = request_a(plugin_number, kind, heading, body, answer, sizeof(answer));
+        if (ok) ok = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, answer, -1, result, (int)cap) != 0;
+        SecureZeroMemory(answer, sizeof(answer));
+        return ok;
+    }
+    return 0;
+}
+
+static void connection_dialog(const wchar_t *text)
+{
+    if (request_w || request_a) {
+        wchar_t ignored[2];
+        request_input(NULL, 8, L"KiTTY-ng FS", text, ignored, 2);
+    } else MessageBoxW(GetActiveWindow(), text, L"KiTTY-ng FS", MB_OK | MB_ICONERROR);
 }
 
 static void error_message(const wchar_t *message)
@@ -239,9 +269,9 @@ static void connection_error(Connection *c, const wchar_t *action, int dialog)
     error_message(text);
     if (dialog && !operation.cancelled) {
         size_t len = wcslen(text);
-        const wchar_t help[] = L"\n\nПроверьте сеанс в KiTTY-ng. При первом подключении проверьте и примите ключ сервера там. Для пакетного режима нужен сохранённый пароль, доступный ключ или запущенный Kageant. Команда terminal в строке TC открывает выбранный сеанс.";
+        const wchar_t help[] = L"\n\nПроверьте сеанс в KiTTY-ng. Ключ сервера и пароль запрашиваются самим плагином. Можно использовать сохранённый пароль, ключ PPK или Kageant. Команда terminal в строке TC открывает выбранный сеанс.";
         if (len + wcslen(help) < 4096) wcscat(text, help);
-        MessageBoxW(GetActiveWindow(), text, L"KiTTY-ng FS", MB_OK | MB_ICONERROR);
+        connection_dialog(text);
     }
     free(detail); free(transport);
 }
@@ -250,7 +280,7 @@ static Connection *get_connection(KgProfile *profile)
 {
     size_t i, slot = KG_MAX_CONNECTIONS;
     ULONGLONG oldest = ULLONG_MAX;
-    wchar_t exe[KG_PATH], error[1024], logline[KG_PATH];
+    wchar_t error[1024], logline[KG_PATH];
     const wchar_t *root_path = session_tree.nodes[session_tree.profile_nodes[(size_t)(profile - profiles.items)]].path;
     char *root = NULL;
     Connection *c;
@@ -275,17 +305,13 @@ static Connection *get_connection(KgProfile *profile)
         connection_close(&connections[slot]);
     }
     c = &connections[slot];
-    if (!kg_find_tool(config.root, 0, exe, KG_PATH)) {
-        MessageBoxW(GetActiveWindow(), L"В выбранной папке не найден подходящий Klink. Для 32-битного TC нужен klink-x86.exe, для 64-битного — klink-x64.exe. Откройте [Настройки KiTTY-ng].", L"KiTTY-ng FS", MB_ICONERROR | MB_OK);
-        return NULL;
-    }
     c->session_root = kg_wdup(root_path); c->load_name = kg_wdup(profile->load_name);
     if (!c->session_root || !c->load_name || !(root = kg_utf8(config.remote_root))) goto fail;
-    c->transport = kg_transport_start(exe, config.root, profile->load_name, config.timeout_ms,
+    c->transport = kg_transport_start(config.root, profile->load_name, config.timeout_ms,
                                       poll_operation, NULL, error, 1024);
     if (!c->transport) {
         error_message(error);
-        if (!operation.cancelled) MessageBoxW(GetActiveWindow(), error, L"KiTTY-ng FS", MB_ICONERROR | MB_OK);
+        if (!operation.cancelled) connection_dialog(error);
         goto fail;
     }
     if (sf_init(&c->sf, kg_transport_io(c->transport)) != SF_OK ||
@@ -868,7 +894,7 @@ static INT_PTR CALLBACK settings_dialog(HWND dialog, UINT message, WPARAM wparam
         if (LOWORD(wparam) == IDOK) {
             Config candidate = {0};
             KgProfiles test = {0};
-            wchar_t exe[KG_PATH], error[1024], timeout[16];
+            wchar_t error[1024], timeout[16];
             BOOL translated;
             UINT seconds;
             GetDlgItemTextW(dialog, IDC_ROOT, candidate.stored_root, KG_PATH);
@@ -878,8 +904,8 @@ static INT_PTR CALLBACK settings_dialog(HWND dialog, UINT message, WPARAM wparam
                 MessageBoxW(dialog, L"Укажите начальный каталог и тайм-аут от 5 до 600 секунд.", L"KiTTY-ng FS", MB_OK | MB_ICONWARNING); return TRUE;
             }
             candidate.timeout_ms = seconds * 1000;
-            if (!resolve_config_root(&candidate) || !kg_find_tool(candidate.root, 0, exe, KG_PATH)) {
-                MessageBoxW(dialog, L"В папке должен находиться klink-x86.exe для TC x86 или klink-x64.exe для TC x64. Нужен официальный портативный комплект KiTTY-ng.", L"KiTTY-ng FS", MB_OK | MB_ICONWARNING); return TRUE;
+            if (!resolve_config_root(&candidate)) {
+                MessageBoxW(dialog, L"Укажите существующий каталог портативных профилей KiTTY-ng.", L"KiTTY-ng FS", MB_OK | MB_ICONWARNING); return TRUE;
             }
             if (!kg_profiles_load(candidate.root, &test, error, 1024)) {
                 MessageBoxW(dialog, error, L"KiTTY-ng FS", MB_OK | MB_ICONWARNING); return TRUE;
@@ -978,9 +1004,9 @@ int WINAPI FsExecuteFileW(HWND parent, wchar_t *name, wchar_t *verb)
         (!_wcsicmp(verb, L"open") && settings_path(name)) ||
         !_wcsicmp(verb, L"quote settings")) { result = show_settings(parent); goto done; }
     if (!_wcsicmp(verb, L"quote help")) {
-        MessageBoxW(parent, L"KiTTY-ng FS 1.0.1\nАвтор: " KG_WTEXT(KG_AUTHOR)
+        MessageBoxW(parent, L"KiTTY-ng FS\nАвтор: " KG_WTEXT(KG_AUTHOR)
                     L"\nДомашняя страница: " KG_WTEXT(KG_HOMEPAGE_URL)
-                    L"\n\nКоманды в строке Total Commander:\nterminal — открыть сеанс в KiTTY-ng\ndisconnect — закрыть SSH-сеанс\nrefresh — перечитать список сессий\nsettings — настройки плагина\nhomepage — открыть домашнюю страницу\n\nФайлы передаются по SFTP. Пароли и ключи берутся самой KiTTY-ng из её папки.", L"KiTTY-ng FS", MB_OK | MB_ICONINFORMATION);
+                    L"\n\nКоманды в строке Total Commander:\nterminal — открыть сеанс в KiTTY-ng\ndisconnect — закрыть SSH-сеанс\nrefresh — перечитать список сессий\nsettings — настройки плагина\nhomepage — открыть домашнюю страницу\n\nФайлы передаются по SFTP. SSH и SFTP встроены в плагин. Используются профили KiTTY-ng; внешний Klink не нужен.", L"KiTTY-ng FS", MB_OK | MB_ICONINFORMATION);
         result = FS_EXEC_OK; goto done;
     }
     if (!_wcsicmp(verb, L"quote homepage")) { result = open_homepage(parent); goto done; }
@@ -993,7 +1019,7 @@ int WINAPI FsExecuteFileW(HWND parent, wchar_t *name, wchar_t *verb)
             wchar_t text[2048];
             swprintf(text, 2048, L"Группа KiTTY-ng: %ls\n\nВыберите вложенную папку или SSH-подключение. Группы читаются из портативной папки KiTTY-ng.", name);
             text[2047] = 0;
-            MessageBoxW(parent, text, L"KiTTY-ng FS 1.0.1", MB_OK | MB_ICONINFORMATION); result = FS_EXEC_OK;
+            MessageBoxW(parent, text, L"KiTTY-ng FS", MB_OK | MB_ICONINFORMATION); result = FS_EXEC_OK;
         }
         goto done;
     }
@@ -1108,13 +1134,13 @@ int WINAPI FsExtractCustomIconW(wchar_t *name, int flags, HICON *icon)
 
 int WINAPI FsInit(int number, tProgressProc progress, tLogProc log, tRequestProc request)
 {
-    (void)request;
+    request_a = request; kg_transport_set_prompt(request_input, NULL);
     plugin_number = number; progress_a = progress; log_a = log; return 0;
 }
 
 int WINAPI FsInitW(int number, tProgressProcW progress, tLogProcW log, tRequestProcW request)
 {
-    (void)request;
+    request_w = request; kg_transport_set_prompt(request_input, NULL);
     plugin_number = number; progress_w = progress; log_w = log; return 0;
 }
 
@@ -1231,7 +1257,7 @@ BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, LPVOID reserved)
     if (reason == DLL_PROCESS_ATTACH) {
         module_instance = instance; InitializeCriticalSection(&mutex); DisableThreadLibraryCalls(instance);
     } else if (reason == DLL_PROCESS_DETACH) {
-        /* No waits, child process interaction or callbacks under loader lock. */
+        /* No user callbacks or worker threads survive unloading the embedded engine. */
         for (i = 0; i < KG_MAX_CONNECTIONS; ++i) {
             if (connections[i].transport) kg_transport_abandon(connections[i].transport);
             free(connections[i].session_root); free(connections[i].load_name); free(connections[i].base);

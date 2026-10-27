@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
-project(kittyngfs VERSION 1.0.3 LANGUAGES C RC)
+if(NOT TARGET sshclient)
+  message(FATAL_ERROR "Configure the KiTTY-ng source root with -DCMAKE_PROJECT_kitty-ng_INCLUDE=<plugin>/cmake/embed.cmake -DKITTYNGFS_DIR=<plugin>, or use build-local.py.")
+endif()
 if(NOT WIN32)
   message(FATAL_ERROR "Use an MSVC/MinGW Windows toolchain to build this WFX plugin.")
 endif()
@@ -7,8 +9,22 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 add_library(kittyngfs SHARED
-  src/plugin.c src/pathutil.c src/profiles.c src/session_tree.c src/sftp.c src/transport.c
-  src/plugin.rc src/kittyngfs.def)
+  "${KITTYNGFS_DIR}/src/plugin.c" "${KITTYNGFS_DIR}/src/pathutil.c" "${KITTYNGFS_DIR}/src/profiles.c" "${KITTYNGFS_DIR}/src/session_tree.c" "${KITTYNGFS_DIR}/src/sftp.c" "${KITTYNGFS_DIR}/src/transport.c"
+  "${KITTYNGFS_DIR}/src/embedded_frontend.c" "${CMAKE_SOURCE_DIR}/stubs/no-lineedit.c"
+  "${KITTYNGFS_DIR}/src/plugin.rc" "${KITTYNGFS_DIR}/src/kittyngfs.def" "${KITTYNGFS_DIR}/src/embedded_select.c"
+  "${CMAKE_SOURCE_DIR}/windows/no-jump-list.c"
+  "${CMAKE_SOURCE_DIR}/windows/nohelp.c")
+# Replace only the plugin build's portable-store adapter. Never set the host
+# process environment or infer configuration from Total Commander's executable.
+get_target_property(kg_utils_sources utils SOURCES)
+list(FILTER kg_utils_sources EXCLUDE REGEX "/windows/kittyng-portable[.]c$")
+set_property(TARGET utils PROPERTY SOURCES "${kg_utils_sources}")
+target_sources(utils PRIVATE "${KITTYNGFS_DIR}/src/embedded_portable.c")
+target_include_directories(utils PRIVATE "${KITTYNGFS_DIR}/src")
+be_list(kittyngfs KiTTY-ng-FS SSH)
+target_link_libraries(kittyngfs PRIVATE eventloop noterminal sshclient settings network crypto utils ${platform_libraries})
+target_compile_definitions(kittyngfs PRIVATE HAVE_CMAKE_H)
+
 target_compile_definitions(kittyngfs PRIVATE UNICODE _UNICODE _WIN32_WINNT=0x0A00 WINVER=0x0A00)
 target_link_libraries(kittyngfs PRIVATE user32 shell32 ole32 shlwapi advapi32 bcrypt)
 set_target_properties(kittyngfs PROPERTIES OUTPUT_NAME "kitty-ng-fs" PREFIX "")
@@ -27,3 +43,26 @@ else()
     target_link_options(kittyngfs PRIVATE -Wl,--kill-at)
   endif()
 endif()
+if(NOT MSVC)
+  target_compile_options(kittyngfs PRIVATE -Wno-unused-parameter)
+endif()
+
+get_target_property(kg_network_sources network SOURCES)
+list(FILTER kg_network_sources EXCLUDE REGEX "/windows/local-proxy[.]c$")
+set_property(TARGET network PROPERTY SOURCES "${kg_network_sources}")
+target_sources(network PRIVATE "${KITTYNGFS_DIR}/src/embedded_proxy.c")
+
+get_target_property(kg_ssh_sources sshclient SOURCES)
+list(FILTER kg_ssh_sources EXCLUDE REGEX "/windows/agent-client[.]c$")
+set_property(TARGET sshclient PROPERTY SOURCES "${kg_ssh_sources}")
+target_sources(sshclient PRIVATE "${KITTYNGFS_DIR}/src/embedded_agent.c")
+if(MSVC)
+  set_source_files_properties("${KITTYNGFS_DIR}/src/plugin.rc" PROPERTIES COMPILE_FLAGS "/c65001")
+else()
+  set_source_files_properties("${KITTYNGFS_DIR}/src/plugin.rc" PROPERTIES COMPILE_FLAGS "--codepage=65001")
+endif()
+
+add_executable(kg_test_agent "${KITTYNGFS_DIR}/tests/test_agent.c"
+  "${KITTYNGFS_DIR}/src/embedded_agent.c" "${KITTYNGFS_DIR}/src/embedded_frontend.c")
+target_compile_definitions(kg_test_agent PRIVATE HAVE_CMAKE_H agent_named_pipe_name=kg_test_agent_pipe_name)
+target_link_libraries(kg_test_agent PRIVATE network crypto utils ${platform_libraries})

@@ -151,7 +151,7 @@ static void inspect_dialog(const wchar_t *path)
     (void)read_string(&reader); /* menu */
     (void)read_string(&reader); /* dialog class */
     dialog_title = read_string(&reader);
-    CHECK(!wcscmp(dialog_title.text, L"KiTTY-ng FS 1.0.3 — настройки"));
+    CHECK(!wcscmp(dialog_title.text, L"KiTTY-ng FS 1.1.0 — настройки"));
     if (style & DS_SETFONT) {
         skip(&reader, 6); /* pointsize, weight, italic, charset */
         (void)read_string(&reader); /* typeface */
@@ -233,17 +233,17 @@ static void inspect_version(const wchar_t *path)
     if (found && fixed && length >= sizeof(VS_FIXEDFILEINFO)) {
         info = (const VS_FIXEDFILEINFO *)fixed;
         CHECK(info->dwSignature == VS_FFI_SIGNATURE);
-        CHECK(info->dwFileVersionMS == 0x00010000u && info->dwFileVersionLS == 0x00030000u);
-        CHECK(info->dwProductVersionMS == 0x00010000u && info->dwProductVersionLS == 0x00030000u);
+        CHECK(info->dwFileVersionMS == 0x00010001u && info->dwFileVersionLS == 0x00000000u);
+        CHECK(info->dwProductVersionMS == 0x00010001u && info->dwProductVersionLS == 0x00000000u);
     }
     check_version_string(block, L"CompanyName", L"nr084");
     check_version_string(block, L"Author", L"nr084");
     check_version_string(block, L"Comments", L"Author: nr084. Homepage: https://github.com/nr084/KiTTY-ng");
     check_version_string(block, L"LegalCopyright", L"Copyright (c) 2026 nr084. MIT License.");
     check_version_string(block, L"URLInfoAbout", L"https://github.com/nr084/KiTTY-ng");
-    check_version_string(block, L"FileVersion", L"1.0.3");
-    check_version_string(block, L"ProductVersion", L"1.0.3");
-    printf("Inspected VERSIONINFO: 1.0.3.0, author nr084, homepage https://github.com/nr084/KiTTY-ng.\n");
+    check_version_string(block, L"FileVersion", L"1.1.0");
+    check_version_string(block, L"ProductVersion", L"1.1.0");
+    printf("Inspected VERSIONINFO: 1.1.0.0, author nr084, homepage https://github.com/nr084/KiTTY-ng.\n");
     free(block);
 }
 

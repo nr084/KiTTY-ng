@@ -10,7 +10,7 @@ IDI_SETTINGS ICON "../assets/settings.ico"
 
 IDD_SETTINGS DIALOGEX 0, 0, 348, 220
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "KiTTY-ng FS 1.0.3 — настройки"
+CAPTION "KiTTY-ng FS 1.1.0 — настройки"
 FONT 9, "Segoe UI"
 BEGIN
     LTEXT "Папка портативной KiTTY-ng:", -1, 10, 10, 315, 12
@@ -29,8 +29,8 @@ BEGIN
 END
 
 1 VERSIONINFO
-FILEVERSION 1,0,3,0
-PRODUCTVERSION 1,0,3,0
+FILEVERSION 1,1,0,0
+PRODUCTVERSION 1,1,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -44,9 +44,9 @@ BEGIN
    VALUE "CompanyName", KG_AUTHOR
    VALUE "Author", KG_AUTHOR
    VALUE "Comments", KG_FILE_COMMENTS
-   VALUE "FileVersion", "1.0.3"
+   VALUE "FileVersion", "1.1.0"
    VALUE "ProductName", "KiTTY-ng FS"
-   VALUE "ProductVersion", "1.0.3"
+   VALUE "ProductVersion", "1.1.0"
    VALUE "LegalCopyright", KG_COPYRIGHT
    VALUE "URLInfoAbout", KG_HOMEPAGE_URL
   END

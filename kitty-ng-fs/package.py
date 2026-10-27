@@ -6,10 +6,12 @@ import hashlib
 from pathlib import Path
 import struct
 import zipfile
+import json
+import subprocess
 
 ROOT = Path(__file__).resolve().parent
 DOCS = ("README.md", "README.en.md", "README.ru.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
-        "CHANGELOG.md", "VALIDATION.md", "PUBLICATION.md", "kittyngfs.example.ini")
+        "PUTTY-LICENCE.txt", "KITTY-LICENCE.txt", "EMBEDDED-SSH.md", "RELEASE-1.1.0.md", "CHANGELOG.md", "VALIDATION.md", "PUBLICATION.md", "kittyngfs.example.ini")
 SOURCE_FILES = (*DOCS, "pluginst.inf", "CMakeLists.txt", "build-cross.sh", "build-windows.cmd",
                 "build-local.py", "package.py", ".gitignore", "AGENTS.md", "PLAN.md", "REVIEW.md")
 
@@ -38,6 +40,7 @@ def write_zip(path, members):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir",type=Path,default=ROOT/"dist")
+    parser.add_argument("--binaries-dir",type=Path,default=ROOT/"dist/development")
     args=parser.parse_args()
     config=configparser.ConfigParser()
     config.read(ROOT/"pluginst.inf",encoding="utf-8")
@@ -46,15 +49,33 @@ def main():
         raise ValueError("Invalid TC installer manifest")
     runtime={name:(ROOT/name).read_bytes() for name in (*DOCS,"pluginst.inf")}
     for name,expected in (("kitty-ng-fs.wfx",0x14c),("kitty-ng-fs.wfx64",0x8664)):
-        data=(ROOT/"dist"/name).read_bytes()
+        data=(args.binaries_dir/name).read_bytes()
         if machine(data)!=expected: raise ValueError("Wrong architecture: "+name)
         runtime[name]=data
     source={name:(ROOT/name).read_bytes() for name in SOURCE_FILES}
-    allowed={".c",".h",".def",".rc",".md",".py",".svg",".ico",".png"}
-    for folder in ("src","tests","assets","tools"):
+    allowed={".c",".h",".def",".rc",".md",".py",".svg",".ico",".png",".cmake"}
+    for folder in ("src","tests","assets","tools","cmake"):
         for f in sorted((ROOT/folder).rglob("*")):
             if f.is_file() and f.suffix in allowed and "__pycache__" not in f.parts:
                 source[f.relative_to(ROOT).as_posix()]=f.read_bytes()
+    engine = ROOT / "engine" if (ROOT / "engine/CMakeLists.txt").exists() else ROOT.parent
+    manifest_path = engine / "SOURCE_MANIFEST.json"
+    if manifest_path.exists():
+        inputs = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        listing = subprocess.check_output(["git", "--git-dir=" + str(engine / ".git"),
+            "--work-tree=" + str(engine), "ls-files", "-z"], cwd=engine)
+        inputs = [s for s in listing.decode("utf-8").split("\0") if s and not s.startswith("kitty-ng-fs/")]
+    included = []
+    for name in sorted(inputs):
+        rel = Path(name)
+        if rel.is_absolute() or ".." in rel.parts or any(p.startswith(".") for p in rel.parts): continue
+        item = engine / rel
+        # Git-tracked source only; never crawl untracked profile/credential directories.
+        if item.is_file() and item.suffix.lower() not in {".exe", ".dll", ".zip", ".dmg", ".appimage"}:
+            source["engine/" + rel.as_posix()] = item.read_bytes()
+            included.append(rel.as_posix())
+    source["engine/SOURCE_MANIFEST.json"] = (json.dumps(included, indent=2) + "\n").encode("utf-8")
     out=args.output_dir.resolve(); out.mkdir(parents=True,exist_ok=True)
     checks=[]
     for suffix,members in (("x86-x64",runtime),("source",source)):

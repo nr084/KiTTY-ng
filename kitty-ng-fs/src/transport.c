@@ -1,595 +1,290 @@
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0a00
-#endif
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <aclapi.h>
-#include <bcrypt.h>
+/* Embedded PuTTY SSH channel, synchronously pumped by serialized WFX calls.
+ * No process launch, console handles, process environment or shell command. */
+#include "putty.h"
+#include "storage.h"
 #include "transport.h"
-
-#include <limits.h>
+#include "pathutil.h"
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#define KG_IO_BUFFER 65536u
-#define KG_STDERR_BUFFER 4096u
-#define KG_STDERR_TAIL 8192u
-#define KG_WAIT_SLICE 100u
-#define KG_CLEANUP_LIMIT 2000u
-
+int kg_engine_set_root(const wchar_t *root);
+void kg_engine_select_cleanup(void);
+void kg_engine_storage_cleanup(void);
+static KgPrompt request_prompt;
+static void *request_ctx;
+static KgTransport *active_transport;
+void kg_transport_set_prompt(KgPrompt fn, void *ctx) { request_prompt = fn; request_ctx = ctx; }
+static unsigned engine_users;
+static wchar_t *engine_root;
 struct KgTransport {
-    HANDLE input, output, error_pipe, process, job;
-    OVERLAPPED data_ov, error_ov;
-    int data_pending, error_pending, error_closed;
-    int failed, cancelled;
-    DWORD timeout_ms;
+    Seat seat;
+    Backend *backend;
+    Conf *conf;
+    LogContext *log;
+    LogPolicy policy;
+    bufchain received;
+    HANDLE tick;
     KgPoll poll;
     void *poll_ctx;
-    ULONGLONG last_poll;
-    unsigned char data_buffer[KG_IO_BUFFER];
-    unsigned char error_buffer[KG_STDERR_BUFFER];
-    char error_tail[KG_STDERR_TAIL + 1u];
-    size_t error_size;
-    char reason[512];
-    char diagnostic[KG_STDERR_TAIL + 1024u];
+    DWORD timeout_ms;
+    ULONGLONG deadline;
+    int failed, cancelled, password_tried, registered;
+    size_t wanted;
+    int wait_mode;
+    char reason[4096];
 };
-
-static void close_handle(HANDLE *h)
+static void fail(KgTransport *t, const char *message)
 {
-    if (*h && *h != INVALID_HANDLE_VALUE) CloseHandle(*h);
-    *h = NULL;
-}
-
-static void fail_win32(KgTransport *t, const char *what, DWORD code)
-{
-    if (!t->reason[0])
-        snprintf(t->reason, sizeof(t->reason), "%s (Windows error %lu).",
-                 what, (unsigned long)code);
+    if (!t->failed) snprintf(t->reason, sizeof(t->reason), "%s", message);
     t->failed = 1;
-    if (t->job && t->process) TerminateJobObject(t->job, ERROR_OPERATION_ABORTED);
 }
-
-static void fail_text(KgTransport *t, const char *what)
+static KgTransport *from_seat(Seat *s) { return container_of(s, KgTransport, seat); }
+static size_t output(Seat *seat, SeatOutputType type, const void *data, size_t len)
 {
-    if (!t->reason[0])
-        snprintf(t->reason, sizeof(t->reason), "%s", what);
-    t->failed = 1;
-    if (t->job && t->process) TerminateJobObject(t->job, ERROR_OPERATION_ABORTED);
-}
-
-static int check_cancel(KgTransport *t, int force)
-{
-    ULONGLONG now = GetTickCount64();
-    if (t->cancelled) return 0;
-    if (t->poll && (force || now - t->last_poll >= KG_WAIT_SLICE)) {
-        t->last_poll = now;
-        if (t->poll(t->poll_ctx)) {
-            t->cancelled = 1;
-            fail_text(t, "Operation cancelled.");
-            return 0;
-        }
+    KgTransport *t = from_seat(seat);
+    if (type == SEAT_OUTPUT_STDOUT && !t->failed) {
+        if (len > 2u * SF_MAX_PACKET - bufchain_size(&t->received))
+            fail(t, "SSH receive buffer limit exceeded");
+        else bufchain_add(&t->received, data, len);
     }
+    return bufchain_size(&t->received);
+}
+static void fatal(Seat *s, const char *message) { fail(from_seat(s), message); }
+static void remote_exit(Seat *s) { fail(from_seat(s), "SSH session closed by server"); }
+static SeatPromptResult prompts(Seat *s, prompts_t *p)
+{
+    KgTransport *t = from_seat(s);
+    const char *password = conf_get_str(t->conf, CONF_password);
+    if (!p->n_prompts) return SPR_OK;
+    if (!t->password_tried && p->to_server && p->n_prompts == 1 &&
+        !p->prompts[0]->echo && password[0]) {
+        prompt_set_result(p->prompts[0], password);
+        t->password_tried = 1;
+        smemclr((char *)password, strlen(password));
+        conf_set_str(t->conf, CONF_password, "");
+        return SPR_OK;
+    }
+    if (!request_prompt || p->n_prompts > 16)
+        return SPR_SW_ABORT("Interactive authentication is unavailable");
+    for (size_t i = 0; i < p->n_prompts; i++) {
+        wchar_t answer[4096] = {0};
+        char *label = dupprintf("%s\n%s\n%s", p->name ? p->name : "",
+                               p->instruction ? p->instruction : "", p->prompts[i]->prompt);
+        wchar_t *wide = dup_mb_to_wc(p->utf8 ? CP_UTF8 : CP_ACP, label);
+        sfree(label);
+        int ok = request_prompt(request_ctx, p->prompts[i]->echo ? 0 : 2,
+            p->from_server ? L"KiTTY-ng FS — SSH server authentication" : L"KiTTY-ng FS — local authentication",
+            wide, answer, sizeof(answer) / sizeof(*answer));
+        sfree(wide);
+        if (!ok) { smemclr(answer, sizeof(answer)); t->cancelled = 1; return SPR_USER_ABORT; }
+        char *value = dup_wc_to_mb(p->utf8 ? CP_UTF8 : CP_ACP, answer, "");
+        prompt_set_result(p->prompts[i], value);
+        smemclr(answer, sizeof(answer)); smemclr(value, strlen(value)); sfree(value);
+    }
+    t->deadline = GetTickCount64() + t->timeout_ms;
+    return SPR_OK;
+}
+static SeatPromptResult host_key(Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, SeatDialogText *text, HelpCtx helpctx,
+    void (*callback)(void *, SeatPromptResult), void *ctx)
+{
+    KgTransport *t = from_seat(seat);
+    (void)helpctx; (void)callback; (void)ctx;
+    strbuf *message = strbuf_new();
+    int changed = check_stored_host_key(host, port, keytype, keystr) == 2;
+    put_fmt(message, "%s\n%s:%d (%s)\n\n",
+        changed ? "WARNING: SERVER KEY HAS CHANGED" : "Unknown SSH server key", host, port, keytype);
+    for (size_t i = 0; i < text->nitems; i++) {
+        SeatDialogTextItem *item = &text->items[i];
+        if (item->type == SDT_DISPLAY || item->type == SDT_SCARY_HEADING)
+            put_fmt(message, "%s\n", item->text);
+    }
+    put_dataz(message, "\nCompare the fingerprint with the server administrator.\nSave this key and connect?");
+    wchar_t *wide = dup_mb_to_wc(CP_UTF8, message->s), ignored[2] = {0};
+    strbuf_free(message);
+    int ok = request_prompt && request_prompt(request_ctx, 9,
+        L"KiTTY-ng FS — verify SSH host key", wide, ignored, sizeof(ignored) / sizeof(*ignored));
+    sfree(wide);
+    t->deadline = GetTickCount64() + t->timeout_ms;
+    if (!ok) return SPR_SW_ABORT("SSH server key was not accepted");
+    store_host_key(seat, host, port, keytype, keystr);
+    return t->failed ? SPR_SW_ABORT("Cannot save SSH host key") : SPR_OK;
+}
+
+static const SeatVtable seat_vt = {
+    .output = output, .eof = nullseat_eof, .sent = nullseat_sent,
+    .banner = nullseat_banner, .get_userpass_input = prompts,
+    .notify_session_started = nullseat_notify_session_started,
+    .notify_remote_exit = remote_exit, .notify_remote_disconnect = remote_exit,
+    .connection_fatal = fatal, .nonfatal = fatal,
+    .update_specials_menu = nullseat_update_specials_menu,
+    .get_ttymode = nullseat_get_ttymode, .set_busy_status = nullseat_set_busy_status,
+    .confirm_ssh_host_key = host_key,
+    .confirm_weak_crypto_primitive = nullseat_confirm_weak_crypto_primitive,
+    .confirm_weak_cached_hostkey = nullseat_confirm_weak_cached_hostkey,
+    .prompt_descriptions = nullseat_prompt_descriptions,
+    .is_utf8 = nullseat_is_always_utf8, .echoedit_update = nullseat_echoedit_update,
+    .get_display = nullseat_get_display, .get_windowid = nullseat_get_windowid,
+    .get_window_pixel_size = nullseat_get_window_pixel_size,
+    .stripctrl_new = nullseat_stripctrl_new, .set_trust_status = nullseat_set_trust_status,
+    .can_set_trust_status = nullseat_can_set_trust_status_no,
+    .has_mixed_input_stream = nullseat_has_mixed_input_stream_no,
+    .verbose = nullseat_verbose_no, .interactive = nullseat_interactive_yes,
+    .get_cursor_position = nullseat_get_cursor_position,
+};
+static void log_event(LogPolicy *lp, const char *message) { (void)lp; (void)message; }
+static int log_append(LogPolicy *lp, Filename *f, void (*cb)(void *, int), void *ctx)
+{ (void)lp; (void)f; (void)cb; (void)ctx; return 0; }
+static const LogPolicyVtable log_vt = {
+    .eventlog = log_event, .askappend = log_append,
+    .logging_error = log_event, .verbose = null_lp_verbose_no,
+};
+int kg_engine_poll(void)
+{
+    KgTransport *t = active_transport;
+    if (!t || t->failed) return 0;
+    if (t->poll && t->poll(t->poll_ctx)) { t->cancelled = 1; fail(t, "Operation cancelled"); }
+    if (GetTickCount64() >= t->deadline) fail(t, "SSH operation timed out");
     return !t->failed;
 }
-
-/* Retain a bounded, printable diagnostic tail, never mix stderr into SFTP. */
-static void append_error(KgTransport *t, const unsigned char *data, size_t n)
+static bool pre(void *ctx, const HANDLE **extra, size_t *count)
 {
-    size_t i;
-    for (i = 0; i < n; ++i) {
-        unsigned char c = data[i];
-        if ((c < 32 && c != '\n' && c != '\t') || c == 127) continue;
-        if (t->error_size == KG_STDERR_TAIL) {
-            memmove(t->error_tail, t->error_tail + 1024,
-                    KG_STDERR_TAIL - 1024);
-            t->error_size -= 1024;
-        }
-        t->error_tail[t->error_size++] = (char)c;
+    KgTransport *t = ctx;
+    if (t->failed) return false;
+    if (t->poll && t->poll(t->poll_ctx)) {
+        t->cancelled = 1; fail(t, "Operation cancelled"); return false;
     }
-    t->error_tail[t->error_size] = 0;
+    if (GetTickCount64() >= t->deadline) { fail(t, "SSH operation timed out"); return false; }
+    if ((t->wait_mode == 0 && backend_sendok(t->backend)) ||
+        (t->wait_mode == 1 && bufchain_size(&t->received) >= t->wanted) ||
+        (t->wait_mode == 2 && backend_sendbuffer(t->backend) == 0)) return false;
+    if (backend_exitcode(t->backend) >= 0) { fail(t, "SSH channel closed"); return false; }
+    *extra = &t->tick; *count = 1;
+    return true;
 }
-
-/* At most sixteen reads per call: a noisy child must not starve cancellation. */
-static void drain_error(KgTransport *t)
+static bool post(void *ctx, size_t index) { (void)index; return !((KgTransport *)ctx)->failed; }
+static int pump(KgTransport *t, int mode, size_t wanted)
 {
-    unsigned loops = 0;
-    if (!t->error_pipe || t->error_closed) return;
-    while (loops++ != 16) {
-        DWORD bytes = 0, code;
-        BOOL ok;
-        if (t->error_pending) {
-            ok = GetOverlappedResult(t->error_pipe, &t->error_ov, &bytes, FALSE);
-            if (!ok && GetLastError() == ERROR_IO_INCOMPLETE) return;
-            t->error_pending = 0;
-        } else {
-            ResetEvent(t->error_ov.hEvent);
-            ok = ReadFile(t->error_pipe, t->error_buffer, KG_STDERR_BUFFER,
-                          &bytes, &t->error_ov);
-            if (!ok && GetLastError() == ERROR_IO_PENDING) {
-                t->error_pending = 1;
-                return;
-            }
-        }
-        if (!ok) {
-            code = GetLastError();
-            (void)code; /* stderr failure must not replace the real SSH error */
-            t->error_closed = 1;
-            return;
-        }
-        if (!bytes) {
-            t->error_closed = 1;
-            return;
-        }
-        append_error(t, t->error_buffer, bytes);
-    }
+    t->wait_mode = mode; t->wanted = wanted;
+    t->deadline = GetTickCount64() + t->timeout_ms;
+    active_transport = t;
+    cli_main_loop(pre, post, t);
+    active_transport = NULL;
+    return !t->failed;
 }
-
-static void note_process_exit(KgTransport *t)
-{
-    DWORD code = 0;
-    if (t->reason[0]) return;
-    if (t->process && GetExitCodeProcess(t->process, &code) && code != STILL_ACTIVE)
-        snprintf(t->reason, sizeof(t->reason),
-                 "KiTTY-ng Klink exited (code %lu).", (unsigned long)code);
-    else
-        snprintf(t->reason, sizeof(t->reason), "SSH transport closed unexpectedly.");
-    t->failed = 1;
-}
-
-/* A single overlapped operation always targets the object's bounce buffer,
- * not caller memory. Timeout/cancellation therefore cannot outlive a caller's
- * SFTP buffer, even in the pathological case of delayed kernel cancellation. */
-static int exchange_chunk(KgTransport *t, int writing, DWORD amount,
-                          ULONGLONG deadline, DWORD *transferred)
-{
-    HANDLE pipe = writing ? t->input : t->output;
-    DWORD code, count = 0;
-    BOOL ok;
-    if (!check_cancel(t, 0)) return 0;
-    if (GetTickCount64() >= deadline) {
-        fail_text(t, writing ? "Timed out writing to KiTTY-ng Klink."
-                             : "Timed out waiting for KiTTY-ng Klink.");
-        return 0;
-    }
-    drain_error(t);
-    ResetEvent(t->data_ov.hEvent);
-    ok = writing ? WriteFile(pipe, t->data_buffer, amount, &count, &t->data_ov)
-                 : ReadFile(pipe, t->data_buffer, amount, &count, &t->data_ov);
-    if (ok) {
-        if (!count && amount) {
-            note_process_exit(t);
-            return 0;
-        }
-        *transferred = count;
-        return 1;
-    }
-    code = GetLastError();
-    if (code != ERROR_IO_PENDING) {
-        drain_error(t);
-        if (code == ERROR_BROKEN_PIPE || code == ERROR_NO_DATA)
-            note_process_exit(t);
-        else
-            fail_win32(t, writing ? "Writing to Klink failed" : "Reading from Klink failed", code);
-        return 0;
-    }
-    t->data_pending = 1;
-    for (;;) {
-        HANDLE handles[3];
-        DWORD nhandles = 0, wait_ms, result;
-        ULONGLONG now;
-        drain_error(t);
-        if (GetOverlappedResult(pipe, &t->data_ov, &count, FALSE)) {
-            t->data_pending = 0;
-            if (!count && amount) {
-                note_process_exit(t);
-                return 0;
-            }
-            *transferred = count;
-            return 1;
-        }
-        code = GetLastError();
-        if (code != ERROR_IO_INCOMPLETE) {
-            t->data_pending = 0;
-            if (code == ERROR_BROKEN_PIPE || code == ERROR_NO_DATA)
-                note_process_exit(t);
-            else
-                fail_win32(t, writing ? "Writing to Klink failed" : "Reading from Klink failed", code);
-            return 0;
-        }
-        if (!check_cancel(t, 0)) break;
-        now = GetTickCount64();
-        if (now >= deadline) {
-            fail_text(t, writing ? "Timed out writing to KiTTY-ng Klink."
-                                 : "Timed out waiting for KiTTY-ng Klink.");
-            break;
-        }
-        wait_ms = (DWORD)(deadline - now > KG_WAIT_SLICE ? KG_WAIT_SLICE : deadline - now);
-        handles[nhandles++] = t->data_ov.hEvent;
-        if (t->error_pending) handles[nhandles++] = t->error_ov.hEvent;
-        if (t->process) handles[nhandles++] = t->process;
-        result = WaitForMultipleObjects(nhandles, handles, FALSE, wait_ms);
-        if (result == WAIT_FAILED) {
-            fail_win32(t, "Waiting for Klink failed", GetLastError());
-            break;
-        }
-        if (t->process && WaitForSingleObject(t->process, 0) == WAIT_OBJECT_0) {
-            /* Let an already-completed stdout read deliver its last bytes. */
-            if (GetOverlappedResult(pipe, &t->data_ov, &count, FALSE) && count) {
-                t->data_pending = 0;
-                *transferred = count;
-                return 1;
-            }
-            drain_error(t);
-            note_process_exit(t);
-            break;
-        }
-    }
-    CancelIoEx(pipe, &t->data_ov);
-    return 0;
-}
-
 static int read_exact(void *ctx, void *buffer, size_t size)
 {
-    KgTransport *t = (KgTransport *)ctx;
-    unsigned char *p = (unsigned char *)buffer;
-    ULONGLONG deadline;
-    if (!t || t->failed || (!buffer && size)) return 0;
-    if (!check_cancel(t, 0)) return 0;
-    deadline = GetTickCount64() + t->timeout_ms;
+    KgTransport *t = ctx;
+    unsigned char *out = buffer;
+    if (size > SF_MAX_PACKET) return 0;
     while (size) {
-        DWORD got = 0, want = (DWORD)(size > KG_IO_BUFFER ? KG_IO_BUFFER : size);
-        if (!exchange_chunk(t, 0, want, deadline, &got)) return 0;
-        memcpy(p, t->data_buffer, got);
-        p += got;
-        size -= got;
+        if (!pump(t, 1, 1)) return 0;
+        size_t n = bufchain_size(&t->received);
+        if (n > size) n = size;
+        bufchain_fetch_consume(&t->received, out, n);
+        backend_unthrottle(t->backend, bufchain_size(&t->received));
+        out += n; size -= n;
     }
     return 1;
 }
-
 static int write_all(void *ctx, const void *buffer, size_t size)
 {
-    KgTransport *t = (KgTransport *)ctx;
-    const unsigned char *p = (const unsigned char *)buffer;
-    ULONGLONG deadline;
-    if (!t || t->failed || (!buffer && size)) return 0;
-    if (!check_cancel(t, 0)) return 0;
-    deadline = GetTickCount64() + t->timeout_ms;
-    while (size) {
-        DWORD sent = 0, want = (DWORD)(size > KG_IO_BUFFER ? KG_IO_BUFFER : size);
-        memcpy(t->data_buffer, p, want);
-        if (!exchange_chunk(t, 1, want, deadline, &sent)) return 0;
-        p += sent;
-        size -= sent;
-    }
-    return 1;
+    KgTransport *t = ctx;
+    if (t->failed || size > SF_MAX_PACKET) return 0;
+    backend_send(t->backend, buffer, size);
+    return pump(t, 2, 0);
 }
-
-/* Standard Windows argv quoting. Quotes/backslashes in session or directory
- * names remain data; no cmd.exe or other command interpreter is involved. */
-static wchar_t *make_command_line(const wchar_t *exe, const wchar_t *root,
-                                  const wchar_t *session)
+KgTransport *kg_transport_start(const wchar_t *root, const wchar_t *session,
+    DWORD timeout_ms, KgPoll poll, void *poll_ctx, wchar_t *error, size_t error_cap)
 {
-    const wchar_t *args[] = {exe, L"--portable-dir", root, L"--language", L"en",
-        L"-load", session, L"-batch", L"-T", L"-no-antispoof",
-        L"-no-sanitise-stdout", L"-s", L"sftp"};
-    size_t i, needed = 1, used = 0;
-    wchar_t *cmd;
-    for (i = 0; i < sizeof(args) / sizeof(args[0]); ++i) {
-        size_t n = wcslen(args[i]);
-        if (n > 16000 || needed > 32767 - (n * 2 + 3)) return NULL;
-        needed += n * 2 + 3;
+    KgTransport *t = calloc(1, sizeof(*t));
+    char *name = kg_utf8(session), *realhost = NULL, *problem;
+    LARGE_INTEGER due;
+    if (!t || !name) { free(t); free(name); return NULL; }
+    t->seat.vt = &seat_vt; t->policy.vt = &log_vt;
+    t->poll = poll; t->poll_ctx = poll_ctx; t->timeout_ms = timeout_ms;
+    bufchain_init(&t->received);
+    if (engine_users && _wcsicmp(engine_root, root)) {
+        fail(t, "Close all connections before changing the profile directory"); goto failed;
     }
-    cmd = (wchar_t *)malloc(needed * sizeof(wchar_t));
-    if (!cmd) return NULL;
-    for (i = 0; i < sizeof(args) / sizeof(args[0]); ++i) {
-        const wchar_t *p = args[i];
-        if (i) cmd[used++] = L' ';
-        cmd[used++] = L'"';
-        while (*p) {
-            size_t slashes = 0, k;
-            while (*p == L'\\') { ++slashes; ++p; }
-            if (*p == L'"' || !*p) {
-                for (k = 0; k < slashes * 2; ++k) cmd[used++] = L'\\';
-                if (*p == L'"') { cmd[used++] = L'\\'; cmd[used++] = *p++; }
-            } else {
-                for (k = 0; k < slashes; ++k) cmd[used++] = L'\\';
-                cmd[used++] = *p++;
-            }
-        }
-        cmd[used++] = L'"';
+    if (!engine_users) {
+        if (!kg_engine_set_root(root)) { fail(t, "Profile storage is busy"); goto failed; }
+        engine_root = kg_wdup(root);
+        sk_init(); winselcli_setup();
+        settings_set_default_protocol(PROT_SSH); settings_set_default_port(22);
     }
-    cmd[used] = 0;
-    return cmd;
-}
-
-static int make_user_security(SECURITY_DESCRIPTOR *sd, PACL *acl)
-{
-    HANDLE token = NULL;
-    TOKEN_USER *user = NULL;
-    DWORD need = 0, status;
-    EXPLICIT_ACCESSW access;
-    int ok = 0;
-    *acl = NULL;
-    if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) return 0;
-    GetTokenInformation(token, TokenUser, NULL, 0, &need);
-    if (!need) goto done;
-    user = (TOKEN_USER *)malloc(need);
-    if (!user) { SetLastError(ERROR_NOT_ENOUGH_MEMORY); goto done; }
-    if (!GetTokenInformation(token, TokenUser, user, need, &need)) goto done;
-    ZeroMemory(&access, sizeof(access));
-    access.grfAccessPermissions = GENERIC_ALL;
-    access.grfAccessMode = SET_ACCESS;
-    access.grfInheritance = NO_INHERITANCE;
-    access.Trustee.TrusteeForm = TRUSTEE_IS_SID;
-    access.Trustee.TrusteeType = TRUSTEE_IS_USER;
-    access.Trustee.ptstrName = (LPWSTR)user->User.Sid;
-    status = SetEntriesInAclW(1, &access, NULL, acl);
-    if (status != ERROR_SUCCESS) { SetLastError(status); goto done; }
-    if (!InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION) ||
-        !SetSecurityDescriptorDacl(sd, TRUE, *acl, FALSE)) goto done;
-    ok = 1;
-done:
-    status = GetLastError();
-    free(user);
-    close_handle(&token);
-    if (!ok && *acl) { LocalFree(*acl); *acl = NULL; }
-    SetLastError(status);
-    return ok;
-}
-
-static int make_pipe_pair(int parent_writes, SECURITY_DESCRIPTOR *sd,
-                           HANDLE *parent, HANDLE *child)
-{
-    unsigned char random_bytes[32];
-    static const wchar_t hex[] = L"0123456789abcdef";
-    wchar_t name[128] = L"\\\\.\\pipe\\KiTTYngFS-";
-    SECURITY_ATTRIBUTES server_sa = {sizeof(server_sa), sd, FALSE};
-    SECURITY_ATTRIBUTES child_sa = {sizeof(child_sa), NULL, TRUE};
-    size_t n = wcslen(name), i;
-    DWORD saved;
-    *parent = *child = NULL;
-    if (BCryptGenRandom(NULL, random_bytes, sizeof(random_bytes),
-                       BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
-        SetLastError(ERROR_GEN_FAILURE);
-        return 0;
+    engine_users++; t->registered = 1;
+    t->conf = conf_new();
+    do_defaults(name, t->conf);
+    if (conf_get_int(t->conf, CONF_protocol) != PROT_SSH) {
+        fail(t, "File transfer requires an SSH profile"); goto failed;
     }
-    for (i = 0; i < sizeof(random_bytes); ++i) {
-        name[n++] = hex[random_bytes[i] >> 4];
-        name[n++] = hex[random_bytes[i] & 15];
-    }
-    name[n] = 0;
-    *parent = CreateNamedPipeW(name,
-        (parent_writes ? PIPE_ACCESS_OUTBOUND : PIPE_ACCESS_INBOUND) |
-        FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
-        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,
-        1, KG_IO_BUFFER, KG_IO_BUFFER, 0, &server_sa);
-    if (*parent == INVALID_HANDLE_VALUE) { *parent = NULL; return 0; }
-    *child = CreateFileW(name, parent_writes ? GENERIC_READ : GENERIC_WRITE,
-        0, &child_sa, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (*child == INVALID_HANDLE_VALUE) {
-        saved = GetLastError();
-        *child = NULL;
-        close_handle(parent);
-        SetLastError(saved);
-        return 0;
-    }
-    /* Successful CreateFile connects the sole server instance. Calling
-     * ConnectNamedPipe now would just report ERROR_PIPE_CONNECTED. */
-    return 1;
-}
-
-static void copy_start_error(KgTransport *t, wchar_t *out, size_t cap)
-{
-    const char *msg;
-    int n;
-    if (!out || !cap) return;
-    out[0] = 0;
-    msg = kg_transport_error(t);
-    n = MultiByteToWideChar(CP_UTF8, 0, msg, -1, out, (int)(cap > INT_MAX ? INT_MAX : cap));
-    if (!n) {
-        const wchar_t fallback[] = L"Cannot start KiTTY-ng Klink.";
-        size_t count = sizeof(fallback) / sizeof(fallback[0]) - 1;
-        if (count >= cap) count = cap - 1;
-        memcpy(out, fallback, count * sizeof(wchar_t));
-        out[count] = 0;
-    }
-}
-
-KgTransport *kg_transport_start(const wchar_t *exe, const wchar_t *root,
-    const wchar_t *session, DWORD timeout_ms, KgPoll poll, void *poll_ctx,
-    wchar_t *error, size_t error_cap)
-{
-    KgTransport *t = (KgTransport *)calloc(1, sizeof(*t));
-    SECURITY_DESCRIPTOR sd;
-    PACL acl = NULL;
-    HANDLE child[3] = {NULL, NULL, NULL};
-    STARTUPINFOEXW si;
-    PROCESS_INFORMATION pi;
-    JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits;
-    SIZE_T attr_size = 0;
-    wchar_t *cmd = NULL;
-    int attr_initialized = 0;
-    DWORD saved;
-    size_t i;
-    if (error && error_cap) error[0] = 0;
-    if (!t) {
-        if (error && error_cap > 1) {
-            const wchar_t text[] = L"Out of memory.";
-            size_t n = sizeof(text) / sizeof(text[0]) - 1;
-            if (n >= error_cap) n = error_cap - 1;
-            memcpy(error, text, n * sizeof(wchar_t)); error[n] = 0;
-        }
-        return NULL;
-    }
-    t->timeout_ms = timeout_ms ? timeout_ms : 30000;
-    t->poll = poll;
-    t->poll_ctx = poll_ctx;
-    ZeroMemory(&si, sizeof(si));
-    ZeroMemory(&pi, sizeof(pi));
-    ZeroMemory(&limits, sizeof(limits));
-    if (!exe || !*exe || !root || !*root || !session || !*session) {
-        fail_text(t, "Executable, portable directory and session name are required.");
+    if (conf_get_int(t->conf, CONF_proxy_type) == PROXY_CMD) {
+        fail(t, "External proxy commands are unavailable; use a built-in SSH, HTTP or SOCKS proxy");
         goto failed;
     }
-    if (!check_cancel(t, 1)) goto failed;
-    cmd = make_command_line(exe, root, session);
-    if (!cmd) { fail_text(t, "Command line is too long or memory is unavailable."); goto failed; }
-    t->data_ov.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
-    t->error_ov.hEvent = CreateEventW(NULL, TRUE, FALSE, NULL);
-    if (!t->data_ov.hEvent || !t->error_ov.hEvent) {
-        fail_win32(t, "Creating I/O events failed", GetLastError()); goto failed;
+    conf_set_int(t->conf, CONF_logtype, LGTYP_NONE);
+    conf_set_int(t->conf, CONF_sshprot, 3); /* SSH-2 only */
+    conf_set_bool(t->conf, CONF_nopty, true);
+    conf_set_bool(t->conf, CONF_ssh_subsys, true);
+    conf_set_bool(t->conf, CONF_ssh_simple, true);
+    conf_set_bool(t->conf, CONF_x11_forward, false);
+    conf_set_bool(t->conf, CONF_agentfwd, false);
+    conf_set_bool(t->conf, CONF_ssh_connection_sharing, false);
+    conf_set_str(t->conf, CONF_remote_cmd, "sftp");
+    conf_set_str(t->conf, CONF_remote_cmd2, "");
+    {
+        char *key;
+        while ((key = conf_get_str_nthstrkey(t->conf, CONF_portfwd, 0)) != NULL)
+            conf_del_str_str(t->conf, CONF_portfwd, key);
     }
-    if (!make_user_security(&sd, &acl)) {
-        fail_win32(t, "Creating private pipe security failed", GetLastError()); goto failed;
+    t->tick = CreateWaitableTimerW(NULL, FALSE, NULL);
+    due.QuadPart = -100000;
+    if (!t->tick || !SetWaitableTimer(t->tick, &due, 50, NULL, NULL, FALSE)) {
+        fail(t, "Cannot create SSH event timer"); goto failed;
     }
-    if (!make_pipe_pair(1, &sd, &t->input, &child[0]) ||
-        !make_pipe_pair(0, &sd, &t->output, &child[1]) ||
-        !make_pipe_pair(0, &sd, &t->error_pipe, &child[2])) {
-        fail_win32(t, "Creating private Klink pipes failed", GetLastError()); goto failed;
-    }
-    LocalFree(acl); acl = NULL;
-    t->job = CreateJobObjectW(NULL, NULL);
-    if (!t->job) { fail_win32(t, "Creating Klink job failed", GetLastError()); goto failed; }
-    limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-    if (!SetInformationJobObject(t->job, JobObjectExtendedLimitInformation,
-                                  &limits, sizeof(limits))) {
-        fail_win32(t, "Configuring Klink job failed", GetLastError()); goto failed;
-    }
-    InitializeProcThreadAttributeList(NULL, 1, 0, &attr_size);
-    if (!attr_size) { fail_win32(t, "Creating process attributes failed", GetLastError()); goto failed; }
-    si.lpAttributeList = (LPPROC_THREAD_ATTRIBUTE_LIST)malloc(attr_size);
-    if (!si.lpAttributeList) { fail_text(t, "Out of memory creating process attributes."); goto failed; }
-    if (!InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attr_size)) {
-        fail_win32(t, "Initializing process attributes failed", GetLastError()); goto failed;
-    }
-    attr_initialized = 1;
-    if (!UpdateProcThreadAttribute(si.lpAttributeList, 0,
-        PROC_THREAD_ATTRIBUTE_HANDLE_LIST, child, sizeof(child), NULL, NULL)) {
-        fail_win32(t, "Restricting inherited handles failed", GetLastError()); goto failed;
-    }
-    si.StartupInfo.cb = sizeof(si);
-    si.StartupInfo.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-    si.StartupInfo.wShowWindow = SW_HIDE;
-    si.StartupInfo.hStdInput = child[0];
-    si.StartupInfo.hStdOutput = child[1];
-    si.StartupInfo.hStdError = child[2];
-    if (!CreateProcessW(exe, cmd, NULL, NULL, TRUE,
-        CREATE_NO_WINDOW | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
-        NULL, root, &si.StartupInfo, &pi)) {
-        fail_win32(t, "Starting KiTTY-ng Klink failed", GetLastError()); goto failed;
-    }
-    t->process = pi.hProcess;
-    if (!AssignProcessToJobObject(t->job, t->process)) {
-        saved = GetLastError();
-        TerminateProcess(t->process, 1); /* still suspended: no child code ran */
-        fail_win32(t, "Assigning Klink to its private job failed", saved); goto failed;
-    }
-    if (ResumeThread(pi.hThread) == (DWORD)-1) {
-        fail_win32(t, "Resuming KiTTY-ng Klink failed", GetLastError()); goto failed;
-    }
-    close_handle(&pi.hThread);
-    for (i = 0; i < 3; ++i) close_handle(&child[i]);
-    DeleteProcThreadAttributeList(si.lpAttributeList);
-    free(si.lpAttributeList);
-    free(cmd);
-    drain_error(t);
+    t->log = log_init(&t->policy, t->conf);
+    problem = backend_init(&ssh_backend, &t->seat, &t->backend, t->log, t->conf,
+        conf_get_str(t->conf, CONF_host), conf_get_int(t->conf, CONF_port),
+        &realhost, true, conf_get_bool(t->conf, CONF_tcp_keepalives));
+    sfree(realhost);
+    if (problem) { fail(t, problem); sfree(problem); goto failed; }
+    if (!pump(t, 0, 0)) goto failed;
+    free(name);
     return t;
 failed:
-    close_handle(&pi.hThread);
-    for (i = 0; i < 3; ++i) close_handle(&child[i]);
-    if (attr_initialized) DeleteProcThreadAttributeList(si.lpAttributeList);
-    free(si.lpAttributeList);
-    if (acl) LocalFree(acl);
-    free(cmd);
-    copy_start_error(t, error, error_cap);
-    kg_transport_close(t);
-    return NULL;
+    if (error && error_cap) {
+        wchar_t *wide = kg_wide(t->reason);
+        wcsncpy(error, wide ? wide : L"SSH connection failed", error_cap - 1);
+        error[error_cap - 1] = 0; free(wide);
+    }
+    free(name); kg_transport_close(t); return NULL;
 }
-
-SfIO kg_transport_io(KgTransport *t)
-{
-    SfIO io;
-    io.ctx = t;
-    io.read_exact = read_exact;
-    io.write_all = write_all;
-    return io;
-}
-
-const char *kg_transport_error(KgTransport *t)
-{
-    if (!t) return "SSH transport is unavailable.";
-    drain_error(t);
-    if (!t->reason[0] && t->process &&
-        WaitForSingleObject(t->process, 0) == WAIT_OBJECT_0) note_process_exit(t);
-    snprintf(t->diagnostic, sizeof(t->diagnostic), "%s%s%s",
-        t->reason, t->reason[0] && t->error_size ? "\n" : "", t->error_tail);
-    return t->diagnostic;
-}
-
-int kg_transport_cancelled(KgTransport *t)
-{
-    return t ? t->cancelled : 0;
-}
-
+SfIO kg_transport_io(KgTransport *t) { SfIO io = {t, read_exact, write_all}; return io; }
+const char *kg_transport_error(KgTransport *t) { return t ? t->reason : "SSH connection unavailable"; }
+int kg_transport_cancelled(KgTransport *t) { return t && t->cancelled; }
 int kg_transport_alive(KgTransport *t)
-{
-    if (!t || t->failed || !t->process) return 0;
-    drain_error(t);
-    if (WaitForSingleObject(t->process, 0) != WAIT_TIMEOUT) {
-        note_process_exit(t);
-        return 0;
-    }
-    return 1;
-}
-
-static void dispose(KgTransport *t, int wait_allowed)
-{
-    ULONGLONG end;
-    if (!t) return;
-    t->failed = 1;
-    t->poll = NULL;
-    /* All owned descendants are killed, including proxy helpers. */
-    close_handle(&t->job);
-    if (t->input) CancelIoEx(t->input, NULL);
-    if (t->output) CancelIoEx(t->output, NULL);
-    if (t->error_pipe) CancelIoEx(t->error_pipe, NULL);
-    end = GetTickCount64() + (wait_allowed ? KG_CLEANUP_LIMIT : 0);
-    for (;;) {
-        HANDLE events[2];
-        DWORD nevents = 0;
-        if (t->data_pending && HasOverlappedIoCompleted(&t->data_ov)) t->data_pending = 0;
-        if (t->error_pending && HasOverlappedIoCompleted(&t->error_ov)) t->error_pending = 0;
-        if (!t->data_pending && !t->error_pending) break;
-        if (!wait_allowed || GetTickCount64() >= end) break;
-        if (t->data_pending) events[nevents++] = t->data_ov.hEvent;
-        if (t->error_pending) events[nevents++] = t->error_ov.hEvent;
-        WaitForMultipleObjects(nevents, events, FALSE, KG_WAIT_SLICE);
-    }
-    close_handle(&t->input);
-    close_handle(&t->output);
-    close_handle(&t->error_pipe);
-    close_handle(&t->process);
-    if (t->data_pending || t->error_pending) {
-        /* DLL detach is forbidden to wait. Keep the completion objects
-         * and their buffers alive if the kernel has not retired cancelled I/O.
-         * They contain no threads or function pointers used by the kernel.
-         * This exceptional bounded leak is reclaimed when Total Commander
-         * exits and prevents an OVERLAPPED/buffer use-after-free on unload. */
-        return;
-    }
-    close_handle(&t->data_ov.hEvent);
-    close_handle(&t->error_ov.hEvent);
-    free(t);
-}
-
+{ return t && !t->failed && t->backend && backend_exitcode(t->backend) < 0; }
 void kg_transport_close(KgTransport *t)
 {
-    dispose(t, 1);
+    if (!t) return;
+    t->poll = NULL;
+    if (t->backend) backend_free(t->backend);
+    if (t->log) log_free(t->log);
+    if (t->conf) {
+        char *password = conf_get_str(t->conf, CONF_password);
+        smemclr(password, strlen(password));
+        password = conf_get_str(t->conf, CONF_proxy_password);
+        smemclr(password, strlen(password));
+        conf_free(t->conf);
+    }
+    if (t->registered) {
+        if (--engine_users == 0) {
+            sk_cleanup(); kg_engine_select_cleanup(); kg_engine_storage_cleanup(); free(engine_root); engine_root = NULL;
+        }
+    }
+    if (t->tick) CloseHandle(t->tick);
+    bufchain_clear(&t->received);
+    SecureZeroMemory(t, sizeof(*t)); free(t);
 }
-
-void kg_transport_abandon(KgTransport *t)
-{
-    dispose(t, 0);
-}
+void kg_transport_abandon(KgTransport *t) { kg_transport_close(t); }

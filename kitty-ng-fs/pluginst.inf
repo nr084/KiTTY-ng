@@ -1,6 +1,6 @@
 [plugininstall]
-description=KiTTY-ng FS 1.0.3 by nr084 (x86+x64) - https://github.com/nr084/KiTTY-ng
+description=KiTTY-ng FS 1.1.0 by nr084 (x86+x64) - https://github.com/nr084/KiTTY-ng
 type=wfx
 file=kitty-ng-fs.wfx
 defaultdir=kitty-ng-fs
-version=1.0.3
+version=1.1.0
