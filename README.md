@@ -2,6 +2,8 @@
 
 **Выпущен 0.85-6**: быстрое подключение без сохранения сеанса в Linux/macOS и исправление команд редактирования в полях macOS. [Изменения](docs/releases/0.85-6.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-6).
 
+**Плагин Total Commander: [kitty-ng-fs 1.0.3](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.0.3)** — имена сеансов с точками теперь целиком отображаются в колонке «Имя». Плагин и исходники доступны отдельными архивами.
+
 **Русский** | [English](README.en.md)
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
@@ -43,7 +45,9 @@
 
 [KiTTY-ng FS](kitty-ng-fs/README.md) — отдельный WFX-плагин для **Windows x86/x64**. Открывает SFTP в панелях Total Commander через Klink и существующие портативные SSH-сеансы: вложенные группы, передача файлов, переименование, каталоги и Unix-права.
 
-[Скачать плагин 1.0.2](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-x86-x64.zip) · [Исходники отдельно](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-source.zip) · [Установка и ограничения](kitty-ng-fs/README.md)
+[Скачать плагин 1.0.3](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/kitty-ng-fs-1.0.3-x86-x64.zip) · [Исходники отдельно](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/kitty-ng-fs-1.0.3-source.zip) · [Установка и ограничения](kitty-ng-fs/README.md)
+
+**Новое в 1.0.3:** `mail.example.ru` отображается как `mail·example·ru`, без переноса окончания в колонку расширения. Исходное имя подключения и имена удалённых файлов сохраняются; поддерживаются старые пути сеансов.
 
 Клиент и плагин выпускаются независимо. KiTTY-ng/Klink устанавливаются отдельно; плагин использует готовый сохранённый вход без интерактивного запроса пароля/MFA.
 

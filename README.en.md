@@ -2,6 +2,8 @@
 
 **0.85-6 is available**: unsaved quick connections on Linux/macOS and standard editing shortcuts in macOS fields. [Release notes](docs/releases/0.85-6.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-6).
 
+**Total Commander plugin: [kitty-ng-fs 1.0.3](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.0.3)** — dotted session names now stay entirely in the Name column. Installer and source code are available as separate archives.
+
 [Русский](README.md) | **English**
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
@@ -43,7 +45,9 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 [KiTTY-ng FS](kitty-ng-fs/README.en.md) is a separate **Windows x86/x64** WFX plugin. Access SFTP in Total Commander through Klink and existing portable SSH sessions: nested groups, transfers, renaming, directories and Unix permissions.
 
-[Download plugin 1.0.2](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
+[Download plugin 1.0.3](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/kitty-ng-fs-1.0.3-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/kitty-ng-fs-1.0.3-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
+
+**New in 1.0.3:** `mail.example.ru` is displayed as `mail·example·ru`, without moving its suffix to the extension column. Original connection names and remote filenames are preserved; old session paths remain supported.
 
 Client and plugin releases are independent. Install KiTTY-ng/Klink separately; the plugin uses a working saved login without interactive password/MFA prompts.
 
