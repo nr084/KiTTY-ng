@@ -1407,5 +1407,9 @@
   "WinSCP additional options": "Дополнительные параметры WinSCP",
   "WinSCP additional rawsettings": "Дополнительные rawsettings WinSCP",
   "WinSCP requires an SSH session and an executable (.exe).": "Для WinSCP необходимы сеанс SSH и исполняемый файл (.exe).",
-  "Unable to start WinSCP. Check [KiTTY] WinSCPPath in kitty.ini.": "Не удалось запустить WinSCP. Проверьте [KiTTY] WinSCPPath в kitty.ini."
+  "Unable to start WinSCP. Check [KiTTY] WinSCPPath in kitty.ini.": "Не удалось запустить WinSCP. Проверьте [KiTTY] WinSCPPath в kitty.ini.",
+  "Close tab": "Закрыть вкладку",
+  "Move left": "Переместить влево",
+  "Move right": "Переместить вправо",
+  "Close all sessions in this window?": "Закрыть все сеансы в этом окне?"
 }

@@ -16,4 +16,9 @@ void our_dialog_add_to_content_area(GtkWindow *dlg, GtkWidget *w,
 void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w);
 GtkBox *our_dialog_make_action_hbox(GtkWindow *dlg);
 
+#ifdef KITTY_NG_LINUX
+bool kr_linux_windows_open(void);
+bool kr_linux_tab_pending(void);
+#endif
+
 #endif /* PUTTY_GTKMISC_H */

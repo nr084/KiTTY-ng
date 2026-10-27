@@ -107,7 +107,13 @@ def main():
         binaries.mkdir(parents=True)
         for name in NAMES:
             shutil.copy2(args.build_dir / name, binaries / name)
-        strip = ROOT / '_tools/llvm-mingw/20261006-local/toolchain/bin/llvm-strip.exe'
+        from local_toolchain import ensure_local_toolchain
+        toolchain = ensure_local_toolchain(ROOT)
+        compiler = subprocess.check_output([toolchain / 'bin/clang.exe', '--version'], text=True).splitlines()[0]
+        build_report = json.loads((args.build_dir / 'linux-cross-build.json').read_text())
+        if build_report['compiler'] != compiler:
+            raise RuntimeError('Stable compiler changed: rebuild Linux binaries before packaging and testing')
+        strip = toolchain / 'bin/llvm-strip.exe'
         for name in NAMES:
             subprocess.run([str(strip), '--strip-all', str(binaries / name)], check=True)
         libraries = bundle_dependencies(app, args.sysroot)

@@ -101,7 +101,8 @@ def main():
         unpack_sysroot(args.sysroot_archive, args.sysroot)
     sysroot = args.sysroot.resolve()
     metadata = json.loads(args.metadata.read_text())
-    llvm = ROOT / '_tools/macos/llvm/23.1.3/bin'
+    from local_toolchain import ensure_local_toolchain
+    llvm = ensure_local_toolchain(ROOT) / 'bin'
     cmake = ROOT / '_tools/macos/cmake/cmake/data/bin/cmake.exe'
     ninja = ROOT / '_tools/macos/ninja/ninja-1.13.2.data/scripts/ninja.exe'
     perl = ROOT / '_tools/macos/perl/SP_54231_64bit/perl/bin/perl.exe'

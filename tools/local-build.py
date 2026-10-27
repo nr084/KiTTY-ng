@@ -352,6 +352,11 @@ def main():
                     check(arch + "/companions", files,
                           [([PYTHON, "test/companion_dispatch.py", directory, arch], None)],
                           compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable])
+                    files.add("test/windows_tabs.py")
+                    check(arch + "/session-tabs", files,
+                          [([PYTHON, "test/windows_tabs.py", directory / executable], ssh_environment(work))],
+                          compiler=compiler)
                     if arch == "x64":
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                         files.add("test/windows_menu_runtime.py")

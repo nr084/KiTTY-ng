@@ -18,15 +18,19 @@ def git(*args, **kwargs):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--draft-only", action="store_true", help="Upload a reviewable draft without publishing")
+parser.add_argument("--pending-macos", action="store_true", help="Upload only a draft with verified Windows/Linux packages while waiting for native Mac artifacts")
 args = parser.parse_args()
+assert not args.pending_macos or args.draft_only, "A pending macOS release must remain a draft"
 version = (ROOT / "VERSION").read_text().strip()
 tag = "v" + version
 report = json.loads((ROOT / "dist/release-build.json").read_text())
 commit = git("rev-parse", "HEAD", text=True).strip()
 assert not git("status", "--porcelain"), "Commit all changes before publishing"
-assert report["status"] == "success" and report["version"] == version
+assert report["status"] == ("pending-macos" if args.pending_macos else "success") and report["version"] == version
 assert report["source_commit"] == commit and not report["working_tree_dirty"]
 expected = {f"kitty-ng-{version}-{arch}.zip" for arch in ("x64", "x86", "arm64")} | {f"kitty-ng-{version}-macos-universal.dmg", f"kitty-ng-{version}-x86_64.AppImage", f"kitty-ng-{version}-x86_64.tar.zst"}
+if args.pending_macos:
+    expected.remove(f"kitty-ng-{version}-macos-universal.dmg")
 assert {a["file"] for a in report["archives"]} == expected
 for asset in report["archives"]:
     assert hashlib.sha256((ROOT / "dist" / asset["file"]).read_bytes()).hexdigest() == asset["sha256"]

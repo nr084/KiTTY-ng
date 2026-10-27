@@ -64,12 +64,13 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
             bundle.write(guide, relative)
     for image in sorted((root / "docs/screenshots").glob("linux-*.png")):
         bundle.write(image, "docs/screenshots/" + image.name)
+    bundle.write(root / "docs/screenshots/windows-tabs-en.png", "docs/screenshots/windows-tabs-en.png")
     bundle.write(root / "icons/kitty-ng-forum.png", "icons/kitty-ng-forum.png")
     bundle.write(root / "icons/kitty-ng.png", "icons/kitty-ng.png")
     bundle.write(root / "icons/kitty-ng-prompt.txt", "icons/kitty-ng-prompt.txt")
     bundle.writestr("kitty-ng.portable", "")
     # Preserve the user's existing cryptsalt and path settings on extraction.
-    bundle.writestr("kitty.ini.example", "[KiTTY]\nsavemode=dir\ncryptsalt=0\n")
+    bundle.writestr("kitty.ini.example", "[KiTTY]\nsavemode=dir\ncryptsalt=0\nSessionTabs=1\n")
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()
 (args.output / f"SHA256SUMS-{args.arch}.txt").write_text(f"{digest}  {archive.name}\n", encoding="ascii")
 print(f"PASS: {archive.name}; PE architecture and version checked for all six executables")

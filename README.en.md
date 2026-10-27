@@ -34,6 +34,8 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ## Features
 
+- Windows/Linux tabs in 0.85-7: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
+
 - Session folders, case-insensitive quick search, editing and duplication.
 - Original KiTTY profile format and portable key/certificate references.
 - SCP/SFTP through kscp, drag-and-drop uploads and downloads.

@@ -13,7 +13,9 @@ def main():
   if sys.platform=='darwin':
    run('tools/local-build.py','--platform','macos','--output',args.macos_dir)
   elif sys.platform=='win32':
-   run('tools/local-build.py','--toolchain',ROOT/'_tools/llvm-mingw/20261006-local/toolchain','--cmake',ROOT/'_tools/macos/cmake/cmake/data/bin/cmake.exe','--ninja',ROOT/'_tools/macos/ninja/ninja-1.13.2.data/scripts/ninja.exe','--offline')
+   from local_toolchain import ensure_local_toolchain
+   toolchain=ensure_local_toolchain(ROOT)
+   run('tools/local-build.py','--toolchain',toolchain,'--cmake',ROOT/'_tools/macos/cmake/cmake/data/bin/cmake.exe','--ninja',ROOT/'_tools/macos/ninja/ninja-1.13.2.data/scripts/ninja.exe','--offline')
    run('tools/local-build.py','--platform','linux');run('tools/linux-package-windows.py')
   else:p.error('Build Windows/Linux on Windows and macOS on Mac, then assemble verified artifacts')
  if args.build_only:

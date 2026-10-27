@@ -24,6 +24,8 @@
 #include "kittyng.h"
 #include "kittyng-session-menu.h"
 #include "kittyng-tray.h"
+#include "kittyng-tabs.h"
+static HWND kr_initial_tab_parent;
 #include <shellapi.h>
 #include <shlobj.h>
 #include "kittyng-transfer.h"
@@ -782,6 +784,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     sk_init();
 
     init_common_controls();
+    int tab_result;
+    if (kr_tabs_host_entry(inst, cmdline, &tab_result)) return tab_result;
 
     /* Set Explicit App User Model Id so that jump lists don't cause
        PuTTY to hang on to removable media. */
@@ -1166,9 +1170,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     SetForegroundWindow(wgs->term_hwnd);
     if (conf_get_bool(wgs->conf, CONF_sendtotray)) SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TRAY, 0);
 
-    term_set_focus(wgs->term, GetForegroundWindow() == wgs->term_hwnd);
+    term_set_focus(wgs->term, IsWindowVisible(wgs->term_hwnd) && GetForegroundWindow() == GetAncestor(wgs->term_hwnd, GA_ROOT));
     UpdateWindow(wgs->term_hwnd);
 
+    if (kr_initial_tab_parent) kr_tabs_attach(kr_initial_tab_parent, wgs->term_hwnd);
     gui_terminal_ready(wgs->term_hwnd, &wgs->seat, wgs->backend);
 
     while (1) {
@@ -1198,7 +1203,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         } else {
             timeout = INFINITE;
             /* The messages seem unreliable; especially if we're being tricky */
-            term_set_focus(wgs->term, GetForegroundWindow() == wgs->term_hwnd);
+            term_set_focus(wgs->term, IsWindowVisible(wgs->term_hwnd) && GetForegroundWindow() == GetAncestor(wgs->term_hwnd, GA_ROOT));
         }
 
         HandleWaitList *hwl = get_handle_wait_list();
@@ -1341,6 +1346,8 @@ bool handle_special_filemapping_cmdline(char *p, Conf *conf)
     BinarySource_BARE_INIT(src, cp, cpsize);
     if (!conf_deserialise(conf, src))
         modalfatalbox("Serialised configuration data was invalid");
+    if (!get_err(src) && get_avail(src) == 8)
+        kr_initial_tab_parent = (HWND)(uintptr_t)get_uint64(src);
     UnmapViewOfFile(cp);
     CloseHandle(filemap);
     return true;
@@ -2655,6 +2662,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             kr_messagebox(hwnd, message, "File transfer", MB_OK | MB_ICONERROR); sfree(message);
         }
         return 0;
+      case KR_WM_TAB_CLOSE_WARNING:
+        return !wgs->session_closed && conf_get_bool(wgs->conf, CONF_warn_on_close);
+      case KR_WM_TAB_CLOSE:
+        /* Only the owning tab frame may request a prompt-free tab close. */
+        if ((HWND)wParam == kr_tabs_parent(hwnd) && wParam)
+            DestroyWindow(hwnd);
+        return 0;
       case WM_CLOSE: {
         char *title, *msg, *additional = NULL;
         show_mouseptr(wgs, true);
@@ -2699,8 +2713,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSCOMMAND:
         switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
           case IDM_KR_TOP: {
-            bool top = !(GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_TOPMOST);
-            SetWindowPos(hwnd, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            HWND shell = GetAncestor(hwnd, GA_ROOT);
+            bool top = !(GetWindowLongPtr(shell, GWL_EXSTYLE) & WS_EX_TOPMOST);
+            SetWindowPos(shell, top ? HWND_TOPMOST : HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
             conf_set_bool(wgs->conf, CONF_alwaysontop, top);
             for (size_t i = 0; i < lenof(wgs->popup_menus); i++)
                 CheckMenuItem(wgs->popup_menus[i].menu, IDM_KR_TOP, MF_BYCOMMAND | (top ? MF_CHECKED : MF_UNCHECKED));
@@ -2779,6 +2794,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             else
                 argprefix = "";
 
+            if (wParam == IDM_DUPSESS && kr_tabs_duplicate(hwnd)) break;
             if (wParam == IDM_DUPSESS) {
                 /*
                  * Allocate a file-mapping memory chunk for the
@@ -2791,6 +2807,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
                 serbuf = strbuf_new();
                 conf_serialise(BinarySink_UPCAST(serbuf), wgs->conf);
+                HWND tab_parent = kr_tabs_enabled() ? kr_tabs_parent(hwnd) : NULL;
+                if (tab_parent) put_uint64(serbuf, (uintptr_t)tab_parent);
                 size = serbuf->len;
 
                 sa.nLength = sizeof(sa);
@@ -2856,6 +2874,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
             break;
           case IDM_KR_TRAY:
+            if (kr_tabs_command(hwnd, IDM_KR_TRAY)) break;
             if (kr_tray_icon(hwnd, true))
                 ShowWindow(hwnd, SW_HIDE);
             break;
@@ -6322,6 +6341,8 @@ static void wintw_set_maximised(TermWin *tw, bool maximised)
  */
 static bool is_full_screen(WinGuiSeat *wgs)
 {
+    HWND host = kr_tabs_parent(wgs->term_hwnd);
+    if (host) return GetPropW(host, L"KiTTYng.Fullscreen") != NULL;
     if (!IsZoomed(wgs->term_hwnd))
         return false;
     if (GetWindowLongPtr(wgs->term_hwnd, GWL_STYLE) & WS_CAPTION)
@@ -6433,6 +6454,7 @@ static void make_full_screen(WinGuiSeat *wgs)
  */
 static void clear_full_screen(WinGuiSeat *wgs)
 {
+    if (kr_tabs_parent(wgs->term_hwnd)) return;
     DWORD oldstyle, style;
 
     /* Reinstate the window furniture. */
@@ -6467,6 +6489,7 @@ static void clear_full_screen(WinGuiSeat *wgs)
  */
 static void flip_full_screen(WinGuiSeat *wgs)
 {
+    if (kr_tabs_command(wgs->term_hwnd, IDM_FULLSCREEN)) return;
     if (is_full_screen(wgs)) {
         ShowWindow(wgs->term_hwnd, SW_RESTORE);
     } else if (IsZoomed(wgs->term_hwnd)) {

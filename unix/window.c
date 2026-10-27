@@ -92,6 +92,7 @@ struct clipboard_state {
 
 typedef struct XpmHolder XpmHolder;    /* only used for GTK 1 */
 
+typedef struct KrTabGroup KrTabGroup;
 struct GtkFrontend {
 #ifdef KITTY_NG_LINUX
     GString *osc_buffer;
@@ -102,6 +103,8 @@ struct GtkFrontend {
     char *startup_text;
     size_t startup_offset;
 #endif
+    KrTabGroup *tab_group;
+    GtkWidget *tab_label;
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
     gboolean drawing_area_got_size, drawing_area_realised;
@@ -242,10 +245,197 @@ static void exit_callback(void *vinst);
 static void destroy_inst_connection(GtkFrontend *inst);
 static void delete_inst(GtkFrontend *inst);
 
+
+#ifdef KITTY_NG_LINUX
+struct KrTabGroup { GtkWidget *window, *book; GPtrArray *pages; GtkFrontend *active; bool destroying; };
+static KrTabGroup *kr_pending_group;
+static unsigned kr_live_sessions;
+bool kr_linux_windows_open(void) { return kr_live_sessions != 0; }
+bool kr_linux_tab_pending(void) { return kr_pending_group != NULL; }
+static bool kr_tabs_enabled(void)
+{
+    char *value=kr_mac_ini("KiTTY","SessionTabs","1");
+    bool enabled=strcasecmp(value,"0") && strcasecmp(value,"no") && strcasecmp(value,"false") && strcasecmp(value,"off");
+    sfree(value);return enabled;
+}
+static bool kr_tab_active(GtkFrontend *inst) {return !inst->tab_group || inst->tab_group->active==inst;}
+static void kr_close_tab(GtkFrontend *inst);
+gint delete_window(GtkWidget *,GdkEvent *,GtkFrontend *);
+static void kr_tab_close_clicked(GtkButton *button,gpointer data)
+{
+    GtkFrontend *inst=data;(void)button;
+    kr_close_tab(inst);
+}
+static void kr_tab_switched(GtkNotebook *book,GtkWidget *page,guint index,gpointer data)
+{
+    KrTabGroup *group=data;(void)book;(void)index;
+    if(group->destroying)return;
+    if(group->active && group->active->term)term_set_focus(group->active->term,false);
+    group->active=NULL;
+    for(guint i=0;i<group->pages->len;i++){
+        GtkFrontend *inst=g_ptr_array_index(group->pages,i);
+        if(GTK_WIDGET(inst->hbox)==page){group->active=inst;break;}
+    }
+    GtkFrontend *inst=group->active;
+    if(inst && inst->term){
+        gtk_widget_grab_focus(inst->area);term_set_focus(inst->term,true);
+        gtk_window_set_title(GTK_WINDOW(group->window),inst->wintitle?inst->wintitle:appname);
+        term_invalidate(inst->term);
+    }
+}
+static void kr_tabs_destroy(GtkWidget *widget,gpointer data)
+{
+    KrTabGroup *group=data;group->destroying=true;
+    for(guint i=0;i<group->pages->len;i++){
+        GtkFrontend *inst=g_ptr_array_index(group->pages,i);
+        g_signal_handlers_disconnect_by_data(widget,inst);
+        inst->window=NULL;inst->tab_group=NULL;
+        kr_live_sessions--;delete_inst(inst);session_window_closed();
+    }
+    g_ptr_array_free(group->pages,TRUE);sfree(group);
+}
+static gboolean kr_tabs_delete(GtkWidget *widget,GdkEvent *event,gpointer data)
+{
+    KrTabGroup *group=data;
+    if(group->pages->len==1)return delete_window(widget,event,g_ptr_array_index(group->pages,0));
+    bool warn=false;
+    for(guint i=0;i<group->pages->len;i++){
+        GtkFrontend *inst=g_ptr_array_index(group->pages,i);
+        warn |= !inst->exited && conf_get_bool(inst->conf,CONF_warn_on_close);
+    }
+    if(!warn)return FALSE;
+    GtkWidget *dialog=gtk_message_dialog_new(GTK_WINDOW(widget),GTK_DIALOG_MODAL,GTK_MESSAGE_QUESTION,GTK_BUTTONS_OK_CANCEL,"%s",kr_mac_translate("Close all sessions in this window?"));
+    int response=gtk_dialog_run(GTK_DIALOG(dialog));gtk_widget_destroy(dialog);
+    return response!=GTK_RESPONSE_OK;
+}
+static void kr_close_tab(GtkFrontend *inst)
+{
+    KrTabGroup *group=inst->tab_group;
+    if(!group || group->pages->len==1){gtk_widget_destroy(inst->window);return;}
+    int index=gtk_notebook_page_num(GTK_NOTEBOOK(group->book),GTK_WIDGET(inst->hbox));
+    if(group->active==inst)group->active=NULL;
+    g_ptr_array_remove(group->pages,inst);
+    g_signal_handlers_disconnect_by_data(inst->window,inst);
+    gtk_notebook_remove_page(GTK_NOTEBOOK(group->book),index);
+    inst->window=NULL;inst->tab_group=NULL;
+    kr_live_sessions--;delete_inst(inst);session_window_closed();
+    gtk_notebook_set_show_tabs(GTK_NOTEBOOK(group->book),group->pages->len>1);
+    int current=gtk_notebook_get_current_page(GTK_NOTEBOOK(group->book));
+    kr_tab_switched(GTK_NOTEBOOK(group->book),gtk_notebook_get_nth_page(GTK_NOTEBOOK(group->book),current),current,group);
+}
+static void kr_tab_menu_close(GtkMenuItem *item,gpointer data)
+{
+    (void)item;kr_tab_close_clicked(NULL,data);
+}
+static void kr_tab_menu_move(GtkMenuItem *item,gpointer data)
+{
+    GtkFrontend *inst=data;
+    if(!inst->tab_group)return;
+    GtkNotebook *book=GTK_NOTEBOOK(inst->tab_group->book);
+    int index=gtk_notebook_page_num(book,GTK_WIDGET(inst->hbox));
+    int next=index+GPOINTER_TO_INT(g_object_get_data(G_OBJECT(item),"direction"));
+    if(index>=0 && next>=0 && next<gtk_notebook_get_n_pages(book))
+        gtk_notebook_reorder_child(book,GTK_WIDGET(inst->hbox),next);
+}
+static gboolean kr_tab_menu(GtkWidget *widget,GdkEventButton *event,gpointer data)
+{
+    if(event->type!=GDK_BUTTON_PRESS || event->button!=3)return FALSE;
+    GtkFrontend *inst=data;
+    GtkNotebook *book=GTK_NOTEBOOK(inst->tab_group->book);
+    int index=gtk_notebook_page_num(book,GTK_WIDGET(inst->hbox));
+    GtkWidget *menu=gtk_menu_new();
+    /* Attaching destroys the menu if its tab is closed while it is open. */
+    gtk_menu_attach_to_widget(GTK_MENU(menu),widget,NULL);
+    GtkWidget *close=gtk_menu_item_new_with_label(kr_mac_translate("Close tab"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu),close);
+    g_signal_connect(close,"activate",G_CALLBACK(kr_tab_menu_close),inst);
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu),gtk_separator_menu_item_new());
+    for(int direction=-1;direction<=1;direction+=2){
+        GtkWidget *move=gtk_menu_item_new_with_label(kr_mac_translate(direction<0?"Move left":"Move right"));
+        g_object_set_data(G_OBJECT(move),"direction",GINT_TO_POINTER(direction));
+        gtk_widget_set_sensitive(move,index+direction>=0 && index+direction<gtk_notebook_get_n_pages(book));
+        g_signal_connect(move,"activate",G_CALLBACK(kr_tab_menu_move),inst);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu),move);
+    }
+    g_signal_connect_swapped(menu,"selection-done",G_CALLBACK(gtk_widget_destroy),menu);
+    gtk_widget_show_all(menu);
+    gtk_menu_popup_at_pointer(GTK_MENU(menu),(GdkEvent*)event);
+    return TRUE;
+}
+static gboolean kr_tab_close_draw(GtkWidget *widget,cairo_t *cr,gpointer data)
+{
+    (void)data;
+    double width=gtk_widget_get_allocated_width(widget),height=gtk_widget_get_allocated_height(widget);
+    double side=MIN(width,height),x=(width-side)/2,y=(height-side)/2;
+    cairo_save(cr);cairo_translate(cr,x,y);cairo_scale(cr,side/16,side/16);
+    cairo_arc(cr,8,8,7,0,2*G_PI);
+    cairo_pattern_t *fill=cairo_pattern_create_linear(0,1,0,15);
+    cairo_pattern_add_color_stop_rgb(fill,0,0.96,0.35,0.23);
+    cairo_pattern_add_color_stop_rgb(fill,1,0.75,0.13,0.07);
+    cairo_set_source(cr,fill);cairo_fill(cr);cairo_pattern_destroy(fill);
+    cairo_save(cr);cairo_translate(cr,8,4);cairo_scale(cr,4,2.5);
+    cairo_arc(cr,0,0,1,0,2*G_PI);cairo_set_source_rgba(cr,1,0.6,0.45,0.65);cairo_fill(cr);cairo_restore(cr);
+    cairo_set_source_rgb(cr,1,1,1);cairo_set_line_width(cr,2);
+    cairo_move_to(cr,5,5);cairo_line_to(cr,11,11);cairo_move_to(cr,11,5);cairo_line_to(cr,5,11);cairo_stroke(cr);
+    cairo_restore(cr);return TRUE;
+}
+static void kr_tab_add(GtkFrontend *inst)
+{
+    KrTabGroup *group=inst->tab_group;
+    if(!group->book){
+        group->book=gtk_notebook_new();gtk_notebook_set_scrollable(GTK_NOTEBOOK(group->book),TRUE);
+        gtk_style_context_add_class(gtk_widget_get_style_context(group->book),"kitty-session-tabs");
+        GtkCssProvider *css=gtk_css_provider_new();
+        gtk_css_provider_load_from_data(css,
+            ".kitty-session-tabs > header {background: @theme_bg_color; padding: 4px 4px 0; border: 0;}"
+            ".kitty-session-tabs > header tabs tab {min-height: 24px; padding: 2px 8px; margin: 0 3px 3px 0; border: 1px solid transparent; border-radius: 8px; box-shadow: none; background: alpha(@theme_fg_color,0.04);}"
+            ".kitty-session-tabs > header tabs tab:hover {background: alpha(@theme_fg_color,0.08);}"
+            ".kitty-session-tabs > header tabs tab:checked {background: mix(@theme_base_color,@theme_selected_bg_color,0.25); border-color: alpha(@theme_selected_bg_color,0.65); color: @theme_fg_color;}"
+            ".kitty-tab-close {min-width: 20px; min-height: 20px; padding: 0; border: 0; border-radius: 6px; box-shadow: none; background-image: none; background-color: transparent; color: #d53542;}"
+            ".kitty-tab-close:hover {background-color: alpha(#d53542,0.15); color: white;}"
+            ".kitty-tab-close:active {background-color: #b82130; color: white;}",-1,NULL);
+        gtk_style_context_add_provider_for_screen(gtk_widget_get_screen(group->book),GTK_STYLE_PROVIDER(css),GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+        g_object_unref(css);
+        gtk_notebook_set_show_border(GTK_NOTEBOOK(group->book),FALSE);
+        gtk_container_add(GTK_CONTAINER(group->window),group->book);
+        g_signal_connect(group->book,"switch-page",G_CALLBACK(kr_tab_switched),group);
+    }
+    GtkWidget *label=gtk_box_new(GTK_ORIENTATION_HORIZONTAL,6);
+    GtkWidget *tab_event=gtk_event_box_new();
+    gtk_event_box_set_visible_window(GTK_EVENT_BOX(tab_event),FALSE);
+    gtk_container_add(GTK_CONTAINER(tab_event),label);
+    g_signal_connect(tab_event,"button-press-event",G_CALLBACK(kr_tab_menu),inst);
+    inst->tab_label=gtk_label_new(conf_get_str(inst->conf,CONF_host));
+    gtk_label_set_ellipsize(GTK_LABEL(inst->tab_label),PANGO_ELLIPSIZE_END);
+    gtk_label_set_max_width_chars(GTK_LABEL(inst->tab_label),28);
+    GtkWidget *close=gtk_button_new();
+    GtkWidget *close_icon=gtk_drawing_area_new();
+    gtk_widget_set_size_request(close_icon,16,16);
+    g_signal_connect(close_icon,"draw",G_CALLBACK(kr_tab_close_draw),NULL);
+    gtk_container_add(GTK_CONTAINER(close),close_icon);
+    gtk_button_set_relief(GTK_BUTTON(close),GTK_RELIEF_NONE);
+    gtk_widget_set_can_focus(close,FALSE);
+    gtk_style_context_add_class(gtk_widget_get_style_context(close),"kitty-tab-close");
+    gtk_widget_set_tooltip_text(close,kr_mac_translate("Close tab"));
+    gtk_label_set_width_chars(GTK_LABEL(inst->tab_label),17);
+    gtk_box_pack_start(GTK_BOX(label),inst->tab_label,TRUE,TRUE,0);gtk_box_pack_end(GTK_BOX(label),close,FALSE,FALSE,0);
+    g_signal_connect(close,"clicked",G_CALLBACK(kr_tab_close_clicked),inst);
+    g_ptr_array_add(group->pages,inst);
+    int page=gtk_notebook_append_page(GTK_NOTEBOOK(group->book),GTK_WIDGET(inst->hbox),tab_event);
+    gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(group->book),GTK_WIDGET(inst->hbox),TRUE);
+    gtk_widget_show_all(tab_event);gtk_widget_show(GTK_WIDGET(inst->hbox));gtk_widget_show(group->book);
+    gtk_notebook_set_show_tabs(GTK_NOTEBOOK(group->book),group->pages->len>1);
+    gtk_notebook_set_current_page(GTK_NOTEBOOK(group->book),page);group->active=inst;
+}
+#else
+static void kr_close_tab(GtkFrontend *inst) {gtk_widget_destroy(inst->window);}
+static bool kr_tab_active(GtkFrontend *inst) {(void)inst;return true;}
+#endif
+
 static void post_fatal_message_box_toplevel(void *vctx)
 {
     GtkFrontend *inst = (GtkFrontend *)vctx;
-    gtk_widget_destroy(inst->window);
+    kr_close_tab(inst);
 }
 
 static void post_fatal_message_box(void *vctx, int result)
@@ -709,7 +899,7 @@ static void warn_on_close_callback(void *vctx, int result)
     GtkFrontend *inst = (GtkFrontend *)vctx;
     unregister_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE);
     if (result)
-        gtk_widget_destroy(inst->window);
+        kr_close_tab(inst);
 }
 
 /*
@@ -1122,6 +1312,7 @@ static int return_key(GtkFrontend *inst, char *output, bool *special)
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+    if (!kr_tab_active(inst)) return false;
     char output[256];
     wchar_t ucsoutput[2];
     int ucsval, start, end, output_charset;
@@ -2512,7 +2703,7 @@ static void exit_callback(void *vctx)
         close_on_exit = conf_get_int(inst->conf, CONF_close_on_exit);
         if (close_on_exit == FORCE_ON ||
             (close_on_exit == AUTO && exitcode == 0)) {
-            gtk_widget_destroy(inst->window);
+            kr_close_tab(inst);
         }
     }
 }
@@ -2625,6 +2816,9 @@ void destroy(GtkWidget *widget, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
     inst->window = NULL;
+#ifdef KITTY_NG_LINUX
+    kr_live_sessions--;
+#endif
     delete_inst(inst);
     session_window_closed();
 }
@@ -2632,6 +2826,7 @@ void destroy(GtkWidget *widget, gpointer data)
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+    if (!kr_tab_active(inst)) return false;
 #if GTK_CHECK_VERSION(2,0,0)
     if (event->in)
         gtk_im_context_focus_in(inst->imc);
@@ -3605,6 +3800,10 @@ void init_clipboard(GtkFrontend *inst)
 
 static void set_window_titles(GtkFrontend *inst)
 {
+#ifdef KITTY_NG_LINUX
+    if(inst->tab_label)gtk_label_set_text(GTK_LABEL(inst->tab_label),inst->wintitle?inst->wintitle:appname);
+#endif
+    if(!kr_tab_active(inst))return;
     /*
      * We must always call set_icon_name after calling set_title,
      * since set_title will write both names. Irritating, but such
@@ -5186,7 +5385,13 @@ void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
 {
     GtkFrontend *inst = (GtkFrontend *)gdata;
 
+#ifdef KITTY_NG_LINUX
+    if (kr_tabs_enabled() && inst->tab_group) kr_pending_group=inst->tab_group;
+#endif
     launch_duplicate_session(inst->conf);
+#ifdef KITTY_NG_LINUX
+    kr_pending_group=NULL;
+#endif
 }
 
 void new_session_menuitem(GtkMenuItem *item, gpointer data)
@@ -5645,7 +5850,21 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->imc = gtk_im_multicontext_new();
 #endif
 
+#ifdef KITTY_NG_LINUX
+    if (kr_pending_group) {
+        inst->tab_group=kr_pending_group;kr_pending_group=NULL;
+        inst->window=inst->tab_group->window;
+    } else {
+        inst->window=make_gtk_toplevel_window(inst);
+        if(kr_tabs_enabled()){
+            inst->tab_group=snew(KrTabGroup);memset(inst->tab_group,0,sizeof(KrTabGroup));
+            inst->tab_group->window=inst->window;inst->tab_group->pages=g_ptr_array_new();
+        }
+    }
+    kr_live_sessions++;
+#else
     inst->window = make_gtk_toplevel_window(inst);
+#endif
     gtk_widget_set_name(GTK_WIDGET(inst->window), "top-level");
     {
         const char *winclass = conf_get_str(inst->conf, CONF_winclass);
@@ -5705,6 +5924,9 @@ void new_session_window(Conf *conf, const char *geometry_string)
     if (!conf_get_bool(inst->conf, CONF_scrollbar_on_left))
         gtk_box_pack_start(inst->hbox, inst->sbar, false, false, 0);
 
+#ifdef KITTY_NG_LINUX
+    if(!inst->tab_group)
+#endif
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
 #ifdef KITTY_NG_LINUX
@@ -5779,10 +6001,18 @@ void new_session_window(Conf *conf, const char *geometry_string)
     }
 #endif
 
-    g_signal_connect(G_OBJECT(inst->window), "destroy",
-                     G_CALLBACK(destroy), inst);
-    g_signal_connect(G_OBJECT(inst->window), "delete_event",
-                     G_CALLBACK(delete_window), inst);
+#ifdef KITTY_NG_LINUX
+    if(inst->tab_group){
+        if(inst->tab_group->pages->len==0){
+            g_signal_connect(inst->window,"destroy",G_CALLBACK(kr_tabs_destroy),inst->tab_group);
+            g_signal_connect(inst->window,"delete-event",G_CALLBACK(kr_tabs_delete),inst->tab_group);
+        }
+    }else
+#endif
+    {
+        g_signal_connect(G_OBJECT(inst->window), "destroy",G_CALLBACK(destroy), inst);
+        g_signal_connect(G_OBJECT(inst->window), "delete_event",G_CALLBACK(delete_window), inst);
+    }
     g_signal_connect(G_OBJECT(inst->window), "key_press_event",
                      G_CALLBACK(key_event), inst);
     g_signal_connect(G_OBJECT(inst->window), "key_release_event",
@@ -5842,6 +6072,11 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
     set_window_icon(inst->window, ALL_ICONS(main_icon), N_ICONS(main_icon));
 
+#ifdef KITTY_NG_LINUX
+    /* An existing notebook is already realised. Connect the drawing-area
+     * lifecycle handlers before adding a new page to it. */
+    if(inst->tab_group)kr_tab_add(inst);
+#endif
     gtk_widget_show(inst->window);
 
     set_window_background(inst);

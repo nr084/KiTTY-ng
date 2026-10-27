@@ -158,6 +158,9 @@ void fork_and_exec_self(int fd_to_close, ...)
 
 void launch_duplicate_session(Conf *conf)
 {
+#ifdef KITTY_NG_LINUX
+    if(kr_linux_tab_pending()){new_session_window(conf_copy(conf),NULL);return;}
+#endif
     /*
      * For this feature we must marshal conf and (possibly) pty_argv
      * into a byte stream, create a pipe, and send this byte stream
@@ -595,6 +598,9 @@ static void post_initial_config_box(void *vctx, int result)
 
 void session_window_closed(void)
 {
+#ifdef KITTY_NG_LINUX
+    if(kr_linux_windows_open())return;
+#endif
 #ifdef KITTY_NG_LINUX
     if (kr_linux_transfer_shutdown()) return;
 #endif

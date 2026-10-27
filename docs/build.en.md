@@ -1,5 +1,7 @@
 # Local builds and versioning
 
+Before compiling, check the latest stable compiler with its official provider. If it is newer than the compiler used by an existing package, rebuild the package before testing it. Results from the previous binary do not validate the rebuilt one.
+
 [Documentation](README.en.md) | [Русский](build.md)
 
 ## Windows
