@@ -1,3 +1,7 @@
+# Изменения проверки 1.0.3
+
+Команда `python build-local.py --toolchain C:/tools/llvm-mingw-20261020 --tests session_tree icons` собирает обе DLL и проверяет изменённое дерево, реальный WFX-интерфейс и ресурсы. Добавлены имена с точками, буквальным U+00B7, процентами, вложенные и плоские старые пути. Актуальный отчёт — [PUBLICATION.md](../PUBLICATION.md). Ниже сохранены команды и результаты предыдущих выпусков.
+
 # KiTTY-ng FS 1.0.2 verification
 
 Run `python build-local.py --toolchain C:/tools/llvm-mingw-20261020` from the plugin root for the current native Windows build/test workflow. Both architectures are built and executed. The new wide-tree regression checks 10,000 mixed siblings, exact identity, misses and case mismatch. Current results and limitations are in [PUBLICATION.md](../PUBLICATION.md).

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(kittyngfs VERSION 1.0.2 LANGUAGES C RC)
+project(kittyngfs VERSION 1.0.3 LANGUAGES C RC)
 if(NOT WIN32)
   message(FATAL_ERROR "Use an MSVC/MinGW Windows toolchain to build this WFX plugin.")
 endif()

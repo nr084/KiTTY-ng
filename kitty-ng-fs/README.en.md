@@ -4,15 +4,21 @@
 
 **SFTP in Total Commander using portable KiTTY-ng sessions.** The `kitty-ng-fs` Windows x86/x64 plugin launches external Klink, sharing connection profiles with the terminal client.
 
-## Download 1.0.2
+## Download 1.0.3
 
 | Package | Contents |
 | --- | --- |
-| [Plugin x86 + x64](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-x86-x64.zip) | TC installer with documentation; no source code |
-| [Source code](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/kitty-ng-fs-1.0.2-source.zip) | C11, CMake, artwork, tests and packaging; no compiled DLLs |
-| [Checksums](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.2/SHA256SUMS.txt) | SHA-256 for both archives |
+| [Plugin x86 + x64](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/kitty-ng-fs-1.0.3-x86-x64.zip) | TC installer with documentation; no source code |
+| [Source code](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/kitty-ng-fs-1.0.3-source.zip) | C11, CMake, artwork, tests and packaging; no compiled DLLs |
+| [Checksums](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.0.3/SHA256SUMS.txt) | SHA-256 for both archives |
 
-The plugin has its own release cycle: plugin **1.0.2**, client **0.85-6**. KiTTY-ng/Klink, user profiles and keys are not bundled.
+The plugin has its own release cycle: plugin **1.0.3**, client **0.85-6**. KiTTY-ng/Klink, user profiles and keys are not bundled.
+
+## Dots in session names
+
+`mail.example.ru` is displayed as **mail·example·ru**, keeping the full session label in TC's Name column. Only virtual session labels change: Klink still receives the original name, profiles are not renamed, and remote filenames such as `file.tar.gz` are untouched.
+
+A literal middle dot in a source name is displayed as `%C2%B7`; literal percent signs are escaped. Existing `[SSH]` collision suffixes remain supported. Old nested paths and flat bookmarks remain compatible aliases, with current visible names taking precedence in ambiguous cases. Opening an alias returns the new canonical path.
 
 ## Features
 

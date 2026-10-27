@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parent
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--toolchain", type=Path, required=True)
+    parser.add_argument("--tests", nargs="+", choices=("sftp", "pathutil", "profiles", "session_tree", "icons"),
+                        default=["sftp", "pathutil", "profiles", "session_tree", "icons"])
     args = parser.parse_args()
     tools = args.toolchain.resolve() / "bin"
     records = []
@@ -46,6 +48,7 @@ def main():
                 ("icons", [], ["-municode", "-lshell32", "-lgdi32", "-luser32"], [dll]),
             ]
             for name, sources, links, params in suites:
+                if name not in args.tests: continue
                 exe = build / ("test_" + name + ".exe")
                 run([cc, *flags, *sources, "tests/test_" + name + ".c", *links, "-o", exe])
                 run([exe, *params])

@@ -265,9 +265,46 @@ done:
     free(p.items);
 }
 
+static void test_dotted_sessions(void)
+{
+    KgProfile items[] = {
+        {L"mail.example.ru", L"mail.example.ru", L"a", 22},
+        {L"mail\x00b7" L"example\x00b7ru", L"literal-middle", L"b", 22},
+        {L"Group.with.dots/nested.host", L"Group.with.dots%2Fnested.host", L"c", 22},
+        {L"trail.", L"trail%2E", L"d", 22},
+        {L"mail%C2%B7example%C2%B7ru", L"percent", L"e", 22},
+        {L"server.name", L"server.name", L"f", 22},
+        {L"server\x00b7name/Child", L"server%2FChild", L"g", 22}
+    };
+    KgProfiles p = {items, sizeof(items)/sizeof(items[0])}; KgTree t = {0}; KgTreeMatch m;
+    size_t i;
+    if (!build(&p, &t)) return;
+    CHECK(t.legacy != NULL);
+    for (i=0; i<p.count; ++i) {
+        const KgTreeNode *node = &t.nodes[t.profile_nodes[i]];
+        CHECK(wcschr(node->name,L'.') == NULL);
+        CHECK(kg_tree_resolve(&t,&p,node->path,0,&m));
+        CHECK(m.profile_index==i && !*m.relative);
+    }
+    resolve(&t,&p,L"\\mail\x00b7" L"example\x00b7ru",KG_TREE_SESSION,0,L"");
+    resolve(&t,&p,L"\\mail%C2%B7example%C2%B7ru",KG_TREE_SESSION,1,L"");
+    m=resolve(&t,&p,L"\\mail.example.ru\\dir.with.dots\\file.tar.gz",KG_TREE_SESSION,0,L"dir.with.dots\\file.tar.gz");
+    CHECK(m.legacy_alias && m.node_index==t.profile_nodes[0]);
+    m=resolve(&t,&p,L"\\Group.with.dots\\nested.host\\file.txt",KG_TREE_SESSION,2,L"file.txt");
+    CHECK(m.legacy_alias && m.node_index==t.profile_nodes[2]);
+    resolve(&t,&p,L"\\Group.with.dots\\nested\x00b7host\\file.txt",KG_TREE_SESSION,2,L"file.txt");
+    resolve(&t,&p,L"\\Group.with.dots%2Fnested.host\\file.txt",KG_TREE_SESSION,2,L"file.txt");
+    resolve(&t,&p,L"\\trail%2E",KG_TREE_SESSION,3,L"");
+    CHECK(!kg_tree_resolve(&t,&p,L"\\mail.example.ru",0,&m));
+    CHECK(!wcscmp(p.items[0].load_name,L"mail.example.ru"));
+    CHECK(!wcscmp(t.nodes[t.profile_nodes[5]].name,L"server\x00b7name [SSH]"));
+    resolve(&t,&p,L"\\server.name",KG_TREE_SESSION,5,L"");
+    kg_tree_free(&t); CHECK(!t.legacy);
+}
+
 int main(void)
 {
-    test_empty(); test_hierarchy(); test_escaping_and_reserved();
+    test_dotted_sessions(); test_empty(); test_hierarchy(); test_escaping_and_reserved();
     test_collisions_and_stability(); test_failures(); test_large_list(); test_wide_lookup();
     printf("Session tree: %u checks, %u failures.\n", checks, failures);
     return failures ? 1 : 0;

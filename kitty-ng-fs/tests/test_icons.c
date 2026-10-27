@@ -247,6 +247,7 @@ int wmain(int argc, wchar_t **argv)
     join(nested,group,L"Nested"); CHECK(CreateDirectoryW(nested,NULL));
     /* The root SSH name sorts before Office alphabetically: the DIRECTORY
      * distinction, rather than an incidental name order, must group folders. */
+    CHECK(profile_file(sessions,L"mail.example.ru")); CHECK(profile_file(nested,L"nested.host"));
     CHECK(profile_file(sessions,L"AServer")); CHECK(profile_file(group,L"Server")); CHECK(profile_file(nested,L"Another"));
     wmemset(long_group,L'Z',100); long_group[100]=0;
     wmemset(long_nested,L'N',100); long_nested[100]=0;
@@ -282,6 +283,10 @@ int wmain(int argc, wchar_t **argv)
     CHECK(entry_count(L"\\Office\\Nested",L"Another",&attrs) == 1 && attrs == FILE_ATTRIBUTE_NORMAL);
     CHECK(entry_count(long_parent,boundary_leaf,&attrs) == 1 && attrs == FILE_ATTRIBUTE_NORMAL);
     CHECK(entry_count(long_parent,oversized_leaf,&attrs) == 1 && attrs == FILE_ATTRIBUTE_NORMAL);
+    CHECK(entry_count(L"\\",L"mail\x00b7" L"example\x00b7ru",&attrs) == 1 && attrs == FILE_ATTRIBUTE_NORMAL);
+    CHECK(entry_count(L"\\",L"mail.example.ru",NULL) == 0);
+    redirected(L"\\mail.example.ru",L"\\mail\x00b7" L"example\x00b7ru\\");
+    redirected(L"\\Office\\Nested\\nested.host",L"\\Office\\Nested\\nested\x00b7host\\");
     redirected(L"\\AServer",L"\\AServer\\");
     redirected(L"\\Office\\Server",L"\\Office\\Server\\");
     redirected(L"\\Office\\Nested\\Another",L"\\Office\\Nested\\Another\\");

@@ -25,6 +25,7 @@ typedef struct KgTree {
     size_t count;
     size_t *profile_nodes;
     size_t profile_count;
+    struct KgTree *legacy; /* Old visible paths, only when session labels changed. */
 } KgTree;
 
 typedef struct KgTreeMatch {

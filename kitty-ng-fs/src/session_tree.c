@@ -108,7 +108,7 @@ static int reserved_name(const wchar_t *s)
 /* Per-component equivalent of the v0.1 profile label encoding. Literal '%'
  * is escaped, so no raw profile name can impersonate a different component.
  * The logical profile name itself is never decoded again during lookup. */
-static wchar_t *component_label(const wchar_t *name)
+static wchar_t *component_label(const wchar_t *name, int session_dots)
 {
     static const wchar_t hex[] = L"0123456789ABCDEF";
     wchar_t buffer[KG_TREE_MAX_NAME + 1u];
@@ -118,8 +118,13 @@ static wchar_t *component_label(const wchar_t *name)
     while (tail && (name[tail - 1] == L'.' || name[tail - 1] == L' ')) --tail;
     for (i = 0; i < n; ++i) {
         wchar_t c = name[i];
-        int escape = c < 32 || (c >= 127 && c <= 159) ||
+        int escape = (session_dots && c == 0x00b7) || c < 32 || (c >= 127 && c <= 159) ||
                      wcschr(L"%/\\:?*\"<>|", c) || i >= tail || (!i && reserved);
+        if (session_dots && c == L'.') {
+            if (at >= KG_TREE_MAX_NAME) return NULL;
+            buffer[at++] = 0x00b7;
+            continue;
+        }
         if (escape) {
             unsigned char bytes[2];
             size_t count = 1, j;
@@ -289,10 +294,11 @@ void kg_tree_free(KgTree *tree)
     for (i = 0; i < tree->count; ++i) {
         free(tree->nodes[i].name); free(tree->nodes[i].path); free(tree->nodes[i].children);
     }
+    if (tree->legacy) { kg_tree_free(tree->legacy); free(tree->legacy); }
     free(tree->nodes); free(tree->profile_nodes); memset(tree, 0, sizeof(*tree));
 }
 
-int kg_tree_build(const KgProfiles *profiles, KgTree *out, wchar_t *error, size_t error_cap)
+static int build_tree(const KgProfiles *profiles, KgTree *out, wchar_t *error, size_t error_cap, int session_dots)
 {
     Builder b;
     ProfileOrder *order = NULL;
@@ -350,7 +356,7 @@ int kg_tree_build(const KgProfiles *profiles, KgTree *out, wchar_t *error, size_
         for (j = 0; j < count; ++j) {
             size_t index;
             int group = j + 1 < count;
-            label = component_label(parts[j]);
+            label = component_label(parts[j], session_dots && !group);
             if (!label) {
                 error_text(error, error_cap, L"A KiTTY-ng profile component cannot fit a safe 255-character panel name."); goto done;
             }
@@ -384,6 +390,25 @@ done:
         kg_tree_free(out);
     }
     return ok;
+}
+
+int kg_tree_build(const KgProfiles *profiles, KgTree *out, wchar_t *error, size_t error_cap)
+{
+    size_t i;
+    int changed = 0;
+    if (!build_tree(profiles, out, error, error_cap, 1)) return 0;
+    for (i = 0; i < profiles->count; ++i) {
+        const wchar_t *leaf = wcsrchr(profiles->items[i].load_name, L'/');
+        leaf = leaf ? leaf + 1 : profiles->items[i].load_name;
+        if (wcschr(leaf, L'.') || wcschr(leaf, 0x00b7)) { changed = 1; break; }
+    }
+    if (!changed) return 1;
+    out->legacy = calloc(1, sizeof(*out->legacy));
+    if (!out->legacy || !build_tree(profiles, out->legacy, error, error_cap, 0)) {
+        if (error && error_cap && !error[0]) error_text(error, error_cap, L"Not enough memory to retain old session paths.");
+        kg_tree_free(out); return 0;
+    }
+    return 1;
 }
 
 static size_t exact_child(const KgTree *tree, size_t parent, const wchar_t *name, size_t length)
@@ -424,7 +449,7 @@ static void fill_match(const KgTree *tree, size_t node, const wchar_t *relative,
     match->relative = relative; match->legacy_alias = legacy;
 }
 
-int kg_tree_resolve(const KgTree *tree, const KgProfiles *profiles, const wchar_t *path,
+static int resolve_tree(const KgTree *tree, const KgProfiles *profiles, const wchar_t *path,
                     int allow_legacy, KgTreeMatch *match)
 {
     const wchar_t *p = path, *end, *first;
@@ -468,4 +493,19 @@ int kg_tree_resolve(const KgTree *tree, const KgProfiles *profiles, const wchar_
         if (*p == L'\\') return 0;
         parent = child;
     }
+}
+
+/* Current visible names always win. An old unambiguous path resolves to the
+ * same profile index, but must return the new node so redirects stay canonical.
+ * Never rewrite or decode the remaining remote filename. */
+int kg_tree_resolve(const KgTree *tree, const KgProfiles *profiles, const wchar_t *path,
+                    int allow_legacy, KgTreeMatch *match)
+{
+    KgTreeMatch old;
+    if (resolve_tree(tree, profiles, path, allow_legacy, match)) return 1;
+    if (!tree || !tree->legacy || !match || !allow_legacy ||
+        !resolve_tree(tree->legacy, profiles, path, 0, &old) ||
+        old.kind != KG_TREE_SESSION || old.profile_index >= tree->profile_count) return 0;
+    fill_match(tree, tree->profile_nodes[old.profile_index], old.relative, 1, match);
+    return 1;
 }
