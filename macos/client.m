@@ -58,7 +58,7 @@ void timer_change_notify(unsigned long next){}
 uxsel_id *uxsel_input_add(int fd,int rwx){return NULL;}
 void uxsel_input_remove(uxsel_id *id){}
 
-@interface MacTerminal : NSView <NSTextInputClient,NSWindowDelegate>
+@interface MacTerminal : NSView <NSTextInputClient,NSWindowDelegate,NSMenuItemValidation>
 @property(assign) MacSession *session;
 @property(nonatomic,strong) NSWindow *terminalWindow;
 @property(nonatomic,strong) NSFont *font;
@@ -92,6 +92,8 @@ void uxsel_input_remove(uxsel_id *id){}
 - (void)settings:(id)sender;
 - (void)paste:(id)sender;
 - (void)copy:(id)sender;
+- (void)duplicate:(id)sender;
+- (BOOL)validateMenuItem:(NSMenuItem *)item;
 @end
 /* Keep margins outside the terminal view: drawing, selection, IME and mouse
  * reporting all retain the same local cell coordinates. */
@@ -223,10 +225,104 @@ static void log_error(LogPolicy *lp,const char *text){message(text);}
 static bool log_verbose(LogPolicy *lp){return true;}
 static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.logging_error=log_error,.verbose=log_verbose};
 
+/* These menus contain only terminal commands, never AppKit text suggestions
+ * or third-party context-menu additions (including AutoFill). Other text
+ * fields retain their standard system menus and secure-field restrictions. */
+@interface TerminalCommandMenu : NSMenu
+@end
+@implementation TerminalCommandMenu
+- (void)addItem:(NSMenuItem *)item {
+    if([item.identifier hasPrefix:@"KiTTYNG.Session."])[super addItem:item];
+}
+- (void)insertItem:(NSMenuItem *)item atIndex:(NSInteger)index {
+    if([item.identifier hasPrefix:@"KiTTYNG.Session."])[super insertItem:item atIndex:index];
+}
+@end
+
+static NSArray *sessionCommands(void){
+    return @[@[T(@"Duplicate session",@"Дублировать сеанс"),@"duplicate:"],
+        @[T(@"Session settings…",@"Настройки сеанса…"),@"settings:"],
+        @[T(@"Event log…",@"Журнал событий…"),@"showLog:"],
+        @[T(@"Always on top",@"Поверх окон"),@"toggleTop:"],
+        @[T(@"Protect input",@"Защита ввода"),@"toggleLock:"],
+        @[T(@"Hide window",@"Скрыть окно"),@"hideWindow:"],
+        @[T(@"Fullscreen",@"Полный экран"),@"fullscreen:"],
+        @[T(@"Restart session",@"Перезапустить сеанс"),@"restart:"],
+        @[T(@"Send automatic commands",@"Отправить автокоманды"),@"startup:"],
+        @[T(@"Send script…",@"Отправить скрипт…"),@"script:"],
+        @[T(@"Send files…",@"Отправить файлы…"),@"upload:"],
+        @[T(@"Download files…",@"Скачать файлы…"),@"download:"],
+        @[T(@"Copy",@"Копировать"),@"copy:"],@[T(@"Paste",@"Вставить"),@"paste:"]];
+}
+static NSMenu *terminalMenu(id target,BOOL routed){
+    NSMenu *menu=[[TerminalCommandMenu alloc]initWithTitle:T(@"Session",@"Сеанс")];
+    menu.allowsContextMenuPlugIns=NO;
+    // Probe the selector directly: the x86_64 target need not link the
+    // ARM-only availability runtime shipped with native LLVM releases.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+    if([menu respondsToSelector:@selector(setAutomaticallyInsertsWritingToolsItems:)])menu.automaticallyInsertsWritingToolsItems=NO;
+#pragma clang diagnostic pop
+    for(NSArray *command in sessionCommands()){
+        NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:command[0]
+            action:routed?@selector(performSessionAction:):NSSelectorFromString(command[1]) keyEquivalent:@""];
+        item.identifier=[@"KiTTYNG.Session." stringByAppendingString:command[1]];
+        item.representedObject=command[1];item.target=target;[menu addItem:item];
+    }
+    return menu;
+}
+static MacTerminal *activeTerminal(void){
+    NSWindow *window=NSApp.keyWindow;
+    if(NSApp.modalWindow&&NSApp.modalWindow!=window)return nil;
+    for(NSResponder *responder=window.firstResponder;responder;responder=responder.nextResponder)
+        if([responder isKindOfClass:MacTerminal.class])return (MacTerminal *)responder;
+    return nil;
+}
+@interface TerminalMenuRouter : NSObject <NSMenuItemValidation>
+@end
+@implementation TerminalMenuRouter
+- (BOOL)validateMenuItem:(NSMenuItem *)item{return [activeTerminal() validateMenuItem:item];}
+- (void)performSessionAction:(NSMenuItem *)item{
+    MacTerminal *terminal=activeTerminal();
+    if(terminal&&[terminal validateMenuItem:item])
+        [NSApp sendAction:NSSelectorFromString(item.representedObject) to:terminal from:item];
+}
+@end
+void kr_mac_add_session_menu(NSMenu *menu){
+    static TerminalMenuRouter *router;if(!router)router=[TerminalMenuRouter new];
+    NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:T(@"Session",@"Сеанс") action:NULL keyEquivalent:@""];
+    item.submenu=terminalMenu(router,YES);[menu addItem:item];
+}
+int kr_mac_test_session_menu_ui(void){
+    NSMenu *context=terminalMenu(nil,NO);
+    if(context.numberOfItems!=14||context.allowsContextMenuPlugIns)return 1;
+    if(![context.itemArray[0].representedObject isEqualToString:@"duplicate:"])return 1;
+    [context addItem:[[NSMenuItem alloc]initWithTitle:@"AutoFill" action:NULL keyEquivalent:@""]];
+    [context insertItem:[[NSMenuItem alloc]initWithTitle:@"Injected item" action:NULL keyEquivalent:@""] atIndex:0];
+    if(context.numberOfItems!=14)return 1;
+    kr_mac_add_session_menu(NSApp.mainMenu);
+    NSMenu *top=NSApp.mainMenu.itemArray.lastObject.submenu;
+    if(top.numberOfItems!=context.numberOfItems)return 1;
+    for(NSUInteger i=0;i<top.numberOfItems;i++){
+        NSMenuItem *item=top.itemArray[i];
+        if(![item.representedObject isEqual:context.itemArray[i].representedObject])return 1;
+        if([(TerminalMenuRouter*)item.target validateMenuItem:item])return 1;
+    }
+    puts("PASS: identical terminal/context commands, duplicate, no injected AutoFill, inactive-session routing disabled");return 0;
+}
+
 @implementation MacTerminal
 - (NSMenu *)menuForEvent:(NSEvent *)event {
-    NSMenu *menu=[NSMenu new];NSArray *items=@[@[T(@"Session settings…",@"Настройки сеанса…"),NSStringFromSelector(@selector(settings:))],@[T(@"Event log…",@"Журнал событий…"),NSStringFromSelector(@selector(showLog:))],@[T(@"Always on top",@"Поверх окон"),NSStringFromSelector(@selector(toggleTop:))],@[T(@"Protect input",@"Защита ввода"),NSStringFromSelector(@selector(toggleLock:))],@[T(@"Hide window",@"Скрыть окно"),NSStringFromSelector(@selector(hideWindow:))],@[T(@"Fullscreen",@"Полный экран"),NSStringFromSelector(@selector(fullscreen:))],@[T(@"Restart session",@"Перезапустить сеанс"),NSStringFromSelector(@selector(restart:))],@[T(@"Send automatic commands",@"Отправить автокоманды"),NSStringFromSelector(@selector(startup:))],@[T(@"Send script…",@"Отправить скрипт…"),NSStringFromSelector(@selector(script:))],@[T(@"Send files…",@"Отправить файлы…"),NSStringFromSelector(@selector(upload:))],@[T(@"Download files…",@"Скачать файлы…"),NSStringFromSelector(@selector(download:))],@[T(@"Copy",@"Копировать"),NSStringFromSelector(@selector(copy:))],@[T(@"Paste",@"Вставить"),NSStringFromSelector(@selector(paste:))]];
-    for(NSArray *item in items){NSMenuItem *entry=[[NSMenuItem alloc]initWithTitle:item[0] action:NSSelectorFromString(item[1]) keyEquivalent:@""];entry.target=self;[menu addItem:entry];}return menu;
+    return terminalMenu(self,NO);
+}
+- (BOOL)validateMenuItem:(NSMenuItem *)item {
+    MacSession *s=self.session;if(!s||s->closed||!s->conf)return NO;
+    NSString *name=item.representedObject;
+    if([name isEqualToString:@"toggleTop:"])item.state=conf_get_bool(s->conf,CONF_alwaysontop)?NSControlStateValueOn:NSControlStateValueOff;
+    if([name isEqualToString:@"toggleLock:"])item.state=s->input_locked?NSControlStateValueOn:NSControlStateValueOff;
+    if([name isEqualToString:@"fullscreen:"])item.state=(self.terminalWindow.styleMask&NSWindowStyleMaskFullScreen)?NSControlStateValueOn:NSControlStateValueOff;
+    if([@[@"upload:",@"download:",@"startup:",@"script:",@"paste:"] containsObject:name])return s->started&&!s->input_locked;
+    return YES;
 }
 - (void)upload:(id)sender{if(self.session&&!self.session->input_locked)kr_mac_upload(self.session->conf,self.terminalWindow,nil,conf_get_bool(self.session->conf,CONF_scp_auto_pwd)?self.remoteDirectory:nil);}
 - (void)download:(id)sender{if(self.session&&!self.session->input_locked)kr_mac_download(self.session->conf,self.terminalWindow,conf_get_bool(self.session->conf,CONF_scp_auto_pwd)?self.remoteDirectory:nil);}
@@ -250,7 +346,7 @@ static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.
 - (void)toggleLock:(id)sender {if(self.session)self.session->input_locked=!self.session->input_locked;}
 - (void)hideWindow:(id)sender {[self.terminalWindow orderOut:nil];}
 - (void)fullscreen:(id)sender {[self.terminalWindow toggleFullScreen:nil];}
-- (void)settings:(id)sender {if(self.session)kr_mac_edit_profile(conf_get_str(self.session->conf,CONF_kr_session_name),true);}
+- (void)settings:(id)sender {if(self.session){const char *name=conf_get_str(self.session->conf,CONF_kr_session_name);if(*name)kr_mac_edit_profile(name,true);else kr_mac_quick_connect_conf(self.session->conf);}}
 - (void)showLog:(id)sender {NSAlert *alert=[NSAlert new];alert.messageText=T(@"Event log",@"Журнал событий");NSScrollView *scroll=[[NSScrollView alloc]initWithFrame:NSMakeRect(0,0,650,300)];scroll.hasVerticalScroller=YES;NSTextView *text=[[NSTextView alloc]initWithFrame:scroll.bounds];text.editable=NO;text.string=[self.events componentsJoinedByString:@"\n"];text.font=[NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];scroll.documentView=text;alert.accessoryView=scroll;[alert runModal];}
 - (void)saveWindow {
     MacSession *s=self.session;if(!s)return;const char *name=conf_get_str(s->conf,CONF_kr_session_name);if(!*name)return;char *path=kr_mac_profile_path(name);NSData *current=path?[NSData dataWithContentsOfFile:S(path)]:nil;sfree(path);
@@ -386,7 +482,7 @@ void kr_mac_open_conf(Conf *configuration){
     if(!initialized){setlocale(LC_CTYPE,"");sk_init();uxsel_init();enable_dit();settings_set_default_protocol(PROT_SSH);settings_set_default_port(22);windows=[NSMutableArray new];initialized=true;}
     Conf *conf=conf_copy(configuration);const char *name=conf_get_str(conf,CONF_kr_session_name);
     MacTerminal *view=[[MacTerminal alloc]initWithFrame:NSMakeRect(0,0,800,480)];MacSession *s=snew(MacSession);memset(s,0,sizeof(*s));s->conf=conf;view.session=s;char *profile=kr_mac_profile_path(name);view.profileSource=profile?[NSData dataWithContentsOfFile:S(profile)]:nil;sfree(profile);
-    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.title=[@"KiTTY-ng — " stringByAppendingString:S(*name?name:conf_get_str(conf,CONF_host))];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
+    NSWindow *window=[[NSWindow alloc]initWithContentRect:view.bounds styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];window.tabbingMode=NSWindowTabbingModeDisallowed;window.title=[@"KiTTY-ng — " stringByAppendingString:S(*name?name:conf_get_str(conf,CONF_host))];MacTerminalFrame *frame=[[MacTerminalFrame alloc]initWithFrame:view.bounds];
     window.contentView=frame;view.frame=NSInsetRect(frame.bounds,terminalPadding,terminalPadding);[frame addSubview:view];window.releasedWhenClosed=NO;window.delegate=view;window.minSize=NSMakeSize(240,160);view.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;view.terminalWindow=window;[windows addObject:view];[view start];[window center];[window makeKeyAndOrderFront:nil];[window makeFirstResponder:view];
     if(conf_get_bool(conf,CONF_save_windowpos)){settings_r *reader=open_settings_r(name);int x=read_setting_i(reader,"MacWindowX",INT_MIN),y=read_setting_i(reader,"MacWindowY",INT_MIN),w=read_setting_i(reader,"MacWindowWidth",0),h=read_setting_i(reader,"MacWindowHeight",0);close_settings_r(reader);if(x!=INT_MIN&&y!=INT_MIN&&w>=240&&h>=160&&w<=10000&&h<=10000)[window setFrame:NSMakeRect(x,y,w,h) display:YES];}
     if(conf_get_bool(conf,CONF_maximize))[window zoom:nil];if(conf_get_bool(conf,CONF_fullscreen))[window toggleFullScreen:nil];if(conf_get_bool(conf,CONF_sendtotray))[window orderOut:nil];

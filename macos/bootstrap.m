@@ -56,7 +56,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     NSMenuItem *keygen=[[NSMenuItem alloc]initWithTitle:@"KiTTYgen" action:@selector(keygen:) keyEquivalent:@""];keygen.target=self;[appMenu addItem:keygen];NSMenuItem *agent=[[NSMenuItem alloc]initWithTitle:@"Kageant" action:@selector(agent:) keyEquivalent:@""];agent.target=self;[appMenu addItem:agent];NSMenuItem *authorities=[[NSMenuItem alloc]initWithTitle:L(@"SSH authorities…",@"Центры сертификации SSH…") action:@selector(authorities:) keyEquivalent:@""];authorities.target=self;[appMenu addItem:authorities];
     [appMenu addItem:[NSMenuItem separatorItem]];
     [appMenu addItemWithTitle:L(@"Quit KiTTY-ng", @"Завершить KiTTY-ng") action:@selector(terminate:) keyEquivalent:@"q"]; kr_mac_add_edit_menu(menu);
-    NSApp.mainMenu = menu;
+    kr_mac_add_session_menu(menu);NSApp.mainMenu = menu;
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,820,600) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
     self.window.releasedWhenClosed = NO; self.window.title = @"KiTTY-ng"; self.window.minSize = NSMakeSize(680,420);
     NSView *view = self.window.contentView;

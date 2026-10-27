@@ -2,11 +2,11 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** Release 0.85-6 is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** The upcoming 0.85-7 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
 ## First launch
 
-1. Open `kitty-ng-0.85-6-macos-universal.dmg`.
+1. Open `kitty-ng-0.85-7-macos-universal.dmg`.
 2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.
@@ -48,6 +48,10 @@ Unknown profile fields are retained. Mac font and window geometry settings use s
 
 New SSH profiles use port **22**. Choose **English / Русский → Apply** in the main window. KiTTYgen has a dropdown and Kageant has a language menu. The default follows the macOS language; a saved choice takes precedence. Remote output and user data are not translated.
 
+In 0.85-7 the top **Session** menu and terminal context menu expose the same commands. **Duplicate session** opens an independent connection in a separate window using the current settings. Quick connections and their copies stay temporary: no name prompt, new profile, Sessions or Default Settings writes, including when closing. Temporary session settings reopen without saving a profile. The top menu targets the active terminal and is disabled in other windows. Terminal menus exclude AutoFill. Native macOS tabs remain deferred.
+
+![macOS session menu](screenshots/macos-session-menu-en.png)
+
 ## File transfers
 
 Drop files or folders onto an SSH terminal, or use its context menu. Upload uses the known current path when detection is enabled, the configured `PSCPRemoteDir`, or `.` — the home directory of a new connection. It does not ask for a separate destination directory. Use the download command and specify the remote path to receive files. If a terminal application captures the mouse, use **Shift + right-click** for the local menu.
@@ -71,11 +75,13 @@ SSH CA settings use `SshHostCAs`; automatic synchronization with the Windows reg
 
 Saved KiTTY passwords are reversible. Entire profiles encrypted with a master password are unsupported. Retaining an unknown field does not imply support for its retired extension. See the [macOS matrix](macos-migration.json), [verification scope](validation.md) and [roadmap](planned.md) (technical reports in Russian).
 
+Normal launches on Apple Silicon use ARM64 without Rosetta. Forcing the Intel slice for validation on macOS 27 may trigger a warning about future Rosetta compatibility in macOS 28; that warning concerns Intel execution. [Apple explanation](https://support.apple.com/en-gb/102527).
+
 ## Diagnostics and builds
 
 The DMG's `Instructions` folder contains guides and diagnostic `.command` files. Copy these beside the app before use. The diagnostic command produces a log; the smoke-test command uses synthetic data in a temporary directory.
 
-Compilation, signing, DMG packaging and native tests now run on a Mac: [build guide](build.en.md). See the [13 October 2026 native validation report](macos-native-validation.md) for coverage and limits.
+Compilation, signing, DMG packaging and native tests now run on a Mac: [build guide](build.en.md). See the [native validation report](macos-native-validation.md) for coverage and limits.
 
 ## Screenshots
 

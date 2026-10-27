@@ -106,8 +106,8 @@ static NSArray *choices(int key){
     if(key==CONF_proxy_type)return @[@[@"None",@(PROXY_NONE)],@[@"SOCKS4",@(PROXY_SOCKS4)],@[@"SOCKS5",@(PROXY_SOCKS5)],@[@"HTTP",@(PROXY_HTTP)],@[@"Telnet",@(PROXY_TELNET)],@[@"Local command",@(PROXY_CMD)]];
     if(key==CONF_winscpprot)return @[@[@"SFTP",@1],@[@"SCP",@0]];return nil;
 }
-static MacEditor *open_profile_editor(const char *name,bool existing){
-    if(!editors)editors=[NSMutableArray new];MacEditor *editor=[MacEditor new];editor.conf=conf_new();bool loaded=load_settings(existing?name:"Default Settings",editor.conf);if(existing&&!loaded){conf_free(editor.conf);editor.conf=NULL;NSAlert *a=[NSAlert new];a.messageText=L(@"Unable to read this portable profile",@"Не удалось прочитать этот портативный профиль");[a runModal];return nil;}if(!existing&&conf_get_int(editor.conf,CONF_protocol)==PROT_SSH&&conf_get_int(editor.conf,CONF_port)<=0)conf_set_int(editor.conf,CONF_port,22);editor.reader=open_settings_r(existing?name:"Default Settings");char *source=existing?kr_mac_profile_path(name):NULL;editor.source=source?[NSData dataWithContentsOfFile:S(source)]:nil;sfree(source);editor.original=existing?S(name):@"";editor.fields=[NSMutableDictionary new];editor.changes=[NSMutableDictionary new];editor.advanced=[NSMutableArray new];
+static MacEditor *open_profile_editor(const char *name,bool existing,Conf *configuration){
+    if(!editors)editors=[NSMutableArray new];MacEditor *editor=[MacEditor new];editor.conf=configuration?conf_copy(configuration):conf_new();bool loaded=configuration||load_settings(existing?name:"Default Settings",editor.conf);if(existing&&!loaded){conf_free(editor.conf);editor.conf=NULL;NSAlert *a=[NSAlert new];a.messageText=L(@"Unable to read this portable profile",@"Не удалось прочитать этот портативный профиль");[a runModal];return nil;}if(!existing&&conf_get_int(editor.conf,CONF_protocol)==PROT_SSH&&conf_get_int(editor.conf,CONF_port)<=0)conf_set_int(editor.conf,CONF_port,22);editor.reader=configuration?kr_mac_snapshot_settings(editor.conf,save_open_settings):open_settings_r(existing?name:"Default Settings");char *source=existing?kr_mac_profile_path(name):NULL;editor.source=source?[NSData dataWithContentsOfFile:S(source)]:nil;sfree(source);editor.original=existing?S(name):@"";editor.fields=[NSMutableDictionary new];editor.changes=[NSMutableDictionary new];editor.advanced=[NSMutableArray new];
     editor.window=[[NSWindow alloc]initWithContentRect:NSMakeRect(0,0,920,720) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];editor.window.releasedWhenClosed=NO;editor.window.delegate=editor;[NSNotificationCenter.defaultCenter addObserver:editor selector:@selector(uiLanguageChanged:) name:@"KiTTYNGLanguageChanged" object:nil];editor.window.title=L(@"KiTTY-ng — session settings",@"KiTTY-ng — настройка сеанса");editor.window.minSize=NSMakeSize(800,600);NSView *root=editor.window.contentView;
     NSTextField *label=[NSTextField labelWithString:L(@"Session name / folder",@"Имя сеанса / папка")];label.frame=NSMakeRect(20,675,220,25);label.autoresizingMask=NSViewMinYMargin;[root addSubview:label];editor.name=[[NSTextField alloc]initWithFrame:NSMakeRect(245,672,650,28)];editor.name.stringValue=S(name);editor.name.autoresizingMask=NSViewWidthSizable|NSViewMinYMargin;[root addSubview:editor.name];
     NSTabView *tabs=[[NSTabView alloc]initWithFrame:NSMakeRect(16,80,888,575)];tabs.autoresizingMask=NSViewWidthSizable|NSViewHeightSizable;[root addSubview:tabs];
@@ -165,14 +165,15 @@ static MacEditor *open_profile_editor(const char *name,bool existing){
     NSButton *save=[NSButton buttonWithTitle:L(@"Save",@"Сохранить") target:editor action:@selector(save:)];save.frame=NSMakeRect(760,30,140,34);save.autoresizingMask=NSViewMinXMargin;[root addSubview:save];NSButton *cancel=[NSButton buttonWithTitle:L(@"Cancel",@"Отмена") target:editor action:@selector(cancel:)];cancel.frame=NSMakeRect(660,30,90,34);cancel.autoresizingMask=NSViewMinXMargin;[root addSubview:cancel];[editors addObject:editor];[editor.window center];[editor.window makeKeyAndOrderFront:nil];
     return editor;
 }
-void kr_mac_edit_profile(const char *name,bool existing){open_profile_editor(name,existing);}
+void kr_mac_edit_profile(const char *name,bool existing){open_profile_editor(name,existing,NULL);}
 void kr_mac_duplicate_profile(const char *source,const char *name){
-    MacEditor *editor=open_profile_editor(source,true);
+    MacEditor *editor=open_profile_editor(source,true,NULL);
     if(editor){editor.duplicate=YES;editor.name.stringValue=S(name);}
 }
 
-void kr_mac_quick_connect(void){
-    MacEditor *editor=open_profile_editor("",false);if(!editor)return;
+void kr_mac_quick_connect(void){kr_mac_quick_connect_conf(NULL);}
+void kr_mac_quick_connect_conf(Conf *configuration){
+    MacEditor *editor=open_profile_editor("",false,configuration);if(!editor)return;
     editor.quick=YES;editor.name.hidden=YES;
     editor.window.title=L(@"Quick connect",@"Быстрое подключение");
     for(NSView *view in editor.window.contentView.subviews){

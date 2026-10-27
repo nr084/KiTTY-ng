@@ -2,6 +2,8 @@
 
 **0.85-6 is available**: unsaved quick connections on Linux/macOS and standard editing shortcuts in macOS fields. [Release notes](docs/releases/0.85-6.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-6).
 
+**Preparing 0.85-7**: Windows/Linux tabs, Mac session duplication and a top Session menu without AutoFill. The Mac package is portable and shares Windows profiles. [Preparation notes](docs/releases/0.85-7.md) · [Release page after publication](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
+
 **Total Commander plugin: [kitty-ng-fs 1.1.1](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.1)** — embedded SSH/SFTP without Klink, with password prompts and server-key confirmation in TC. Installer and source code are available as separate archives.
 
 [Русский](README.md) | **English**
@@ -34,6 +36,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ## Features
 
+- macOS 0.85-7: duplicate into a separate window, including temporary connections, and a top menu for the active session. Mac tabs remain deferred.
 - Windows/Linux tabs in 0.85-7: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
 
 - Session folders, case-insensitive quick search, editing and duplication.

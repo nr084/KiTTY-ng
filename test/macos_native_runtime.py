@@ -26,6 +26,7 @@ def main():
     parser.add_argument('--gui-scp',action='store_true')
     parser.add_argument('--gui-automation',action='store_true')
     parser.add_argument('--gui-key-auth',action='store_true',help='Require the disposable client key in GUI acceptance')
+    parser.add_argument('--gui-session-menus',action='store_true',help='Label disposable GUI connections for active-window menu checks')
     parser.add_argument('--proxies-only',action='store_true',help='Run only new loopback HTTP/SOCKS5 proxy checks')
     args=parser.parse_args()
     helpers=args.app.resolve()/'Contents/Helpers'
@@ -51,7 +52,7 @@ def main():
         env.pop('KITTY_NG_GUI_PROMPTS',None)
         env.pop('SSH_AUTH_SOCK',None)
         mode={'auth':'publickey' if args.gui_fixture and args.gui_key_auth else 'password'}
-        gui_state={'connections':0,'commands':[],'outage_injected':False}
+        gui_state={'connections':0,'commands':[],'command_events':[],'outage_injected':False}
         def update_gui():
             if args.gui_fixture:
                 current=json.loads(args.gui_fixture.read_text())
@@ -185,10 +186,12 @@ def main():
             def check_channel_pty_request(self,*arguments):return True
             def check_channel_shell_request(self,channel):
                 gui_state['connections']+=1
+                connection_id=gui_state['connections']
                 update_gui()
                 def shell():
                     time.sleep(.1)
                     channel.sendall('NATIVE_GUI_READY\r\n┌──────────────────────┐\r\n│ Русский UTF-8 😀     │\r\n└──────────────────────┘\r\n$ '.encode())
+                    if args.gui_session_menus:channel.sendall(f'\x1b]0;Synthetic session {connection_id}\x07'.encode())
                     channel.settimeout(.2)
                     buffer=b''
                     while not stop.is_set() and channel.active:
@@ -199,6 +202,7 @@ def main():
                         while b'\r' in buffer:
                             command,buffer=buffer.split(b'\r',1)
                             gui_state['commands'].append(command.decode('utf8',errors='replace'))
+                            gui_state['command_events'].append(dict(connection=connection_id,command=command.decode('utf8',errors='replace')))
                             update_gui()
                             channel.sendall(b'\r\nECHO:'+command+b'\r\n$ ')
                             if args.gui_automation and command==b'AUTOCOMMAND_OK' and not gui_state['outage_injected']:
@@ -280,9 +284,15 @@ def main():
                     (settings/'kitty.ini').write_text('[KiTTY]\nsavemode=dir\n[Shortcuts]\nprotect={CONTROL}{F9}\nlist={CONTROL}{SHIFT}{K}\n{CONTROL}{SHIFT}{K}=SHORTCUT_OK\\n\n')
                 (settings/'Sessions/Папка').mkdir()
                 (settings/'Sessions/Папка/вложенный').write_bytes(profile.read_bytes())
+                if args.gui_session_menus:
+                    # Inherit valid KiTTY defaults with persistence enabled:
+                    # a quick connection must suppress those writes itself.
+                    (settings/'Sessions/Default%20Settings').write_text(profile.read_text()+'SaveOnExit\\1\\\nSaveWindowPos\\1\\\n')
+                profiles_before={str(p.relative_to(settings/'Sessions')):hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in (settings/'Sessions').rglob('*') if p.is_file()}
                 gui_env=env.copy()
                 gui_env['KITTY_NG_PORTABLE_DIR']=str(settings)
-                args.gui_fixture.write_text(json.dumps(dict(root=str(settings),remote=str(remote),port=port,hostkey=fingerprint,app=str(args.app.resolve())),indent=2)+'\n')
+                args.gui_fixture.write_text(json.dumps(dict(root=str(settings),remote=str(remote),port=port,hostkey=fingerprint,app=str(args.app.resolve()),sessions_before=profiles_before),indent=2)+'\n')
                 with (args.report.parent/'gui-process.log').open('wb') as log:
                     process=subprocess.Popen(['/usr/bin/arch','-'+args.arch,str(args.app.resolve()/'Contents/MacOS/kitty-ng')],env=gui_env,stdout=log,stderr=log)
                     print('READY: native UI fixture',args.gui_fixture,flush=True)
@@ -290,7 +300,11 @@ def main():
                     except BaseException:
                         process.terminate();process.wait(timeout=10);raise
                 report['status']='fixture-finished'
+                report['gui_exit_code']=process.returncode
+                assert process.returncode==0, f'GUI exited with {process.returncode}'
                 report['events']=gui_state
+                report['profiles_after_gui']={str(p.relative_to(settings/'Sessions')):hashlib.sha256(p.read_bytes()).hexdigest()
+                    for p in (settings/'Sessions').rglob('*') if p.is_file()}
                 return
             save_profile()
             for authentication in ('password','keyboard-interactive'):

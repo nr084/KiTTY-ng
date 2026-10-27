@@ -4,6 +4,7 @@
 #include "portable.h"
 #include "language.h"
 #include "utilities.h"
+#include "client.h"
 #include <stdlib.h>
 int kr_mac_self_test_ui(void){
     const char *enabled=getenv("KITTY_NG_SELF_TEST"),*root=kr_mac_root();
@@ -36,6 +37,7 @@ int kr_mac_self_test_ui(void){
         CHECK([app.mainMenu.itemArray.lastObject.title isEqualToString:title]);
         CHECK([[edit itemAtIndex:1].title isEqualToString:language?@"Копировать":@"Copy"]);
     }
+    CHECK(kr_mac_test_session_menu_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);
     puts("PASS: native AppKit language round-trips, search cell/data preserved, stable language names, initial SSH/22 defaults");return 0;
 #undef CHECK
