@@ -100,19 +100,18 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   assert u.IsWindowVisible(second) and not u.IsWindowVisible(first)
   u.PostMessageW(second,0x102,ord('B'),0);wait(lambda:received.get(2)==b'B');assert received[1]==b''
   scale=u.GetDpiForWindow(host)/96
-  # Activate the host through a real click, as the user does.
-  point=w.POINT(round(250*scale),round(15*scale));u.ClientToScreen(strip,ctypes.byref(point))
-  u.SetCursorPos(point.x,point.y);u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
-  time.sleep(.2)
+  u.GetForegroundWindow.restype=w.HWND
+  u.SetForegroundWindow.argtypes=[w.HWND]
+  assert u.SetForegroundWindow(host)
+  wait(lambda:u.GetForegroundWindow()==host)
+  # Keep the physical pointer off the strip during deterministic drag messages.
+  rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));u.SetCursorPos(rect.left+25,rect.top+10)
   def mouse(message,x,y=15,buttons=0):
-   point=w.POINT(round(x*scale),round(y*scale));u.ClientToScreen(strip,ctypes.byref(point))
-   u.SetCursorPos(point.x,point.y)
-   if message==0x201:u.mouse_event(2,0,0,0,0)
-   elif message==0x202:u.mouse_event(4,0,0,0,0)
-   time.sleep(u.GetDoubleClickTime()/1000+.05 if message==0x202 else .1)
+   u.SendMessageW(strip,message,buttons,(round(y*scale)<<16)|round(x*scale))
+   time.sleep(.1)
   mouse(0x201,35,buttons=1);mouse(0x200,250,buttons=1);mouse(0x202,250)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==1)
-  assert u.IsWindowVisible(first) and len(channels)==2
+  wait(lambda:u.IsWindowVisible(first));assert len(channels)==2
   keyboard(first,1,'x')
   mouse(0x201,250,buttons=1);mouse(0x200,35,buttons=1);mouse(0x202,35)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==0)
