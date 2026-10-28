@@ -1,4 +1,4 @@
-"""Publish the verified local Windows, macOS Universal and Linux release, preserving previous releases."""
+"""Publish the verified local Windows, macOS Universal and Linux release, retaining only the current client release."""
 import argparse
 import hashlib
 import json
@@ -80,8 +80,25 @@ if not metadata["prerelease"]:
     publication["make_latest"] = "true"
 release = request(API + "/releases/" + str(release["id"]), "PATCH", publication)
 assert not release["draft"]
-# Confirm publication and exact assets; previous releases are retained.
+# Confirm publication before removing superseded client releases.
 published = request(API + "/releases/tags/" + tag)
 assert published["id"] == release["id"] and not published["draft"]
 assert {a["name"] for a in published["assets"]} == expected
 print("Published:", published["html_url"], flush=True)
+
+# The independent plugin has its own release cycle and is never removed here.
+import re
+assert request(API + "/releases/latest")["id"] == published["id"]
+old_client_releases = []
+page = 1
+while True:
+    batch = request(API + f"/releases?per_page=100&page={page}")
+    old_client_releases.extend(r for r in batch if r["id"] != published["id"]
+                               and not r["draft"]
+                               and re.fullmatch(r"v[0-9]+\.[0-9]+-[0-9]+", r["tag_name"]))
+    if len(batch) < 100:
+        break
+    page += 1
+for old in old_client_releases:
+    request(API + "/releases/" + str(old["id"]), "DELETE")
+    print("Removed superseded client release:", old["tag_name"], flush=True)
