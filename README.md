@@ -16,6 +16,8 @@
 
 ## Скачать
 
+Windows/Linux 0.85-10 опубликованы. macOS ожидает нативной подготовки: [задание Mac-чату](docs/releases/0.85-10-macos-handoff.md).
+
 | Платформа | Сборка 0.85-10 | Запуск |
 | --- | --- | --- |
 | Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86_64.tar.zst) | `chmod +x`, запуск |
