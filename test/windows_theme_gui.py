@@ -51,7 +51,8 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-theme-gui-') as temp:
     process=subprocess.Popen([str(build/(tool+'-'+arch+'.exe')),*args],env=env)
     try:
      if tool=='kageant':check_agent(process.pid)
-     assert process.wait(timeout=20)==0
+     code=process.wait(timeout=20)
+     assert code==0,(tool,arch,lang,mode,code)
     finally:
      if process.poll() is None:process.terminate();process.wait()
     with Image.open(image) as source:
