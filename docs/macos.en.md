@@ -2,17 +2,17 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** The 0.85-7 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** The 0.85-9 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
-## Preparing 0.85-8
+## Features in 0.85-8 and 0.85-9
 
 Every tab context menu now offers Duplicate session, including inactive tabs. An authenticated source passes its password or key passphrase to an independent copy in memory only. A rejected password prompts again; OTPs and server challenges are never replayed. Closing the source leaves its copy connected, including with SessionTabs=0. The close button is gray normally and red on hover. Duplication in the current host creates no intermediate window and retains fullscreen/zoomed state.
 
-Portable Windows profiles remain shared, with data outside `.app`. The Windows chat will publish 0.85-8 after the user confirms Mac readiness.
+Portable Windows profiles remain shared, with data outside `.app`. The shared RU/EN engine is checked natively for 0.85-9. The Mac DMG joins the published Windows/Linux packages with its own recorded source commit.
 
 ## First launch
 
-1. Open `kitty-ng-0.85-7-macos-universal.dmg`.
+1. Open `kitty-ng-0.85-9-macos-universal.dmg`.
 2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.
@@ -100,3 +100,9 @@ Captured on this Mac using synthetic profiles and a disposable test key.
 ## Quick connections and editing
 
 The first Quick connect button opens temporary SSH/22 settings without a session name. Connect starts a temporary connection without writing a profile, Default Settings or password to Sessions. Cmd+A/C/V/X use the standard responder-chain Edit menu; secure fields retain AppKit clipboard restrictions. The terminal keeps Cmd+C/V and forwards control keys to the remote side.
+
+## Session folder and quitting
+
+The app first checks for sessions in the directory **containing `KiTTY-ng.app`**, outside the bundle and independently of Finder’s working directory. Existing sessions there are used without a folder prompt. Otherwise an available manually selected folder is restored from macOS preferences. Explicit `--portable-dir` and `KITTY_NG_PORTABLE_DIR` take precedence. Windows profile compatibility is preserved.
+
+The **Quit** command at the bottom of the status menu honors session close confirmation. Cancelling leaves all connections open.
