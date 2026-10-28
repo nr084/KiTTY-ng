@@ -36,6 +36,7 @@ BOOL kr_append_menu(HMENU menu, UINT flags, UINT_PTR id, const char *english);
 BOOL kr_insert_menu(HMENU menu, UINT position, UINT flags, UINT_PTR id, const char *english);
 void kr_listbox_add_label(dlgcontrol *ctrl, dlgparam *dp, const char *text);
 void kr_listbox_addwithid_raw(dlgcontrol *ctrl, dlgparam *dp, const char *text, int id);
+void kr_listbox_addwithid_utf8(dlgcontrol *ctrl, dlgparam *dp, const char *text, int id);
 void kr_apply_transparency(HWND hwnd, Conf *conf);
 char *kr_prepare_password(Conf *conf);
 void kr_load_password(Conf *conf);

@@ -2334,6 +2334,17 @@ void dlg_listbox_addwithid(dlgcontrol *ctrl, dlgparam *dp,
     SendDlgItemMessage(dp->hwnd, c->base_id+1, msg2, index, (LPARAM)id);
 }
 
+void kr_listbox_addwithid_utf8(dlgcontrol *ctrl, dlgparam *dp, const char *text, int id)
+{
+    struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    int msg = ctrl->type == CTRL_LISTBOX && ctrl->listbox.height != 0 ? LB_ADDSTRING : CB_ADDSTRING;
+    int msg2 = ctrl->type == CTRL_LISTBOX && ctrl->listbox.height != 0 ? LB_SETITEMDATA : CB_SETITEMDATA;
+    wchar_t *wide = dup_mb_to_wc(CP_UTF8, text);
+    int index = SendDlgItemMessageW(dp->hwnd, c->base_id + 1, msg, 0, (LPARAM)wide);
+    sfree(wide);
+    SendDlgItemMessage(dp->hwnd, c->base_id + 1, msg2, index, (LPARAM)id);
+}
+
 void kr_listbox_addwithid_raw(dlgcontrol *ctrl, dlgparam *dp, const char *text, int id)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);

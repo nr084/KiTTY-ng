@@ -2,11 +2,13 @@
 #include "kittyng-quick-commands.h"
 #ifdef _WIN32
 #define quick_translate kr_translate
+#define quick_list_add kr_listbox_addwithid_utf8
 #define quick_set dlg_editbox_set_utf8
 #define quick_get dlg_editbox_get_utf8
 #else
 #include "cli-language.h"
 #define quick_translate kr_mac_translate
+#define quick_list_add dlg_listbox_addwithid
 #define quick_set dlg_editbox_set
 #define quick_get dlg_editbox_get
 #endif
@@ -44,7 +46,7 @@ static void quick_reload(struct quick_editor *q, dlgparam *dlg)
     int row = 0, selected_row = -1;
     for (int i = 0; i < KR_QUICK_LIMIT; i++) {
         if (!q->commands.items[i].name) continue;
-        session_list_add(q->list, dlg, q->commands.items[i].name, i);
+        quick_list_add(q->list, dlg, q->commands.items[i].name, i);
         if (i == q->selected) selected_row = row;
         row++;
     }
@@ -127,3 +129,5 @@ static void quick_editor_setup(struct controlbox *b)
 #undef quick_translate
 #undef quick_set
 #undef quick_get
+
+#undef quick_list_add

@@ -74,6 +74,9 @@ def verify(process, terminal, u, windows, title, until, english=False):
                 assert len(edits)==2,(name,edits)
                 buttons={title(c).replace('&',''):c for c in visible if cls(c).lower()=='button'}
                 count=u.SendMessageW(listing,0x18b,0,0)
+                initial=ctypes.create_unicode_buffer(256)
+                u.SendMessageW(listing,0x189,0,ctypes.addressof(initial))
+                assert initial.value==('Update Ubuntu' if english else 'Обновить Ubuntu'),initial.value
                 u.SendMessageW(buttons['Add' if english else 'Добавить'],0xf5,0,0)
                 for edit,text in zip(edits,['Delete','echo Проверка && echo 2']):
                     buffer=ctypes.create_unicode_buffer(text)
