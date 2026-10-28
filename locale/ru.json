@@ -2128,5 +2128,6 @@
   "SIGTERM (Terminate)": "SIGTERM (завершить)",
   "SIGKILL (Kill)": "SIGKILL (принудительно завершить)",
   "SIGQUIT (Quit)": "SIGQUIT (выход)",
-  "SIGHUP (Hangup)": "SIGHUP (разрыв связи)"
+  "SIGHUP (Hangup)": "SIGHUP (разрыв связи)",
+  "Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — %s": "Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — %s"
 }
