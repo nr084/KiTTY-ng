@@ -84,3 +84,9 @@ python3 tools/release-build.py --assemble-only
 Windows/Linux builds are prepared separately; macOS builds run on a Mac. Release assembly verifies version and commit provenance, matching native macOS/Linux acceptance, and checksums. Publication to the existing GitHub repository requires a separate explicit release request.
 
 An explicit request to update only the Mac asset of an existing release uses `python3 tools/update-macos-release.py --publish` after committing/pushing sources, building on Mac and completing acceptance. It preserves the existing tag and Windows/Linux assets, renames the previous DMG as an archived asset, uploads the new primary DMG and updates Russian release notes. Without `--publish`, it only saves a GitHub state snapshot. New full releases continue to use a new revision.
+
+### Reusing unaffected Mac checks
+
+Keep successful checks when their code, dependencies, tests, toolchain and environment are unchanged. For the narrowly verified portable-browser caption change, `tools/macos-caption-reuse.py capture --evidence <new-directory>` preserves original reports and binaries before rebuilding. After the normal build, `reuse --evidence <same-directory>` validates the bounded source diff and environment. Other related changes or unfinished/failed checks cannot reuse this evidence.
+
+Reused coverage is explicitly labelled `reused-coverage-attestation`. Original reports, tested commits and executed binary hashes are retained. The changed caption requires fresh GUI acceptance; signatures, Universal 2, packaging and mounted DMG are verified on the new bytes. This is coverage reuse, not a claim of binary identity or new execution.
