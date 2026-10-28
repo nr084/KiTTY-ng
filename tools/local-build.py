@@ -353,9 +353,12 @@ def main():
                           [([PYTHON, "test/companion_dispatch.py", directory, arch], None)],
                           compiler=compiler)
                     files = source_dependencies(ninja, directory, [executable])
-                    files.add("test/windows_tabs.py")
+                    files.update({"test/windows_tabs.py", "test/duplicate_auth_fixture.py"})
                     check(arch + "/session-tabs", files,
-                          [([PYTHON, "test/windows_tabs.py", directory / executable], ssh_environment(work))],
+                          [([PYTHON, "test/windows_tabs.py", directory / executable], ssh_environment(work)),
+                           ([PYTHON, "test/windows_tabs.py", directory / executable, "--russian", "--maximized"], ssh_environment(work)),
+                           ([PYTHON, "test/windows_tabs.py", directory / executable, "--key"], ssh_environment(work)),
+                           ([PYTHON, "test/windows_tabs.py", directory / executable, "--fullscreen"], ssh_environment(work))],
                           compiler=compiler)
                     if arch == "x64":
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])

@@ -2,6 +2,7 @@
 #import <AppKit/AppKit.h>
 #import <CoreText/CoreText.h>
 #include "putty.h"
+#include "kittyng-auth.h"
 #include "ssh.h"
 #include "terminal.h"
 #include "storage.h"
@@ -215,8 +216,9 @@ static SeatPromptResult host_key(Seat *seat,const char *host,int port,const char
 }
 static SeatPromptResult weak_crypto(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *context){NSAlert *a=[NSAlert new];a.messageText=T(@"SSH security warning",@"Предупреждение безопасности SSH");a.informativeText=dialog_text(text);[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a addButtonWithTitle:T(@"Continue",@"Продолжить")];BOOL accepted=[a runModal]==NSAlertSecondButtonReturn;if(!accepted)SEAT(seat)->manual_abort=true;return accepted?SPR_OK:SPR_USER_ABORT;}
 static SeatPromptResult prompts(Seat *seat,prompts_t *p){MacSession *s=SEAT(seat);
-    if(!s->password_tried&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(s->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);s->password_tried=true;return SPR_OK;}}
-    for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if([a runModal]!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}return SPR_OK;
+    if(kr_auth_reuse(s->conf,p))return SPR_OK;
+    if(!s->password_tried&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(s->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);s->password_tried=true;kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;}}
+    for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if([a runModal]!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;
 }
 static void trust(Seat *seat,bool value){if(SEAT(seat)->term)term_set_trust_status(SEAT(seat)->term,value);}
 static bool pixel_size(Seat *seat,int *w,int *h){NSSize z=SEAT(seat)->view.bounds.size;*w=z.width;*h=z.height;return true;}
@@ -375,7 +377,7 @@ int kr_mac_test_session_menu_ui(void){
     
 }
 - (void)connect {
-    MacSession *s=self.session;if(!s)return;s->started=false;s->closed=false;s->manual_abort=false;s->password_tried=false;s->commands_started=false;s->reconnect_due=0;cancel_commands(s);
+    MacSession *s=self.session;if(!s)return;s->started=false;s->closed=false;s->manual_abort=false;s->password_tried=false;conf_set_int(s->conf,CONF_kr_auth_attempts,0);s->commands_started=false;s->reconnect_due=0;cancel_commands(s);
     if(s->ldisc){ldisc_free(s->ldisc);s->ldisc=NULL;}if(s->backend){backend_free(s->backend);s->backend=NULL;}term_provide_backend(s->term,NULL);
     char *realhost=NULL;const struct BackendVtable *backend=backend_vt_from_proto(conf_get_int(s->conf,CONF_protocol));char *error=backend?backend_init(backend,&s->seat,&s->backend,s->logctx,s->conf,conf_get_str(s->conf,CONF_host),conf_get_int(s->conf,CONF_port),&realhost,conf_get_bool(s->conf,CONF_tcp_nodelay),conf_get_bool(s->conf,CONF_tcp_keepalives)):dupstr("This protocol is unavailable on macOS");
     if(error){fatal(&s->seat,error);sfree(error);}else{term_provide_backend(s->term,s->backend);s->ldisc=ldisc_create(s->conf,s->term,s->backend,&s->seat);term_setup_window_titles(s->term,realhost);backend_size(s->backend,s->term->cols,s->term->rows);}sfree(realhost);[self setNeedsDisplay:YES];
@@ -419,7 +421,7 @@ int kr_mac_test_session_menu_ui(void){
 - (void)copyAll:(id)sender{if(self.session){int clip=CLIP_CLIPBOARD;term_copyall(self.session->term,&clip,1);}}
 - (void)clearHistory:(id)sender{if(self.session)term_clrsb(self.session->term);}
 - (void)resetTerminal:(id)sender{if(self.session)term_pwron(self.session->term,true);}
-- (void)duplicate:(id)sender{if(self.session)open_conf_in_host(self.session->conf,self.host.tabsEnabled?self.host:nil);}
+- (void)duplicate:(id)sender{if(self.session){Conf *copy=kr_auth_duplicate(self.session->conf,self.session->backend && backend_sendok(self.session->backend));open_conf_in_host(copy,self.host.tabsEnabled?self.host:nil);conf_free(copy);}}
 - (void)updateSessionTitle:(NSString*)title{self.sessionTitle=title;[self.host refresh];}
 - (void)showBrowser:(id)sender{kr_mac_show_windows();}
 - (void)keyDown:(NSEvent *)event{MacSession *s=self.session;if(!s||!s->term)return;if([self shortcut:event])return;

@@ -196,6 +196,8 @@ static void copy_value(struct value *to, struct value *from, int type)
  */
 static void free_entry(struct conf_entry *entry)
 {
+    if(entry->key.primary==CONF_kr_auth_password || entry->key.primary==CONF_kr_auth_passphrase)
+        smemclr(entry->value.u.stringval.str,strlen(entry->value.u.stringval.str));
     free_key(&entry->key);
     free_value(&entry->value, conf_key_info[entry->key.primary].value_type);
     sfree(entry);

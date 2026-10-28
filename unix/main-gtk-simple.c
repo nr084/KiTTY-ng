@@ -196,7 +196,7 @@ void launch_duplicate_session(Conf *conf)
     if (ret < 0)
         perror("write to pipe");
     close(pipefd[1]);
-    strbuf_free(serialised);
+    smemclr(serialised->s,serialised->len);strbuf_free(serialised);
 }
 
 void launch_new_session(void)
@@ -262,7 +262,7 @@ int read_dupsession_data(Conf *conf, char *arg)
         exit(1);
     }
 
-    sfree(data);
+    smemclr(data,size);sfree(data);
     return 0;
 }
 

@@ -33,15 +33,19 @@ static BOOL macTabsEnabled(void){
 @interface MacTabButton : NSButton
 @property(nonatomic,weak) MacTabHost *host;
 @property(nonatomic,weak) MacTerminal *page;
-@property BOOL closeControl;
+@property BOOL closeControl,hovered;
+@property(nonatomic,strong) NSTrackingArea *hoverTracking;
 @end
 @implementation MacTabButton
 - (BOOL)wantsUpdateLayer{return NO;}
 - (BOOL)isFlipped{return YES;}
 - (BOOL)acceptsFirstResponder{return NO;}
+- (void)updateTrackingAreas{[super updateTrackingAreas];if(self.hoverTracking)[self removeTrackingArea:self.hoverTracking];self.hoverTracking=[[NSTrackingArea alloc]initWithRect:NSZeroRect options:NSTrackingMouseEnteredAndExited|NSTrackingActiveInKeyWindow|NSTrackingInVisibleRect owner:self userInfo:nil];[self addTrackingArea:self.hoverTracking];}
+- (void)mouseEntered:(NSEvent*)event{self.hovered=YES;self.needsDisplay=YES;}
+- (void)mouseExited:(NSEvent*)event{self.hovered=NO;self.needsDisplay=YES;}
 - (void)drawRect:(NSRect)dirty{
     if(self.closeControl){
-        [[NSColor colorWithSRGBRed:0.87 green:0.23 blue:0.25 alpha:1]setFill];
+        [(self.hovered||self.highlighted?[NSColor colorWithSRGBRed:0.87 green:0.23 blue:0.25 alpha:1]:NSColor.secondaryLabelColor)setFill];
         [[NSBezierPath bezierPathWithOvalInRect:NSInsetRect(self.bounds,3,3)]fill];
         [NSColor.whiteColor setStroke];NSBezierPath *cross=[NSBezierPath bezierPath];cross.lineWidth=1.5;
         CGFloat x=NSMidX(self.bounds),y=NSMidY(self.bounds);
@@ -72,14 +76,15 @@ static BOOL macTabsEnabled(void){
 - (NSMenu*)menuForEvent:(NSEvent*)event{
     MacTabHost *host=self.host;NSInteger index=[host.pages indexOfObject:self.page];
     NSMenu *menu=[NSMenu new];menu.autoenablesItems=NO;menu.allowsContextMenuPlugIns=NO;
-    NSArray *commands=@[@[T(@"Close tab",@"Закрыть вкладку"),@"closeTab:"],@[T(@"Move left",@"Переместить влево"),@"moveLeft:"],@[T(@"Move right",@"Переместить вправо"),@"moveRight:"]];
+    NSArray *commands=@[@[T(@"Close tab",@"Закрыть вкладку"),@"closeTab:"],@[T(@"Duplicate session",@"Дублировать сеанс"),@"duplicateTab:"],@[T(@"Move left",@"Переместить влево"),@"moveLeft:"],@[T(@"Move right",@"Переместить вправо"),@"moveRight:"]];
     for(NSUInteger i=0;i<commands.count;i++){
         NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:commands[i][0] action:NSSelectorFromString(commands[i][1]) keyEquivalent:@""];
-        item.target=host;item.representedObject=self.page;item.enabled=i==0||(i==1?index>0:index+1<(NSInteger)host.pages.count);[menu addItem:item];
+        item.target=host;item.representedObject=self.page;item.enabled=i<2||(i==2?index>0:index+1<(NSInteger)host.pages.count);[menu addItem:item];
     }return menu;
 }
 @end
 @implementation MacTabHost
+- (void)duplicateTab:(NSMenuItem*)item{MacTerminal *page=item.representedObject;if([self.pages containsObject:page])[page duplicate:nil];}
 - (void)closeTab:(NSMenuItem*)item{[self closePage:item.representedObject];}
 - (void)moveLeft:(NSMenuItem*)item{[self movePage:item.representedObject to:[self.pages indexOfObject:item.representedObject]-1];}
 - (void)moveRight:(NSMenuItem*)item{[self movePage:item.representedObject to:[self.pages indexOfObject:item.representedObject]+1];}

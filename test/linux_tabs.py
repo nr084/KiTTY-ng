@@ -26,10 +26,13 @@ def tabs():return [n for n in nodes(pyatspi.Registry.getDesktop(0)) if n.getRole
 key=paramiko.RSAKey.generate(2048);fingerprint='SHA256:'+base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')
 listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen();listener.settimeout(.2)
 channels=[];transports=[];received={};done=threading.Event()
+from duplicate_auth_fixture import PPK,PASSPHRASE,PUBLIC
+client_key=paramiko.Ed25519Key(data=base64.b64decode(PUBLIC)) if "--key" in sys.argv else None
 class Server(paramiko.ServerInterface):
- def check_auth_none(self,user):return paramiko.AUTH_SUCCESSFUL if user=="demo" else paramiko.AUTH_FAILED
+ def check_auth_none(self,user):return paramiko.AUTH_FAILED
  def check_auth_password(self,user,password):return paramiko.AUTH_SUCCESSFUL if (user,password)==('demo','synthetic') else paramiko.AUTH_FAILED
- def get_allowed_auths(self,user):return 'password'
+ def check_auth_publickey(self,user,key):return paramiko.AUTH_SUCCESSFUL if user=='demo' and client_key is not None and key==client_key else paramiko.AUTH_FAILED
+ def get_allowed_auths(self,user):return 'publickey' if client_key is not None else 'password'
  def check_channel_request(self,*args):return paramiko.OPEN_SUCCEEDED
  def check_channel_pty_request(self,*args):return True
  def check_channel_shell_request(self,*args):return True
@@ -57,9 +60,16 @@ binary=Path(sys.argv[1]).resolve();output=Path(sys.argv[2]);output.mkdir(parents
 with tempfile.TemporaryDirectory(prefix='kitty-tabs-') as folder:
  root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n')
  env={**os.environ,'KITTY_NG_PORTABLE_DIR':str(root),'KITTY_NG_LANGUAGE':'en','G_DEBUG':'fatal-criticals','NO_AT_BRIDGE':'0'}
+ key_args=[]
+ if client_key is not None:
+  ppk=root/'synthetic.ppk';ppk.write_bytes(PPK);key_args=['-i',str(ppk)]
  log=(output/'linux-tabs.log').open('w')
- process=subprocess.Popen([str(binary),'-load','Demo','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','demo','-pw','synthetic','-hostkey',fingerprint],env=env,stdout=log,stderr=log)
+ process=subprocess.Popen([str(binary),'-load','Demo','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','demo','-hostkey',fingerprint,*key_args],env=env,stdout=log,stderr=log)
  try:
+  time.sleep(1)
+  initial=wait(lambda:subprocess.check_output(["xdotool","search","--pid",str(process.pid)],text=True).split()[-1])
+  subprocess.run(["xdotool","windowfocus",initial,"type",PASSPHRASE if client_key is not None else "synthetic"],check=True)
+  subprocess.run(["xdotool","key","Return"],check=True)
   wait(lambda:len(channels)==1)
   assert all(t.queryComponent().getExtents(pyatspi.DESKTOP_COORDS).width<0 for t in tabs())
   wid=wait(lambda:subprocess.check_output(['xdotool','search','--name','Demo session 1'],text=True).split()[-1])
@@ -89,9 +99,13 @@ with tempfile.TemporaryDirectory(prefix='kitty-tabs-') as folder:
   shot=Image.open(output/'linux-tabs-en.png').convert('RGB')
   assert sum(max(pixel)<30 for pixel in shot.getdata())>shot.width*shot.height//2, 'Terminal backing surface must be drawn, not blank'
 
+  click(first,3);click(wait(lambda:find('Duplicate session')))
+  wait(lambda:len(channels)==3 and len(tabs())==3)
+  click(tabs()[2],3);click(wait(lambda:find('Close tab')))
+  wait(lambda:len(tabs())==2)
   click(first,3);click(wait(lambda:find('Move right')))
   wait(lambda:tabs()[1].name==first.name)
-  assert len(channels)==2
+  assert len(channels)==3
   # Closing a tab through the menu must bypass WarnOnClose=1.
   click(tabs()[0],3);click(wait(lambda:find('Close tab')))
   wait(lambda:len(tabs())==1)

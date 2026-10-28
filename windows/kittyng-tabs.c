@@ -201,10 +201,10 @@ static void tab_paint(TabFrame *f,HDC target)
         HRGN circle=CreateEllipticRgn(scale,scale,side-scale,side-scale);SelectClipRgn(icon,circle);
         for(int y=0;y<side;y++){
             int red=hot?246-y*45/side:239-y*50/side;
-            brush=CreateSolidBrush(RGB(red,87-y*53/side,58-y*40/side));
+            brush=CreateSolidBrush(hot?RGB(red,87-y*53/side,58-y*40/side):RGB(151-y*25/side,157-y*25/side,165-y*25/side));
             RECT line={0,y,side,y+1};FillRect(icon,&line,brush);DeleteObject(brush);
         }
-        brush=CreateSolidBrush(hot?RGB(255,145,117):RGB(255,120,92));
+        brush=CreateSolidBrush(hot?RGB(255,145,117):RGB(193,198,204));
         old_brush=SelectObject(icon,brush);old_pen=SelectObject(icon,GetStockObject(NULL_PEN));
         Ellipse(icon,side/5,scale,side*4/5,side/2);
         SelectObject(icon,old_brush);SelectObject(icon,old_pen);DeleteObject(brush);
@@ -340,6 +340,7 @@ static void frame_tab_menu(TabFrame *f)
     HWND target=f->pages[index];
     HMENU menu=CreatePopupMenu();
     kr_append_menu(menu,MF_STRING,TAB_CLOSE,"Close tab");
+    kr_append_menu(menu,MF_STRING,TAB_DUPLICATE,"Duplicate session");
     AppendMenuW(menu,MF_SEPARATOR,0,NULL);
     kr_append_menu(menu,MF_STRING | (index==0?MF_GRAYED:0),TAB_LEFT,"Move left");
     kr_append_menu(menu,MF_STRING | (index==f->count-1?MF_GRAYED:0),TAB_RIGHT,"Move right");
@@ -349,6 +350,7 @@ static void frame_tab_menu(TabFrame *f)
     for(index=0;index<f->count && f->pages[index]!=target;index++);
     if(index==f->count)return;
     if(command==TAB_CLOSE){PostMessageW(target,KR_WM_TAB_CLOSE,(WPARAM)f->frame,0);return;}
+    if(command==TAB_DUPLICATE){PostMessageW(target,WM_SYSCOMMAND,TAB_DUPLICATE,0);return;}
     int next=index+(command==TAB_LEFT?-1:command==TAB_RIGHT?1:0);
     if(next==index || next<0 || next>=f->count)return;
     HWND active=f->pages[f->selected];
@@ -364,7 +366,7 @@ static bool frame_add(TabFrame *f, HWND page)
     ShowWindow(page,SW_HIDE);
     /* SetParent needs WS_CHILD in place to establish the cross-thread input
      * relationship. Setting it afterwards leaves separate keyboard queues. */
-    SetWindowLongPtrW(page,GWL_STYLE,(old & ~(WS_POPUP|WS_CAPTION|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SYSMENU))|WS_CHILD);
+    SetWindowLongPtrW(page,GWL_STYLE,(old & ~(WS_POPUP|WS_CAPTION|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SYSMENU|WS_MAXIMIZE|WS_MINIMIZE))|WS_CHILD);
     SetLastError(0);
     HWND previous = SetParent(page,f->frame);
     if (!previous && GetLastError()) {
@@ -445,6 +447,8 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
     wc.hIcon=(HICON)GetClassLongPtrW(source,GCLP_HICON);wc.hIconSm=(HICON)GetClassLongPtrW(source,GCLP_HICONSM);
     RegisterClassExW(&wc);
     TabFrame f={ .selected=-1, .hover=-1 };RECT r;GetWindowRect(source,&r);
+    bool maximized=IsZoomed(source);
+    bool fullscreen=!(GetWindowLongPtrW(source,GWL_STYLE)&WS_CAPTION);
     f.frame=CreateWindowExW(0,TAB_CLASS,L"KiTTY-ng",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,r.left,r.top,r.right-r.left,r.bottom-r.top,NULL,NULL,instance,NULL);
     if (!f.frame) return true;
     SetWindowLongPtrW(f.frame,GWLP_USERDATA,(LONG_PTR)&f);
@@ -457,6 +461,15 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
     if (!frame_add(&f,source)) {DestroyWindow(f.frame);return true;}
     f.system_menu_items=GetMenuItemCount(GetSystemMenu(f.frame,FALSE));
     frame_update_menu(&f);
+    /* Set the final host geometry while hidden; child duplicates stay hidden
+     * until frame_add reparents them. No standalone maximize animation. */
+    if(fullscreen)frame_fullscreen(&f);
+    else if(maximized){
+        WINDOWPLACEMENT placement={.length=sizeof(placement)};
+        GetWindowPlacement(f.frame,&placement);
+        placement.showCmd=SW_SHOWMAXIMIZED;
+        SetWindowPlacement(f.frame,&placement);
+    }
     ShowWindow(f.frame,SW_SHOW);SetTimer(f.frame,1,200,NULL);
     PostMessageW(source,WM_SYSCOMMAND,TAB_DUPLICATE,0);
     MSG msg;while(GetMessageW(&msg,NULL,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}

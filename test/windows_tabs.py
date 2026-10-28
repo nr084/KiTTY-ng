@@ -32,10 +32,13 @@ def wait(fn,seconds=15):
 key=paramiko.RSAKey.generate(2048);fingerprint='SHA256:'+base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')
 listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen();listener.settimeout(.2)
 channels=[];transports=[];received={};done=threading.Event()
+from duplicate_auth_fixture import PPK,PASSPHRASE,PUBLIC
+client_key=paramiko.Ed25519Key(data=base64.b64decode(PUBLIC)) if '--key' in sys.argv else None
 class Server(paramiko.ServerInterface):
- def check_auth_none(self,user):return paramiko.AUTH_SUCCESSFUL if user=="demo" else paramiko.AUTH_FAILED
+ def check_auth_none(self,user):return paramiko.AUTH_FAILED
  def check_auth_password(self,user,password):return paramiko.AUTH_SUCCESSFUL if (user,password)==('demo','synthetic') else paramiko.AUTH_FAILED
- def get_allowed_auths(self,user):return 'password'
+ def check_auth_publickey(self,user,key):return paramiko.AUTH_SUCCESSFUL if user=='demo' and client_key is not None and key==client_key else paramiko.AUTH_FAILED
+ def get_allowed_auths(self,user):return 'publickey' if client_key is not None else 'password'
  def check_channel_request(self,*args):return paramiko.OPEN_SUCCEEDED
  def check_channel_pty_request(self,*args):return True
  def check_channel_shell_request(self,*args):return True
@@ -86,9 +89,17 @@ def keyboard(page,index,letter):
 
 binary=Path(sys.argv[1]).resolve();pids=set();processes=[]
 with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent) as folder:
- root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n')
+ root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n'+('Maximize\\1\\\n' if '--maximized' in sys.argv else '')+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
+ key_args=[]
+ if client_key is not None:
+  ppk=root/'synthetic.ppk';ppk.write_bytes(PPK)
+  key_args=['-i',str(ppk)]
  def launch():
-  p=subprocess.Popen([str(binary),'--portable-dir',str(root),'--language','en','-load','Demo','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','demo','-pw','synthetic','-hostkey',fingerprint]);processes.append(p);pids.add(p.pid);return p
+  p=subprocess.Popen([str(binary),'--portable-dir',str(root),'--language',('ru' if '--russian' in sys.argv else 'en'),'-load','Demo','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','demo','-hostkey',fingerprint,*key_args]);processes.append(p);pids.add(p.pid)
+  page=wait(lambda:next((h for h in enum() if pid(h)==p.pid and cls(h).startswith('KiTTY-ng') and u.IsWindowVisible(h)),None))
+  time.sleep(1.5)
+  for letter in (PASSPHRASE if client_key is not None else 'synthetic')+'\r':u.PostMessageW(page,0x102,ord(letter),0)
+  return p
  try:
   p=launch();first=wait(lambda:next((h for h in enum() if pid(h)==p.pid and title(h)=='Demo session 1'),None))
   assert not any(cls(h)=='SysTabControl32' and u.IsWindowVisible(h) for h in enum(first))
@@ -98,6 +109,12 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
   second=wait(lambda:next((h for h in enum(host) if title(h)=='Demo session 2'),None));pids.add(pid(second))
   assert u.IsWindowVisible(second) and not u.IsWindowVisible(first)
+  if '--maximized' in sys.argv:
+   assert u.IsZoomed(host), 'Creating the tab host must preserve maximized state'
+  if '--fullscreen' in sys.argv:
+   u.GetWindowLongPtrW.argtypes=[w.HWND,ctypes.c_int];u.GetWindowLongPtrW.restype=ctypes.c_ssize_t
+   assert not (u.GetWindowLongPtrW(host,-16)&0xC00000), 'Creating the tab host must preserve fullscreen'
+   u.PostMessageW(second,0x112,0x180,0);wait(lambda:u.GetWindowLongPtrW(host,-16)&0xC00000)
   u.PostMessageW(second,0x102,ord('B'),0);wait(lambda:received.get(2)==b'B');assert received[1]==b''
   scale=u.GetDpiForWindow(host)/96
   u.GetForegroundWindow.restype=w.HWND
@@ -153,16 +170,20 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   from PIL import ImageGrab
   u.SetForegroundWindow(host);time.sleep(.3);rect=w.RECT();u.GetWindowRect(strip,ctypes.byref(rect))
   pixels=ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).convert('RGB')
-  columns=[]
-  for x in range(pixels.width):
-   if sum(1 for y in range(pixels.height) if (lambda c:c[0]>150 and c[0]>c[1]*1.5 and c[0]>c[2]*1.5)(pixels.getpixel((x,y))))>3:columns.append(x)
+  def red_count(image):
+   return sum(c[0]>150 and c[0]>c[1]*1.5 and c[0]>c[2]*1.5 for c in image.getdata())
+  assert red_count(pixels)==0, 'Close buttons should be gray before hover'
+  columns=[x for x in range(pixels.width) if sum(120<c[0]<175 and 2<c[1]-c[0]<12 and 2<c[2]-c[1]<14 for c in [pixels.getpixel((x,y)) for y in range(pixels.height)])>3]
   groups=[]
   for x in columns:
    if not groups or x>groups[-1][-1]+1:groups.append([])
    groups[-1].append(x)
-  assert len(groups)==3, 'Each tab must have its own red close icon'
+  assert len(groups)==3, 'Each tab must have its own gray close icon'
   x=sum(groups[-1])//len(groups[-1]);y=pixels.height//2
-  u.SendMessageW(strip,0x201,1,(y<<16)|x);u.SendMessageW(strip,0x202,0,(y<<16)|x)
+  point=w.POINT(x,y);u.ClientToScreen(strip,ctypes.byref(point));u.SetCursorPos(point.x,point.y);time.sleep(.3)
+  hovered=ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).convert('RGB')
+  assert red_count(hovered)>12, 'Hovered close button must become clearly red'
+  u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
   wait(lambda:not u.IsWindow(third));wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
   keyboard(second,2,'r')
   assert not any(cls(h)=='#32770' and pid(h) in pids for h in enum())
@@ -174,18 +195,24 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
    menu=u.SendMessageW(popup,0x1e1,0,0)
    caption=ctypes.create_unicode_buffer(100)
    u.GetMenuStringW.argtypes=[w.HMENU,w.UINT,w.LPWSTR,ctypes.c_int,w.UINT]
-   u.GetMenuStringW(menu,0,caption,100,0x400);assert caption.value=="Close tab",caption.value
+   u.GetMenuStringW(menu,0,caption,100,0x400);assert caption.value==("Закрыть вкладку" if "--russian" in sys.argv else "Close tab"),caption.value
+   u.GetMenuStringW(menu,1,caption,100,0x400);assert caption.value==("Дублировать сеанс" if "--russian" in sys.argv else "Duplicate session"),caption.value
    u.GetMenuState.argtypes=[w.HMENU,w.UINT,w.UINT]
-   assert u.GetMenuState(menu,2,0x400)&3, 'First tab must not move left'
+   assert u.GetMenuState(menu,3,0x400)&3, 'First tab must not move left'
    rect=w.RECT();u.GetMenuItemRect.argtypes=[w.HWND,w.HMENU,w.UINT,ctypes.POINTER(w.RECT)]
    assert u.GetMenuItemRect(None,menu,command_index,ctypes.byref(rect))
    u.SetCursorPos((rect.left+rect.right)//2,(rect.top+rect.bottom)//2)
    u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
    wait(lambda:not u.IsWindowVisible(popup))
-  tab_menu(3)
+  # Duplicate the inactive first tab using its context menu, without a new password prompt.
+  tab_menu(1)
+  fourth=wait(lambda:next((h for h in enum(host) if title(h)=='Demo session 4'),None));pids.add(pid(fourth))
+  u.PostMessageW(fourth,0x8000+0x4B0,host,0)
+  wait(lambda:not u.IsWindow(fourth))
+  tab_menu(4)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==0)
   assert u.IsWindowVisible(second) and not u.IsWindowVisible(first)
-  assert len(channels)==3, 'Moving must not reconnect'
+  assert len(channels)==4, 'Moving must not reconnect'
   # Close via the context menu even though WarnOnClose is enabled.
   tab_menu(0);wait(lambda:not u.IsWindow(second))
   wait(lambda:u.SendMessageW(strip,0x1304,0,0)==1)
@@ -203,14 +230,15 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   u.PostMessageW(host,0x111,0x7101,0);wait(lambda:not u.IsWindow(host))
   (root/'kitty.ini').write_text('[KiTTY]\nSessionTabs=0\n',encoding='utf-16')
   plain=launch()
-  plain_window=wait(lambda:next((h for h in enum() if pid(h)==plain.pid and title(h)=='Demo session 4'),None))
+  plain_window=wait(lambda:next((h for h in enum() if pid(h)==plain.pid and title(h)=='Demo session 5'),None))
   u.PostMessageW(plain_window,0x112,0x30,0)
-  separate=wait(lambda:next((h for h in enum() if title(h)=='Demo session 5'),None));pids.add(pid(separate))
+  separate=wait(lambda:next((h for h in enum() if title(h)=='Demo session 6'),None));pids.add(pid(separate))
   assert u.GetParent(plain_window) is None and u.GetParent(separate) is None
   assert not any(cls(h)=='KiTTYng.SessionTabs' and pid(h) in pids for h in enum())
   print('PASS: SessionTabs=0 retains independent top-level windows',flush=True)
   print('PASS: independent SSH tabs; bar hidden for one session; active-tab input; mouse drag and context-menu move preserve connections; tab close ignores WarnOnClose; window close still confirms',flush=True)
  finally:
+  if sys.exc_info()[0]:print("DEBUG windows:",[(cls(h),title(h)) for h in enum() if pid(h) in pids],"connections",len(channels),flush=True)
   if "host" in locals() and u.IsWindow(host):
    from PIL import ImageGrab
    u.SetForegroundWindow(host);time.sleep(.3);rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).save(binary.parent/"tabs-debug.png")

@@ -1,5 +1,6 @@
 #include "putty.h"
 #include "storage.h"
+#include "kittyng-auth.h"
 #include "kittyng-extensions.h"
 #include "kittyng-portable.h"
 #include "kittyng-keypaths.h"
@@ -13,9 +14,47 @@ void add_session_to_jumplist(const char *s) {}
 void remove_session_from_jumplist(const char *s) {}
 void clear_jumplist(void) {}
 
+static int test_duplicate_auth(void)
+{
+    Conf *source=conf_new(); do_defaults(NULL,source);
+    conf_set_str(source,CONF_host,"test.invalid");
+    conf_set_utf8(source,CONF_username,"demo");
+    prompts_t *p=new_prompts();p->from_server=false;
+    p->name=dupstr("SSH password");add_prompt(p,dupstr("Password: "),false);
+    prompt_set_result(p->prompts[0],"runtime-only-password-marker");
+    kr_auth_capture(source,p,SPR_INCOMPLETE);
+    CHECK(!*conf_get_str(source,CONF_kr_auth_password));
+    kr_auth_capture(source,p,SPR_OK);
+    Conf *copy=kr_auth_duplicate(source,false);
+    CHECK(!kr_auth_reuse(copy,p));conf_free(copy);
+    copy=kr_auth_duplicate(source,true);
+    CHECK(kr_auth_reuse(copy,p));
+    CHECK(!strcmp(prompt_get_result_ref(p->prompts[0]),"runtime-only-password-marker"));
+    CHECK(!kr_auth_reuse(copy,p)); /* rejected password prompts normally */
+    conf_set_int(copy,CONF_kr_auth_attempts,0);
+    conf_set_str(copy,CONF_host,"other.invalid");
+    CHECK(!kr_auth_reuse(copy,p));conf_free(copy);
+    p->from_server=true;copy=kr_auth_duplicate(source,true);
+    CHECK(!kr_auth_reuse(copy,p));p->from_server=false;
+    CHECK(!save_settings("runtime-auth-test",copy));
+    Conf *loaded=conf_new();do_defaults("runtime-auth-test",loaded);
+    CHECK(!*conf_get_str(loaded,CONF_kr_auth_password));conf_free(loaded);
+    conf_free(copy);free_prompts(p);
+    p=new_prompts();p->from_server=false;p->to_server=false;
+    p->name=dupstr("SSH key passphrase");add_prompt(p,dupstr("Passphrase: "),false);
+    prompt_set_result(p->prompts[0],"runtime-only-passphrase-marker");
+    kr_auth_capture(source,p,SPR_OK);copy=kr_auth_duplicate(source,true);
+    CHECK(kr_auth_reuse(copy,p));
+    CHECK(!strcmp(prompt_get_result_ref(p->prompts[0]),"runtime-only-passphrase-marker"));
+    CHECK(!save_settings("runtime-auth-key-test",copy));
+    conf_free(copy);conf_free(source);free_prompts(p);
+    return 0;
+}
+
 int main(void)
 {
     CHECK(kr_portable());
+    CHECK(!test_duplicate_auth());
     Conf *wc = conf_new(); do_defaults(NULL, wc);
     conf_set_int(wc, CONF_protocol, PROT_SSH);
     conf_set_str(wc, CONF_host, "2001:db8::1");

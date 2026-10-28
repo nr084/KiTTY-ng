@@ -14,6 +14,7 @@
 #define COMPILE_MULTIMON_STUBS
 
 #include "putty.h"
+#include "kittyng-auth.h"
 #include "ssh.h"
 #include "terminal.h"
 #include "storage.h"
@@ -653,6 +654,7 @@ static void start_backend(WinGuiSeat *wgs)
 
     wgs->session_closed = false;
     wgs->kr_saved_password_tried = false;
+    conf_set_int(wgs->conf,CONF_kr_auth_attempts,0);
     wgs->kr_session_started = wgs->kr_retryable = false;
     kr_cancel_commands(wgs); wgs->kr_commands_started = false;
     if (conf_get_int(wgs->conf, CONF_protocol) == PROT_SSH &&
@@ -1137,9 +1139,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * Finally show the window!
      */
-    ShowWindow(wgs->term_hwnd, show);
+    if (!kr_initial_tab_parent) ShowWindow(wgs->term_hwnd, show);
     kr_load_bindings(wgs);
-    if (conf_get_bool(wgs->conf, CONF_save_windowpos)) {
+    if (!kr_initial_tab_parent && conf_get_bool(wgs->conf, CONF_save_windowpos)) {
         RECT rectangle; GetWindowRect(wgs->term_hwnd, &rectangle);
         int width = rectangle.right-rectangle.left, height = rectangle.bottom-rectangle.top;
         rectangle.left = max(-1000000, min(1000000, conf_get_int(wgs->conf, CONF_xpos)));
@@ -1152,10 +1154,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             SetWindowPos(wgs->term_hwnd, NULL, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
         }
     }
-    if (conf_get_bool(wgs->conf, CONF_fullscreen) && conf_get_int(wgs->conf, CONF_resize_action) != RESIZE_DISABLED)
+    if (!kr_initial_tab_parent && conf_get_bool(wgs->conf, CONF_fullscreen) && conf_get_int(wgs->conf, CONF_resize_action) != RESIZE_DISABLED)
         make_full_screen(wgs);
-    else if (conf_get_bool(wgs->conf, CONF_maximize) ||
-             (conf_get_bool(wgs->conf, CONF_save_windowpos) && conf_get_bool(wgs->conf, CONF_windowstate)))
+    else if (!kr_initial_tab_parent && (conf_get_bool(wgs->conf, CONF_maximize) ||
+             (conf_get_bool(wgs->conf, CONF_save_windowpos) && conf_get_bool(wgs->conf, CONF_windowstate))))
         ShowWindow(wgs->term_hwnd, SW_MAXIMIZE);
     if (conf_get_bool(wgs->conf, CONF_alwaysontop))
         SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TOP, 0);
@@ -1167,8 +1169,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         for (int i = 0; i < 2; i++) if (wgs->kr_icons[i]) SendMessage(wgs->term_hwnd, WM_SETICON, i ? ICON_SMALL : ICON_BIG, (LPARAM)wgs->kr_icons[i]);
     }
     kr_apply_transparency(wgs->term_hwnd, wgs->conf);
-    SetForegroundWindow(wgs->term_hwnd);
-    if (conf_get_bool(wgs->conf, CONF_sendtotray)) SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TRAY, 0);
+    if (!kr_initial_tab_parent) SetForegroundWindow(wgs->term_hwnd);
+    if (!kr_initial_tab_parent && conf_get_bool(wgs->conf, CONF_sendtotray)) SendMessage(wgs->term_hwnd, WM_SYSCOMMAND, IDM_KR_TRAY, 0);
 
     term_set_focus(wgs->term, IsWindowVisible(wgs->term_hwnd) && GetForegroundWindow() == GetAncestor(wgs->term_hwnd, GA_ROOT));
     UpdateWindow(wgs->term_hwnd);
@@ -1338,7 +1340,7 @@ bool handle_special_filemapping_cmdline(char *p, Conf *conf)
     if (sscanf(p + 1, "%p:%u", &filemap, &cpsize) != 2)
         return false;
 
-    void *cp = MapViewOfFile(filemap, FILE_MAP_READ, 0, 0, cpsize);
+    void *cp = MapViewOfFile(filemap, FILE_MAP_READ|FILE_MAP_WRITE, 0, 0, cpsize);
     if (!cp)
         return false;
 
@@ -1348,7 +1350,7 @@ bool handle_special_filemapping_cmdline(char *p, Conf *conf)
         modalfatalbox("Serialised configuration data was invalid");
     if (!get_err(src) && get_avail(src) == 8)
         kr_initial_tab_parent = (HWND)(uintptr_t)get_uint64(src);
-    UnmapViewOfFile(cp);
+    smemclr(cp,cpsize);UnmapViewOfFile(cp);
     CloseHandle(filemap);
     return true;
 }
@@ -2812,7 +2814,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 int size;
 
                 serbuf = strbuf_new();
-                conf_serialise(BinarySink_UPCAST(serbuf), wgs->conf);
+                Conf *duplicate=kr_auth_duplicate(wgs->conf,wgs->backend && backend_sendok(wgs->backend));
+                conf_serialise(BinarySink_UPCAST(serbuf), duplicate);
+                conf_free(duplicate);
                 HWND tab_parent = kr_tabs_enabled() ? kr_tabs_parent(hwnd) : NULL;
                 if (tab_parent) put_uint64(serbuf, (uintptr_t)tab_parent);
                 size = serbuf->len;
@@ -2832,7 +2836,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     }
                 }
 
-                strbuf_free(serbuf);
+                smemclr(serbuf->s,serbuf->len);strbuf_free(serbuf);
                 inherit_handles = true;
                 cl = dupprintf("putty %s&%p:%u", argprefix,
                                filemap, (unsigned)size);
@@ -6529,7 +6533,8 @@ static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
     SeatPromptResult spr;
-    spr = cmdline_get_passwd_input(p, &wgs->cmdline_get_passwd_state, true);
+    spr = kr_auth_reuse(wgs->conf,p) ? SPR_OK :
+        cmdline_get_passwd_input(p, &wgs->cmdline_get_passwd_state, true);
     if (spr.kind == SPRK_INCOMPLETE && !wgs->kr_saved_password_tried &&
         p->n_prompts == 1 && !p->prompts[0]->echo && p->to_server &&
         (!p->from_server || strstr(p->prompts[0]->prompt, "assword"))) {
@@ -6537,11 +6542,12 @@ static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p)
         if (*password) {
             prompt_set_result(p->prompts[0], password);
             wgs->kr_saved_password_tried = true;
-            return SPR_OK;
+            spr = SPR_OK;
         }
     }
     if (spr.kind == SPRK_INCOMPLETE)
         spr = term_get_userpass_input(wgs->term, p);
+    kr_auth_capture(wgs->conf,p,spr);
     return spr;
 }
 

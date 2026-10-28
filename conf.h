@@ -1375,3 +1375,10 @@ CONF_OPTION(proxyselection, VALUE_TYPE(STR), DEFAULT_STR("- Session defined prox
 CONF_OPTION(kr_proxy_error, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
 CONF_OPTION(winscpoptions, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("WinSCPOptions"),)
 CONF_OPTION(winscprawsettings, VALUE_TYPE(STR), DEFAULT_STR(""), SAVE_KEYWORD("WinSCPRawSettings"),)
+
+/* Session-only credentials. Never written by the profile settings layer. */
+CONF_OPTION(kr_auth_user, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
+CONF_OPTION(kr_auth_password, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
+CONF_OPTION(kr_auth_passphrase, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
+CONF_OPTION(kr_auth_identity, VALUE_TYPE(STR), DEFAULT_STR(""), NOT_SAVED,)
+CONF_OPTION(kr_auth_attempts, VALUE_TYPE(INT), DEFAULT_INT(0), NOT_SAVED,)

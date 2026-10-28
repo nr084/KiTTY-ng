@@ -30,6 +30,7 @@
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
+#include "kittyng-auth.h"
 #include "terminal.h"
 #include "gtkcompat.h"
 #include "unifont.h"
@@ -337,6 +338,7 @@ static void kr_tab_menu_move(GtkMenuItem *item,gpointer data)
     if(index>=0 && next>=0 && next<gtk_notebook_get_n_pages(book))
         gtk_notebook_reorder_child(book,GTK_WIDGET(inst->hbox),next);
 }
+void dup_session_menuitem(GtkMenuItem *item, gpointer gdata);
 static gboolean kr_tab_menu(GtkWidget *widget,GdkEventButton *event,gpointer data)
 {
     if(event->type!=GDK_BUTTON_PRESS || event->button!=3)return FALSE;
@@ -349,6 +351,9 @@ static gboolean kr_tab_menu(GtkWidget *widget,GdkEventButton *event,gpointer dat
     GtkWidget *close=gtk_menu_item_new_with_label(kr_mac_translate("Close tab"));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu),close);
     g_signal_connect(close,"activate",G_CALLBACK(kr_tab_menu_close),inst);
+    GtkWidget *duplicate=gtk_menu_item_new_with_label(kr_mac_translate("Duplicate session"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu),duplicate);
+    g_signal_connect(duplicate,"activate",G_CALLBACK(dup_session_menuitem),inst);
     gtk_menu_shell_append(GTK_MENU_SHELL(menu),gtk_separator_menu_item_new());
     for(int direction=-1;direction<=1;direction+=2){
         GtkWidget *move=gtk_menu_item_new_with_label(kr_mac_translate(direction<0?"Move left":"Move right"));
@@ -362,19 +367,24 @@ static gboolean kr_tab_menu(GtkWidget *widget,GdkEventButton *event,gpointer dat
     gtk_menu_popup_at_pointer(GTK_MENU(menu),(GdkEvent*)event);
     return TRUE;
 }
+static void kr_tab_close_state(GtkWidget *button, GtkStateFlags previous, gpointer icon)
+{
+    gtk_widget_queue_draw(GTK_WIDGET(icon));
+}
+
 static gboolean kr_tab_close_draw(GtkWidget *widget,cairo_t *cr,gpointer data)
 {
-    (void)data;
+    bool hot=(gtk_widget_get_state_flags(GTK_WIDGET(data)) & (GTK_STATE_FLAG_PRELIGHT|GTK_STATE_FLAG_ACTIVE))!=0;
     double width=gtk_widget_get_allocated_width(widget),height=gtk_widget_get_allocated_height(widget);
     double side=MIN(width,height),x=(width-side)/2,y=(height-side)/2;
     cairo_save(cr);cairo_translate(cr,x,y);cairo_scale(cr,side/16,side/16);
     cairo_arc(cr,8,8,7,0,2*G_PI);
     cairo_pattern_t *fill=cairo_pattern_create_linear(0,1,0,15);
-    cairo_pattern_add_color_stop_rgb(fill,0,0.96,0.35,0.23);
-    cairo_pattern_add_color_stop_rgb(fill,1,0.75,0.13,0.07);
+    cairo_pattern_add_color_stop_rgb(fill,0,hot?0.96:0.59,hot?0.35:0.62,hot?0.23:0.65);
+    cairo_pattern_add_color_stop_rgb(fill,1,hot?0.75:0.49,hot?0.13:0.52,hot?0.07:0.55);
     cairo_set_source(cr,fill);cairo_fill(cr);cairo_pattern_destroy(fill);
     cairo_save(cr);cairo_translate(cr,8,4);cairo_scale(cr,4,2.5);
-    cairo_arc(cr,0,0,1,0,2*G_PI);cairo_set_source_rgba(cr,1,0.6,0.45,0.65);cairo_fill(cr);cairo_restore(cr);
+    cairo_arc(cr,0,0,1,0,2*G_PI);cairo_set_source_rgba(cr,hot?1:0.75,hot?0.6:0.77,hot?0.45:0.80,0.65);cairo_fill(cr);cairo_restore(cr);
     cairo_set_source_rgb(cr,1,1,1);cairo_set_line_width(cr,2);
     cairo_move_to(cr,5,5);cairo_line_to(cr,11,11);cairo_move_to(cr,11,5);cairo_line_to(cr,5,11);cairo_stroke(cr);
     cairo_restore(cr);return TRUE;
@@ -411,7 +421,8 @@ static void kr_tab_add(GtkFrontend *inst)
     GtkWidget *close=gtk_button_new();
     GtkWidget *close_icon=gtk_drawing_area_new();
     gtk_widget_set_size_request(close_icon,16,16);
-    g_signal_connect(close_icon,"draw",G_CALLBACK(kr_tab_close_draw),NULL);
+    g_signal_connect(close_icon,"draw",G_CALLBACK(kr_tab_close_draw),close);
+    g_signal_connect(close,"state-flags-changed",G_CALLBACK(kr_tab_close_state),close_icon);
     gtk_container_add(GTK_CONTAINER(close),close_icon);
     gtk_button_set_relief(GTK_BUTTON(close),GTK_RELIEF_NONE);
     gtk_widget_set_can_focus(close,FALSE);
@@ -594,15 +605,17 @@ static SeatPromptResult gtk_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     SeatPromptResult spr;
-    spr = cmdline_get_passwd_input(p, &inst->cmdline_get_passwd_state, true);
+    spr = kr_auth_reuse(inst->conf,p) ? SPR_OK :
+        cmdline_get_passwd_input(p, &inst->cmdline_get_passwd_state, true);
 #ifdef KITTY_NG_LINUX
-    if(spr.kind==SPRK_INCOMPLETE&&!inst->saved_password_used&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(inst->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);inst->saved_password_used=true;return SPR_OK;}}
+    if(spr.kind==SPRK_INCOMPLETE&&!inst->saved_password_used&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(inst->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);inst->saved_password_used=true;spr=SPR_OK;}}
 #endif
     if (spr.kind == SPRK_INCOMPLETE)
         spr = term_get_userpass_input(inst->term, p);
 #ifdef KITTY_NG_LINUX
     if(spr_is_abort(spr))inst->manual_abort=true;
 #endif
+    kr_auth_capture(inst->conf,p,spr);
     return spr;
 }
 
@@ -5388,7 +5401,8 @@ void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
 #ifdef KITTY_NG_LINUX
     if (kr_tabs_enabled() && inst->tab_group) kr_pending_group=inst->tab_group;
 #endif
-    launch_duplicate_session(inst->conf);
+    Conf *duplicate=kr_auth_duplicate(inst->conf,inst->backend && backend_sendok(inst->backend));
+    launch_duplicate_session(duplicate);conf_free(duplicate);
 #ifdef KITTY_NG_LINUX
     kr_pending_group=NULL;
 #endif
@@ -5636,6 +5650,7 @@ static void start_backend(GtkFrontend *inst)
 {
 #ifdef KITTY_NG_LINUX
     inst->manual_abort=false;inst->saved_password_used=false;
+    conf_set_int(inst->conf,CONF_kr_auth_attempts,0);
 #endif
     const struct BackendVtable *vt;
     char *error, *realhost;
@@ -5936,8 +5951,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
 #ifdef KITTY_NG_LINUX
     gtk_window_set_keep_above(GTK_WINDOW(inst->window),conf_get_bool(inst->conf,CONF_alwaysontop));
-    if(conf_get_bool(inst->conf,CONF_maximize))gtk_window_maximize(GTK_WINDOW(inst->window));
-    if(conf_get_bool(inst->conf,CONF_fullscreen))gtk_window_fullscreen(GTK_WINDOW(inst->window));
+    if((!inst->tab_group || inst->tab_group->pages->len==0) && conf_get_bool(inst->conf,CONF_maximize))gtk_window_maximize(GTK_WINDOW(inst->window));
+    if((!inst->tab_group || inst->tab_group->pages->len==0) && conf_get_bool(inst->conf,CONF_fullscreen))gtk_window_fullscreen(GTK_WINDOW(inst->window));
 #endif
     gtk_widget_show(inst->area);
     show_scrollbar(inst, conf_get_bool(inst->conf, CONF_scrollbar));

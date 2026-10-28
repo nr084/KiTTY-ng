@@ -1,5 +1,7 @@
 # KiTTY-ng
 
+**0.85-8 in preparation:** tab improvements and authentication reuse for duplicate sessions. [Changes](docs/releases/0.85-8.md). Publication awaits native Mac validation.
+
 **0.85-7 is available**: compact session tabs on Windows, Linux and macOS. [Release notes](docs/releases/0.85-7.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
 
 **macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.

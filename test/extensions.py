@@ -18,3 +18,6 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-extensions-') as temporary:
     env = os.environ.copy(); env['KITTY_NG_PORTABLE_DIR'] = str(root)
     subprocess.run([str(binary)], env=env, cwd=root, check=True, timeout=25)
     assert opaque.read_bytes() == original
+    for profile in (root/"Sessions").rglob("*"):
+        if profile.is_file():
+            assert b"runtime-only-" not in profile.read_bytes(), "Runtime credentials leaked to profile"

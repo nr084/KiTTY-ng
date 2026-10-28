@@ -127,14 +127,6 @@ char *buildinfo(const char *newline)
         }
     }
 #endif
-#if defined _WINDOWS
-    {
-        int echm = has_embedded_chm();
-        if (echm >= 0)
-            put_fmt(buf, "%sEmbedded HTML Help file: %s", newline,
-                    echm ? "yes" : "no");
-    }
-#endif
 
 #if defined _WINDOWS && defined MINEFIELD
     put_fmt(buf, "%sBuild option: MINEFIELD", newline);
