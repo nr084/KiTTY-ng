@@ -1,8 +1,6 @@
 # KiTTY-ng
 
-**Готовится 0.85-8:** улучшения вкладок и повторная авторизация дубликатов. [Изменения](docs/releases/0.85-8.md). Общая публикация — после нативной проверки Mac.
-
-**Выпущен 0.85-7**: компактные вкладки сеансов в Windows, Linux и macOS. [Изменения](docs/releases/0.85-7.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
+**Выпущен 0.85-8**: улучшения вкладок и повторная авторизация дубликатов в Windows, Linux и macOS. [Изменения](docs/releases/0.85-8.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-8).
 
 **macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Нативные вкладки сеансов включены.
 
@@ -18,13 +16,13 @@
 
 ## Скачать
 
-| Платформа | Сборка 0.85-7 | Запуск |
+| Платформа | Сборка 0.85-8 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x86_64.tar.zst) | `chmod +x`, запуск |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.tar.zst) | `chmod +x`, запуск |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
@@ -38,8 +36,8 @@
 
 ## Возможности
 
-- macOS 0.85-7: нативные вкладки, дублирование временных подключений без записи профиля и верхнее меню активного сеанса. [Подробнее](docs/tabs.md).
-- Вкладки Windows/Linux в 0.85-7: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
+- macOS 0.85-8: нативные вкладки, дублирование временных подключений без записи профиля и верхнее меню активного сеанса. [Подробнее](docs/tabs.md).
+- Вкладки Windows/Linux в 0.85-8: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
 
 - Папки сеансов, быстрый поиск без учёта регистра, редактирование и дублирование.
 - Формат оригинального KiTTY и переносимые ссылки на ключи и сертификаты.
@@ -85,7 +83,7 @@
 - [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-7](docs/releases/0.85-7.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-8](docs/releases/0.85-8.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 

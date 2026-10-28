@@ -1,8 +1,6 @@
 # KiTTY-ng
 
-**0.85-8 in preparation:** tab improvements and authentication reuse for duplicate sessions. [Changes](docs/releases/0.85-8.md). Publication awaits native Mac validation.
-
-**0.85-7 is available**: compact session tabs on Windows, Linux and macOS. [Release notes](docs/releases/0.85-7.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-7).
+**0.85-8 is available**: tab improvements and authentication reuse for duplicate sessions on Windows, Linux and macOS. [Release notes](docs/releases/0.85-8.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-8).
 
 **macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
 
@@ -18,13 +16,13 @@
 
 ## Download
 
-| Platform | Release 0.85-7 | Launch |
+| Platform | Release 0.85-8 | Launch |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x86_64.tar.zst) | `chmod +x`, launch |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-7/kitty-ng-0.85-7-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
@@ -38,8 +36,8 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ## Features
 
-- macOS 0.85-7: native tabs, temporary connection duplication without saving profiles, and a top menu for the active session. [Details](docs/tabs.en.md).
-- Windows/Linux tabs in 0.85-7: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
+- macOS 0.85-8: native tabs, temporary connection duplication without saving profiles, and a top menu for the active session. [Details](docs/tabs.en.md).
+- Windows/Linux tabs in 0.85-8: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
 
 - Session folders, case-insensitive quick search, editing and duplication.
 - Original KiTTY profile format and portable key/certificate references.
@@ -85,7 +83,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 - [Windows](docs/windows.en.md) · [macOS](docs/macos.en.md) · [Linux](docs/linux.en.md).
 - [Portable profiles and migration](docs/portable.en.md).
 - [Local builds](docs/build.en.md) · [Migration report](docs/migration.md) (Russian).
-- [0.85-7 release notes](docs/releases/0.85-7.md) · [Roadmap](docs/planned.md) (Russian).
+- [0.85-8 release notes](docs/releases/0.85-8.md) · [Roadmap](docs/planned.md) (Russian).
 
 ## Compatibility and validation
 
