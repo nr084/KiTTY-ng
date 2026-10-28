@@ -68,7 +68,10 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
  try:
   assert ready.wait(15),failure
   hwnd=until(lambda:next((h for h in windows(process.pid) if 'KiTTY-ng' in title(h) and u.GetDlgItem(h,3001)==None),None))
-  if '--winscp-only' in sys.argv:
+  if '--settings-layout' in sys.argv:
+   from windows_settings_layout import verify
+   verify(process,hwnd,u,windows,title,until,'--english' in sys.argv)
+  elif '--winscp-only' in sys.argv:
    def launched():
     def recorded():
      if process.poll() is not None: raise AssertionError((process.returncode,process.stderr.read().decode(errors='replace')))
@@ -217,7 +220,7 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
    for i in range(u.SendMessageW(listing,0x18b,0,0)):
     b=ctypes.create_unicode_buffer(4096);u.SendMessageW(listing,0x189,i,ctypes.addressof(b));texts.append(b.value)
    assert any('Подключ' in x or 'Разреш' in x for x in texts),texts
-  if not any(x in sys.argv for x in ('--download-only','--seed-only','--tray-only','--legacy-arrows-only','--winscp-only','--eventlog-only')): print('PASS: actual terminal menu launches both matching x64 probes; Windows Shift+arrows reach SSH; Cyrillic event log is readable')
+  if not any(x in sys.argv for x in ('--settings-layout','--download-only','--seed-only','--tray-only','--legacy-arrows-only','--winscp-only','--eventlog-only')): print('PASS: actual terminal menu launches both matching x64 probes; Windows Shift+arrows reach SSH; Cyrillic event log is readable')
  finally:
   done.set();process.terminate();process.communicate(timeout=10)
   for transport in connection:transport.close()

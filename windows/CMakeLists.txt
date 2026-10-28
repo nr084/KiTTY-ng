@@ -275,3 +275,8 @@ set_target_properties(pscp PROPERTIES OUTPUT_NAME "kscp-${kitty_ng_output_arch}"
 set_target_properties(psftp PROPERTIES OUTPUT_NAME "ksftp-${kitty_ng_output_arch}")
 set_target_properties(puttygen PROPERTIES OUTPUT_NAME "kittygen-${kitty_ng_output_arch}")
 set_target_properties(pageant PROPERTIES OUTPUT_NAME "kageant-${kitty_ng_output_arch}")
+
+add_executable(test_staticwrap ${CMAKE_SOURCE_DIR}/test/test_staticwrap.c controls.c)
+target_compile_options(test_staticwrap PRIVATE -ffunction-sections -fdata-sections)
+target_link_options(test_staticwrap PRIVATE -Wl,--gc-sections)
+target_link_libraries(test_staticwrap utils ${platform_libraries})

@@ -2095,5 +2095,7 @@
   "Demo screenshot failure": "Не удалось создать демонстрационный снимок окна",
   "test requires isolated portable preferences": "Для проверки требуются отдельные портативные настройки",
   "Unsupported protocol number found": "Обнаружен неподдерживаемый номер протокола",
-  "Failed to initialize COM subsystem": "Не удалось инициализировать подсистему COM"
+  "Failed to initialize COM subsystem": "Не удалось инициализировать подсистему COM",
+  "System clipboard": "Системный буфер обмена",
+  "Last selected text": "Последний выделенный текст"
 }

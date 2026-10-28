@@ -248,7 +248,7 @@ def main():
             ninja = args.ninja.resolve() if args.ninja else next(wheels.glob("ninja-*.data/scripts/ninja.exe"))
             report["bootstrap"] = wheel_info
             check("translations", {"config.c", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c",
-                  "locale/ru.json", "tools/check-translations.py"},
+                  "locale/ru.json", "windows/platform.h", "tools/check-translations.py"},
                   [([PYTHON, "tools/check-translations.py"], None)])
             check("utility-translations", {"windows/puttygen.c", "windows/pageant.c",
                   "windows/puttygen.rc", "windows/pageant.rc", "windows/plink.c", "pscp.c", "psftp.c",
@@ -283,6 +283,10 @@ def main():
                          [PYTHON, "test/portable_key_paths.py", directory / "test_key_paths.exe"]),
                         ("session-browser", "test_session_browser", ["test/session_browser.py"],
                          [PYTHON, "test/session_browser.py", directory / "test_session_browser.exe"]),
+                        ("staticwrap", "test_staticwrap", ["test/test_staticwrap.c"],
+                         [directory / "test_staticwrap.exe", "--language", "ru"]),
+                        ("staticwrap-en", "test_staticwrap", ["test/test_staticwrap.c"],
+                         [directory / "test_staticwrap.exe", "--language", "en"]),
                         ("i18n", "test_i18n", ["test/test_i18n.c", "locale/ru.json", "locale/ru-contexts.json"],
                          [directory / "test_i18n.exe"]),
                         ("portable", "test_kittyng", ["test/run_kittyng.py"],
@@ -372,6 +376,11 @@ def main():
                     check(arch + "/eventlog-language", files,
                           [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--eventlog-only"], ssh_environment(work)),
                            ([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--eventlog-only", "--english"], ssh_environment(work))], compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
+                    files.update({"test/windows_menu_runtime.py", "test/windows_settings_layout.py"})
+                    check(arch + "/settings-layout", files,
+                          [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--settings-layout"], ssh_environment(work)),
+                           ([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--settings-layout", "--english"], ssh_environment(work))], compiler=compiler)
                     if arch == "x64":
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                         files.add("test/windows_menu_runtime.py")

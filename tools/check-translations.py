@@ -29,6 +29,12 @@ def callargs(text, start):
     raise ValueError("unbalanced source call")
 
 labels = set()
+# Clipboard option names are macros rather than literals in config.c.
+platform_text = (root / "windows/platform.h").read_text(encoding="utf8")
+for macro in ("CLIPNAME_IMPLICIT", "CLIPNAME_EXPLICIT"):
+    match = re.search(r'^#define\s+' + macro + r'\s+(' + literal.pattern + r')', platform_text, re.M)
+    assert match, macro
+    labels.add(ast.literal_eval(match.group(1)))
 for filename in ["config.c", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c"]:
     text = re.sub(r'/\*.*?\*/', '', (root / filename).read_text(), flags=re.S)
     for match in re.finditer(r'\b(ctrl_[a-z_]+)\s*\(', text):
@@ -42,6 +48,12 @@ for filename in ["config.c", "windows/config.c", "windows/kittyng-language.c", "
 
 # Audit every literal event-log template, including concatenated size formats.
 event_labels = set()
+# Clipboard option names are macros rather than literals in config.c.
+platform_text = (root / "windows/platform.h").read_text(encoding="utf8")
+for macro in ("CLIPNAME_IMPLICIT", "CLIPNAME_EXPLICIT"):
+    match = re.search(r'^#define\s+' + macro + r'\s+(' + literal.pattern + r')', platform_text, re.M)
+    assert match, macro
+    labels.add(ast.literal_eval(match.group(1)))
 for base in ("ssh", "proxy", "windows", "unix", "otherbackends", "utils"):
     for path in (root / base).rglob("*.c"):
         text = re.sub(r'/\*.*?\*/', '', path.read_text(encoding="utf8"), flags=re.S)
