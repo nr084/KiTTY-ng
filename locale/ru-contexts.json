@@ -27,6 +27,7 @@
     "Serial": "Последовательный порт",
     "Start fullscreen": "Полноэкранный запуск",
     "Quit": "Закрыть",
-    "Close this window and all its sessions?": "Закрыть окно и все его сеансы?"
+    "Close this window and all its sessions?": "Закрыть окно и все его сеансы?",
+    "Portable sessions": "Портативные сеансы"
   }
 }

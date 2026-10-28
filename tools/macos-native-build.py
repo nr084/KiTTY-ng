@@ -100,12 +100,21 @@ def main():
         reuse_unaffected = bool(source_changes) and set(source_changes)<=set((
             'macos/bootstrap.m','macos/language.m','macos/selftest-ui.m')) and not any(
             p in changed for p in ('test/macos_native_keys.py',))
+        caption_module = importlib.util.spec_from_file_location('macos_caption_reuse', ROOT/'tools/macos-caption-reuse.py')
+        caption_api = importlib.util.module_from_spec(caption_module)
+        caption_module.loader.exec_module(caption_api)
+        caption_proof = caption_api.caption_proof(ROOT, previous['source_commit'], report['source_commit'])
+        if any(previous.get(k)!=report.get(k) for k in ('os','command_line_tools','build_packages')):
+            caption_proof = None
+        if caption_proof:
+            reuse_unaffected = True
+            report['caption_only_test_reuse'] = caption_proof
         if reuse_unaffected:
             old_helpers=dest/'KiTTY-ng.app/Contents/Helpers'
             report['unchanged_helper_evidence']=dict(source_commit=previous['source_commit'],
                 changed_source_files=source_changes,
                 tested_binaries_sha256={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in old_helpers.iterdir() if p.is_file()})
-            report['reused_checks_reason']='Only app-specific Objective-C changed; existing core/helper tests are unaffected; changed UI smoke cases run again'
+            report['reused_checks_reason']='Caption-only assignment and GUI-only translation; all existing dependent code/tests unchanged; changed caption requires fresh GUI check' if caption_proof else 'Only app-specific Objective-C changed; existing core/helper tests are unaffected; changed UI smoke cases run again'
     report['fingerprint'] = fingerprint
     environment = os.environ.copy()
     environment.update(LC_ALL='C', LANG='C')

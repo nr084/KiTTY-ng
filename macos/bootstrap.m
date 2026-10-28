@@ -145,7 +145,7 @@ int kr_mac_test_startup_ui(void) {
     NSView *view = self.window.contentView;
     NSTextField *notice = [NSTextField wrappingLabelWithString:L(@"macOS preview: portable session browser. SSH terminal is under development.", @"Предварительная версия macOS: просмотр портативных сеансов. SSH-терминал в разработке.")];
 #ifdef KITTY_NG_CLIENT
-    notice.stringValue = L(@"Portable sessions shared with the Windows version.", @"Портативные сеансы, общие с Windows-версией.");
+    notice.stringValue = kr_mac_localize_string(@"Portable sessions");
     NSTimer *timer = [NSTimer timerWithTimeInterval:0.01 repeats:YES block:^(NSTimer *t) { kr_mac_pump(); }];
     [NSRunLoop.mainRunLoop addTimer:timer forMode:NSRunLoopCommonModes];
 #endif
