@@ -195,10 +195,13 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
    groups[-1].append(x)
   assert len(groups)==3, 'Each tab must have its own gray close icon'
   x=sum(groups[-1])//len(groups[-1]);y=pixels.height//2
-  point=w.POINT(x,y);u.ClientToScreen(strip,ctypes.byref(point));u.SetCursorPos(point.x,point.y);time.sleep(.3)
+  point=w.POINT(x,y);u.ClientToScreen(strip,ctypes.byref(point));u.SetCursorPos(point.x,point.y)
+  # Use the same synchronous native-control input as the drag test above.
+  # Shared/remote desktops do not always generate WM_MOUSEMOVE on cursor warps.
+  u.SendMessageW(strip,0x200,0,(y<<16)|x);time.sleep(.3)
   hovered=ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).convert('RGB')
   assert red_count(hovered)>12, 'Hovered close button must become clearly red'
-  u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
+  u.SendMessageW(strip,0x201,1,(y<<16)|x);u.SendMessageW(strip,0x202,0,(y<<16)|x)
   wait(lambda:not u.IsWindow(third));wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
   keyboard(second,2,'r')
   assert not any(cls(h)=='#32770' and pid(h) in pids for h in enum())
