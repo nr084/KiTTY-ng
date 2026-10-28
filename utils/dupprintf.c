@@ -41,7 +41,7 @@
 #include "utils/utils.h"
 #ifdef _WIN32
 extern const char *kr_translate(const char *english);
-#elif defined(KITTY_NG_LINUX)
+#elif defined(KITTY_NG_LINUX) || defined(KITTY_NG_MACOS)
 extern const char *kr_mac_translate(const char *english);
 #endif
 
@@ -94,7 +94,7 @@ char *dupvprintf(const char *fmt, va_list ap)
     size_t size = 0;
 #ifdef _WIN32
     fmt = kr_translate(fmt);
-#elif defined(KITTY_NG_LINUX)
+#elif defined(KITTY_NG_LINUX) || defined(KITTY_NG_MACOS)
     fmt = kr_mac_translate(fmt);
 #endif
     return dupvprintf_inner(NULL, 0, &size, fmt, ap);
