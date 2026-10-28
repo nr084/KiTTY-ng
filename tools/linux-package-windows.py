@@ -113,6 +113,9 @@ def main():
         build_report = json.loads((args.build_dir / 'linux-cross-build.json').read_text())
         if build_report['compiler'] != compiler:
             raise RuntimeError('Stable compiler changed: rebuild Linux binaries before packaging and testing')
+        source_binaries = {name: hashlib.sha256((binaries / name).read_bytes()).hexdigest() for name in NAMES}
+        if source_binaries != build_report['binaries']:
+            raise RuntimeError('Linux input binaries do not match the build report')
         strip = toolchain / 'bin/llvm-strip.exe'
         for name in NAMES:
             subprocess.run([str(strip), '--strip-all', str(binaries / name)], check=True)
@@ -164,6 +167,9 @@ def main():
         with raw_tar.open('rb') as source, (out / f'kitty-ng-{version}-x86_64.tar.zst').open('wb') as output:
             zstandard.ZstdCompressor(level=12).copy_stream(source, output)
         report = {'build_host': 'Windows', 'version': version, 'runtime': provenance,
+                  'source_commit': build_report['source_commit'],
+                  'working_tree_dirty': build_report['working_tree_dirty'],
+                  'source_binaries': source_binaries,
                   'libraries': libraries, 'sha256': hashlib.sha256(image.read_bytes()).hexdigest(),
                   'binaries': {name: hashlib.sha256((binaries / name).read_bytes()).hexdigest() for name in NAMES}, 'acceptance_tests': 'pending'}
         (out / 'linux-package.json').write_text(json.dumps(report, indent=2) + '\n')

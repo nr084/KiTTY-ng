@@ -24,7 +24,8 @@ def main():
  for report in (windows,linux):
   assert report['status']=='success' and report['version']==version
   assert report['source_commit']==commit and not report['working_tree_dirty'],'Build must match the committed source'
- assert package['version']==version and linux['binaries']==package['binaries']
+ assert package['version']==version and linux['binaries']==package['source_binaries']
+ assert package['source_commit']==commit and not package['working_tree_dirty']
  mac_validation={'status':'pending','reason':'Native macOS build and acceptance required'}
  if not args.pending_macos:
   mac=read(args.macos_dir/'macos-build.json');dmg=read(args.macos_dir/'macos-dmg.json')
