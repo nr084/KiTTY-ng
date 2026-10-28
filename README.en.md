@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**KiTTY-ng 0.85-9 for Windows and Linux**: a shared English/Russian localization engine, translated SSH messages, and tab fixes. The macOS Universal package is being prepared separately. [Release notes](docs/releases/0.85-9.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
+**KiTTY-ng 0.85-9 for Windows, Linux and macOS**: a shared English/Russian localization engine, translated SSH messages, and tab fixes. [Release notes](docs/releases/0.85-9.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
 
 **macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
 
@@ -22,14 +22,14 @@
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG — native Mac preparation pending | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
 ## First launch
 
 1. Download your platform build. Extract the Windows ZIP; on Mac, copy the `.app` from the DMG into a writable folder and eject the image. On Linux, make the AppImage executable (`chmod +x file.AppImage`) and run it; use AppDir or `--appimage-extract-and-run` without FUSE.
-2. Place the client beside your existing `kitty.ini`, `Sessions` and `SshHostKeys`, or select the profiles folder. Windows archives include `kitty-ng.portable`.
+2. Place the client beside your existing `kitty.ini`, `Sessions` and `SshHostKeys`, or select the profiles folder. Windows archives include `kitty-ng.portable`. On Mac, use the directory containing `KiTTY-ng.app`, outside the bundle. Sessions beside the app are discovered automatically; a manually selected folder is remembered.
 3. Open a profile or create an SSH session. Choose a language and click **Apply**.
 
 The Mac app uses an ad-hoc signature without Developer ID or notarization. If blocked, use **System Settings → Privacy & Security → Open Anyway**.

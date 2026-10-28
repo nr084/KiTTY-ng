@@ -13,7 +13,9 @@
     "English": "Русский",
     "Logging": "Журналирование",
     "Serial": "Последовательный порт",
-    "Start fullscreen": "Полноэкранный запуск"
+    "Start fullscreen": "Полноэкранный запуск",
+    "%s (from %s)": "%s (с %s)",
+    "remote host": "удалённый сервер"
   },
   "macos-ui": {
     "Allow OSC 52 clipboard writes": "Разрешать запись OSC 52",
@@ -23,6 +25,8 @@
     "English": "Русский",
     "Logging": "Журналирование",
     "Serial": "Последовательный порт",
-    "Start fullscreen": "Полноэкранный запуск"
+    "Start fullscreen": "Полноэкранный запуск",
+    "Quit": "Закрыть",
+    "Close this window and all its sessions?": "Закрыть окно и все его сеансы?"
   }
 }

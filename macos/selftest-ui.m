@@ -47,6 +47,10 @@ int kr_mac_self_test_ui(void){
     conf_set_int(copy,CONF_kr_auth_attempts,0);prompt->from_server=true;CHECK(!kr_auth_reuse(copy,prompt));prompt->from_server=false;
     conf_set_str(copy,CONF_host,"different.invalid");CHECK(!kr_auth_reuse(copy,prompt));conf_free(copy);free_prompts(prompt);
     puts("PASS: native auth cache survives source close, one attempt, never saved, server challenge and changed identity rejected");
+    extern int kr_mac_test_startup_ui(void);
+    CHECK(kr_mac_test_startup_ui()==0);
+    extern int kr_mac_test_save_window_ui(void);
+    CHECK(kr_mac_test_save_window_ui()==0);
     CHECK(kr_mac_test_session_menu_ui()==0);
     CHECK(kr_mac_test_tabs_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);

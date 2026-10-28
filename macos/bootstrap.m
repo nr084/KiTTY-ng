@@ -20,6 +20,85 @@ static BOOL Russian;
 static NSString *L(NSString *en, NSString *ru) { return kr_mac_localize_string(en); }
 static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value.UTF8String);NSString *name=decoded?[NSString stringWithUTF8String:decoded]:value;free(decoded);return name?:value;}
 
+/* GUI-only preference: explicit CLI/environment roots still take precedence.
+ * A portable installation is the folder containing the .app, never Contents/MacOS
+ * and never the process working directory chosen by Finder. */
+static NSString *const rootPreference = @"MacPortableRoot";
+static NSURL *usableRoot(NSURL *url) {
+    NSURL *resolved = url.URLByResolvingSymlinksInPath;
+    BOOL directory = NO;
+    if (!resolved.isFileURL || ![NSFileManager.defaultManager fileExistsAtPath:resolved.path isDirectory:&directory] || !directory) return nil;
+    for (NSString *part in resolved.path.pathComponents)
+        if ([part hasSuffix:@".app"] || [part isEqualToString:@"AppTranslocation"]) return nil;
+    return resolved;
+}
+static BOOL containsSessions(NSURL *url) {
+    if (!url) return NO;
+    char *path = kr_mac_directory_at(url.path.UTF8String, "Sessions");
+    NSURL *sessions = path ? [NSURL fileURLWithPath:[NSString stringWithUTF8String:path]] : nil;
+    free(path);
+    if (!sessions) return NO;
+    NSDirectoryEnumerator *entries = [NSFileManager.defaultManager enumeratorAtURL:sessions includingPropertiesForKeys:@[NSURLIsRegularFileKey, NSURLIsSymbolicLinkKey] options:NSDirectoryEnumerationSkipsHiddenFiles errorHandler:nil];
+    for (NSURL *entry in entries) {
+        NSNumber *regular = nil, *link = nil;
+        [entry getResourceValue:&regular forKey:NSURLIsRegularFileKey error:nil];
+        [entry getResourceValue:&link forKey:NSURLIsSymbolicLinkKey error:nil];
+        if (link.boolValue) { [entries skipDescendants]; continue; }
+        if (!regular.boolValue || [entry.path hasSuffix:@".tmp"]) continue;
+        char *name = kr_mac_session_name_at(url.path.UTF8String, entry.lastPathComponent.UTF8String);
+        BOOL found = name != NULL; free(name);
+        if (found) return YES;
+    }
+    return NO;
+}
+static NSURL *initialRoot(NSURL *bundle, NSUserDefaults *preferences) {
+    NSURL *besideApp = usableRoot(bundle.URLByDeletingLastPathComponent);
+    if (containsSessions(besideApp)) return besideApp;
+    NSString *saved = [preferences stringForKey:rootPreference];
+    NSURL *remembered = saved.length ? usableRoot([NSURL fileURLWithPath:saved]) : nil;
+    return remembered ?: besideApp;
+}
+static void restoreRoot(void) {
+    if (getenv("KITTY_NG_PORTABLE_DIR")) return;
+    if ([NSProcessInfo.processInfo.arguments containsObject:@"--portable-dir"]) return;
+    NSURL *url = initialRoot(NSBundle.mainBundle.bundleURL, NSUserDefaults.standardUserDefaults);
+    if (url) kr_mac_set_root(url.path.UTF8String);
+}
+int kr_mac_test_startup_ui(void) {
+    NSString *base = [NSString stringWithUTF8String:kr_mac_root()];
+    NSString *suite = [@"KiTTYNG.StartupTest." stringByAppendingString:NSUUID.UUID.UUIDString];
+    NSUserDefaults *preferences = [[NSUserDefaults alloc] initWithSuiteName:suite];
+    NSURL *install = [NSURL fileURLWithPath:[base stringByAppendingPathComponent:@"installation"]];
+    NSURL *chosen = [NSURL fileURLWithPath:[base stringByAppendingPathComponent:@"chosen root"]];
+    NSURL *bundle = [install URLByAppendingPathComponent:@"KiTTY-ng.app" isDirectory:YES];
+    NSFileManager *fm = NSFileManager.defaultManager;
+    [fm createDirectoryAtURL:bundle withIntermediateDirectories:YES attributes:nil error:nil];
+    [fm createDirectoryAtURL:chosen withIntermediateDirectories:YES attributes:nil error:nil];
+    install = install.URLByResolvingSymlinksInPath;
+    chosen = chosen.URLByResolvingSymlinksInPath;
+    bundle = [install URLByAppendingPathComponent:@"KiTTY-ng.app" isDirectory:YES];
+    BOOL ok = YES;
+    fprintf(stderr,"Startup test: install=<%s>, actual=<%s>\n", install.path.UTF8String, initialRoot(bundle, preferences).path.UTF8String);
+#define STARTUP_CHECK(condition) do { if (!(condition)) { fprintf(stderr, "FAIL startup: %s\n", #condition); ok = NO; } } while (0)
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
+    [preferences setObject:chosen.path forKey:rootPreference]; [preferences synchronize];
+    preferences = [[NSUserDefaults alloc] initWithSuiteName:suite];
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:chosen.path]);
+    NSURL *sessions = [install URLByAppendingPathComponent:@"Sessions/folder"];
+    [fm createDirectoryAtURL:sessions withIntermediateDirectories:YES attributes:nil error:nil];
+    [@"HostName\\synthetic.invalid\\\n" writeToURL:[sessions URLByAppendingPathComponent:@"Example"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
+    STARTUP_CHECK(!usableRoot(bundle) && !usableRoot([bundle URLByAppendingPathComponent:@"Contents"]));
+    [fm removeItemAtURL:[install URLByAppendingPathComponent:@"Sessions"] error:nil];
+    [preferences setObject:bundle.path forKey:rootPreference];
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
+    [preferences removePersistentDomainForName:suite];
+    [fm removeItemAtURL:install error:nil]; [fm removeItemAtURL:chosen error:nil];
+    if (ok) puts("PASS: .app parent discovery, existing nested sessions override remembered folder, persistent folder selection, bundle rejected");
+    return ok ? 0 : 1;
+#undef STARTUP_CHECK
+}
+
 @interface SessionTableView : NSTableView
 @end
 @implementation SessionTableView
@@ -48,6 +127,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
 @end
 @implementation PortableBrowser
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
+    restoreRoot();
     Russian = kr_mac_language()==1;
     kr_mac_install_status_menu();
     NSMenu *menu = [NSMenu new]; NSMenuItem *appItem = [NSMenuItem new]; [menu addItem:appItem];
@@ -88,7 +168,7 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
     self.root = kr_mac_root()?[NSURL fileURLWithPath:[NSString stringWithUTF8String:kr_mac_root()] isDirectory:YES]:NSBundle.mainBundle.bundleURL.URLByDeletingLastPathComponent;
     self.folder = [self sessionsDirectory];
     [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
-    if ([self.root.path containsString:@"/AppTranslocation/"]) [self chooseFolder:nil]; else [self reload];
+    if ([self.root.path containsString:@"/AppTranslocation/"] && !containsSessions(self.root)) [self chooseFolder:nil]; else [self reload];
 }
 - (void)quickConnect:(id)sender{kr_mac_quick_connect();}
 - (NSURL *)sessionsDirectory {
@@ -172,9 +252,10 @@ static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value
 - (void)searchChanged:(id)sender { [self reload]; }
 - (void)chooseFolder:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseFiles = NO; panel.canChooseDirectories = YES; panel.allowsMultipleSelection = NO; panel.message = L(@"Choose the shared KiTTY portable directory", @"Выберите общий портативный каталог KiTTY");
-    if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = panel.URL; self.folder = [self sessionsDirectory]; [self reload]; }
+    if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = [NSURL fileURLWithPath:[NSString stringWithUTF8String:kr_mac_root()]]; [NSUserDefaults.standardUserDefaults setObject:self.root.path forKey:rootPreference]; self.folder = [self sessionsDirectory]; [self reload]; }
 }
 - (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @TEXTVER; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
+- (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender { return kr_mac_request_termination() ? NSTerminateNow : NSTerminateCancel; }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end
 static int askpass(const char *mode,const char *question){

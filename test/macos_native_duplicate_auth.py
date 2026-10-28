@@ -103,7 +103,7 @@ def main():
         spawn(accept)
         keyfile='SSH-Keys/protected.ppk' if args.mode=='key' else ''
         if keyfile:(profiles/keyfile).write_bytes(PPK)
-        defaults=f'HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nProtocol\\ssh\\\nUserName\\root\\\nPublicKeyFile\\{keyfile}\\\nPassword\\\\\nAuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\nTryAgent\\{int(args.mode=="agent")}\\\nSaveOnExit\\1\\\nSaveWindowPos\\1\\\nWarnOnClose\\1\\\nSSHManualHostKeys\\{fingerprint}\\\n'
+        defaults=f'HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nProtocol\\ssh\\\nUserName\\root\\\nPublicKeyFile\\{keyfile}\\\nPassword\\\\\nAuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\nTryAgent\\{int(args.mode=="agent")}\\\nSaveOnExit\\0\\\nSaveWindowPos\\0\\\nWarnOnClose\\1\\\nSSHManualHostKeys\\{fingerprint}\\\n'
         for name in ['Default%20Settings','Native-auth']:(profiles/'Sessions'/name).write_text(defaults)
         (profiles/'kitty.ini').write_text('[KiTTY]\nsavemode=dir\nSessionTabs=1\n')
         before={p.name:digest(p) for p in (profiles/'Sessions').iterdir()};report['profiles_before']=before

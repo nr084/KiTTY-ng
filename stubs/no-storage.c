@@ -6,6 +6,11 @@
 #include "putty.h"
 #include "storage.h"
 
+#ifdef KITTY_NG_MACOS
+/* Diagnostic/unit targets intentionally have no portable profile storage. */
+const char *kr_mac_root(void) { return NULL; }
+#endif
+
 settings_w *open_settings_w(const char *sessionname, char **errmsg)
 { return NULL; }
 void write_setting_s(settings_w *handle, const char *key, const char *value)

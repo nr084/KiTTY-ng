@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**KiTTY-ng 0.85-9 для Windows и Linux**: общее русско-английское языковое ядро, переводы сообщений SSH и исправления вкладок. macOS Universal готовится отдельно. [Изменения](docs/releases/0.85-9.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
+**KiTTY-ng 0.85-9 для Windows, Linux и macOS**: общее русско-английское языковое ядро, переводы сообщений SSH и исправления вкладок. [Изменения](docs/releases/0.85-9.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
 
 **macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Нативные вкладки сеансов включены.
 
@@ -22,14 +22,14 @@
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG — готовится на Mac | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
 ## Первый запуск
 
 1. Скачайте свою сборку. На Windows распакуйте ZIP; на Mac скопируйте `.app` из DMG в доступную для записи папку и извлеките образ. В Linux сделайте AppImage исполняемым (`chmod +x файл.AppImage`) и запустите его; при отсутствии FUSE используйте AppDir или `--appimage-extract-and-run`.
-2. Для существующих настроек разместите клиент рядом с `kitty.ini`, `Sessions` и `SshHostKeys` либо выберите папку профилей. Windows-архивы содержат маркер `kitty-ng.portable`.
+2. Для существующих настроек разместите клиент рядом с `kitty.ini`, `Sessions` и `SshHostKeys` либо выберите папку профилей. Windows-архивы содержат маркер `kitty-ng.portable`. На Mac это папка, содержащая `KiTTY-ng.app`, а не каталог внутри приложения. Сеансы рядом с `.app` обнаруживаются автоматически; выбранная вручную папка запоминается.
 3. Откройте профиль или создайте SSH-сеанс. Выберите язык и нажмите **Применить**.
 
 На Mac используется ad-hoc подпись без Developer ID и нотариального заверения. Если запуск заблокирован: **Настройки системы → Конфиденциальность и безопасность → Всё равно открыть**.

@@ -32,17 +32,24 @@ bool kr_mac_set_language(int language){
     NSString *path=[[NSString stringWithUTF8String:base]stringByAppendingPathComponent:@"values.ini"];if(![data writeToFile:path options:NSDataWritingAtomic error:nil])return false;selected=language;kr_mac_cli_set_language(language?"ru":"en");return true;
 }
 
+static char localizedSourceKey;
 NSString *kr_mac_localize_string(NSString *text){
     if (!text) return nil;
     if ([text isEqualToString:@"English"] || [text isEqualToString:@"Русский"]) return text;
-    const char *key=kr_i18n_source(KR_TEXT_MAC_UI,text.UTF8String);
-    return [NSString stringWithUTF8String:kr_i18n_translate(kr_mac_language(),KR_TEXT_MAC_UI,key)];
+    NSString *source=objc_getAssociatedObject(text,&localizedSourceKey);
+    const char *key=source ? source.UTF8String : kr_i18n_source(KR_TEXT_MAC_UI,text.UTF8String);
+    NSString *result=[NSString stringWithUTF8String:kr_i18n_translate(kr_mac_language(),KR_TEXT_MAC_UI,key)];
+    /* Immutable string copies retain this source through AppKit setters. This
+     * disambiguates e.g. Edit/Modify without reverse-translating visible text. */
+    objc_setAssociatedObject(result,&localizedSourceKey,[NSString stringWithUTF8String:key],OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return result;
 }
 /* Retain source keys on application-owned UI properties, independently of the
  * displayed language. Editable contents and server/user data never bind here. */
 static char sourceKeys;
 static NSString *boundText(id owner, NSString *property, NSString *text) {
     if (!text) return nil;
+    if ([text isEqualToString:@"English"] || [text isEqualToString:@"Русский"]) return text;
     NSMutableDictionary *keys=objc_getAssociatedObject(owner,&sourceKeys);
     if (!keys) {
         keys=[NSMutableDictionary dictionary];
@@ -50,7 +57,7 @@ static NSString *boundText(id owner, NSString *property, NSString *text) {
     }
     NSString *key=keys[property];
     if (!key) {
-        key=[NSString stringWithUTF8String:kr_i18n_source(KR_TEXT_MAC_UI,text.UTF8String)];
+        key=objc_getAssociatedObject(text,&localizedSourceKey) ?: [NSString stringWithUTF8String:kr_i18n_source(KR_TEXT_MAC_UI,text.UTF8String)];
         keys[property]=key;
     }
     return [NSString stringWithUTF8String:kr_i18n_translate(kr_mac_language(),KR_TEXT_MAC_UI,key.UTF8String)];
