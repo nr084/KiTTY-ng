@@ -1329,6 +1329,7 @@ static int return_key(GtkFrontend *inst, char *output, bool *special)
 
 #ifdef KITTY_NG_LINUX
 #include "linux/window-actions.h"
+#include "linux/quick-commands.h"
 #endif
 
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
@@ -5652,6 +5653,14 @@ static void gtk_seat_update_specials_menu(Seat *seat)
     } else {
         gtk_widget_hide(inst->specialsitem1);
         gtk_widget_hide(inst->specialsitem2);
+#ifdef KITTY_NG_LINUX
+        MKSUBMENU(kr_mac_translate("Quick commands"));
+        GtkWidget *quick_menu = gtk_menu_new();
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), quick_menu);
+        g_signal_connect(quick_menu, "show", G_CALLBACK(quick_commands_show), inst);
+        quick_commands_show(quick_menu, inst);
+        MKSEP();
+#endif
     }
 }
 

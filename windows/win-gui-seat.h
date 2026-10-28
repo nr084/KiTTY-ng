@@ -1,3 +1,4 @@
+#include "kittyng-quick-commands.h"
 /*
  * Main state structure for an instance of the Windows PuTTY front
  * end, containing all the PuTTY objects and all the Windows API
@@ -95,6 +96,8 @@ struct WinGuiSeat {
 
     struct PopupMenu popup_menus[2];
     HMENU savedsess_menu;
+    HMENU quick_menu;
+    KrQuickCommands quick_commands;
 
     Conf *conf;
     LogContext *logctx;

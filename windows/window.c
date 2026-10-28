@@ -84,6 +84,7 @@ extern bool kr_test_extensions;
 #define WM_KR_TRAY    (WM_APP + 101)
 #define KR_RECONNECT_TIMER 0x4B525553
 static UINT kr_taskbar_created;
+static void update_quick_menu(WinGuiSeat *wgs);
 
 static bool kr_tray_icon(HWND hwnd, bool add)
 {
@@ -98,6 +99,9 @@ static bool kr_tray_icon(HWND hwnd, bool add)
     return Shell_NotifyIconW(add ? NIM_ADD : NIM_DELETE, &icon) != FALSE;
 }
 #define IDM_SPECIALSEP 0x0200
+
+#define IDM_QUICK_MIN 0x0900
+#define IDM_QUICK_MAX (IDM_QUICK_MIN + 16 * KR_QUICK_LIMIT)
 
 #define IDM_SPECIAL_MIN 0x0400
 #define IDM_SPECIAL_MAX 0x0800
@@ -1082,6 +1086,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             kr_append_menu(m, MF_ENABLED, IDM_PASTE, "&Paste");
         }
 
+        wgs->quick_menu = CreatePopupMenu();
+        update_quick_menu(wgs);
         wgs->savedsess_menu = CreateMenu();
         get_sesslist(&sesslist, true);
         update_savedsess_menu(wgs);
@@ -1090,6 +1096,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             m = wgs->popup_menus[j].menu;
 
             AppendMenu(m, MF_SEPARATOR, 0, 0);
+            kr_append_menu(m, MF_POPUP | MF_ENABLED, (UINT_PTR)wgs->quick_menu, "Quick commands");
             kr_append_menu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             kr_append_menu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
@@ -1258,6 +1265,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 static void wgs_cleanup(WinGuiSeat *wgs)
 {
+    kr_quick_free(&wgs->quick_commands);
     kr_save_window(wgs);
     kr_cancel_commands(wgs); kr_free_bindings(wgs);
     for (int i = 0; i < 2; i++) if (wgs->kr_icons[i]) DestroyIcon(wgs->kr_icons[i]);
@@ -1406,6 +1414,34 @@ void cleanup_exit(int code)
 /*
  * Refresh the saved-session submenu from `sesslist'.
  */
+static void update_quick_menu(WinGuiSeat *wgs)
+{
+    while (GetMenuItemCount(wgs->quick_menu) > 0)
+        DeleteMenu(wgs->quick_menu, 0, MF_BYPOSITION);
+    kr_quick_free(&wgs->quick_commands);
+    char *error = NULL;
+    if (!kr_quick_load(&wgs->quick_commands, kr_translate("Update Ubuntu"), &error)) {
+        kr_append_menu(wgs->quick_menu, MF_GRAYED, 0, error);
+        sfree(error); return;
+    }
+    for (int i = 0; i < KR_QUICK_LIMIT; i++) {
+        KrQuickCommand *c = &wgs->quick_commands.items[i];
+        if (!c->name || !c->instruction) continue;
+        /* Names are data, not translation keys or menu accelerators. */
+        strbuf *label = strbuf_new();
+        for (const char *p = c->name; *p; p++) {
+            put_byte(label, *p); if (*p == '&') put_byte(label, '&');
+        }
+        wchar_t *wide = dup_mb_to_wc(CP_UTF8, label->s);
+        AppendMenuW(wgs->quick_menu,
+                    wgs->backend && backend_sendok(wgs->backend) && !wgs->kr_input_locked ? MF_ENABLED : MF_GRAYED,
+                    IDM_QUICK_MIN + 16 * i, wide);
+        sfree(wide); strbuf_free(label);
+    }
+    if (!GetMenuItemCount(wgs->quick_menu))
+        kr_append_menu(wgs->quick_menu, MF_GRAYED, 0, "No quick commands");
+}
+
 static void update_savedsess_menu(WinGuiSeat *wgs)
 {
     kr_saved_sessions_menu(wgs->savedsess_menu, &sesslist,
@@ -1474,7 +1510,7 @@ static void win_seat_update_specials_menu(Seat *seat)
             DeleteMenu(wgs->popup_menus[j].menu, IDM_SPECIALSEP, MF_BYCOMMAND);
         }
         if (new_menu) {
-            InsertMenu(wgs->popup_menus[j].menu, IDM_SHOWLOG,
+            InsertMenu(wgs->popup_menus[j].menu, (UINT_PTR)wgs->quick_menu,
                        MF_BYCOMMAND | MF_POPUP | MF_ENABLED,
                        (UINT_PTR) new_menu, "S&pecial Command");
             InsertMenu(wgs->popup_menus[j].menu, IDM_SHOWLOG,
@@ -2708,6 +2744,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         PostQuitMessage(0);
         return 0;
       case WM_INITMENUPOPUP:
+        if ((HMENU)wParam == wgs->quick_menu) { update_quick_menu(wgs); return 0; }
         if ((HMENU)wParam == wgs->savedsess_menu) {
             /* About to pop up Saved Sessions sub-menu.
              * Refresh the session list. */
@@ -3131,6 +3168,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             flip_full_screen(wgs);
             break;
           default:
+            if (wParam >= IDM_QUICK_MIN && wParam < IDM_QUICK_MAX) {
+                int i = (wParam - IDM_QUICK_MIN) / 16;
+                KrQuickCommand *c = &wgs->quick_commands.items[i];
+                if (!wgs->kr_input_locked && wgs->backend && backend_sendok(wgs->backend) && c->instruction) {
+                    wchar_t *text = dup_mb_to_wc(CP_UTF8, c->instruction);
+                    term_keyinputw(wgs->term, text, wcslen(text));
+                    if (c->enter) term_keyinputw(wgs->term, L"\r", 1);
+                    sfree(text);
+                }
+                break;
+            }
             if (wParam >= IDM_SAVED_MIN && wParam < IDM_SAVED_MAX) {
                 SendMessage(hwnd, WM_SYSCOMMAND, IDM_SAVEDSESS, wParam);
             }

@@ -43,7 +43,7 @@ def verify(process, terminal, u, windows, title, until, english=False):
             yield item,label(item)
             yield from walk(u.SendMessageW(tree,0x110a,4,item))
             item=u.SendMessageW(tree,0x110a,1,item)
-    wanted={'Automation','Proxy profiles','Tunnels','Kex','Colours','Translation','Bell','Copy','Selection'} if english else {'Автоматизация','Профили прокси','Туннели','Обмен ключами','Цвета','Кодировка','Сигнал','Копировать','Выделение'}
+    wanted={'Automation','Proxy profiles','Tunnels','Kex','Colours','Translation','Bell','Copy','Selection','Quick commands'} if english else {'Автоматизация','Профили прокси','Туннели','Обмен ключами','Цвета','Кодировка','Сигнал','Копировать','Выделение','Быстрые команды'}
     checked=[]
     try:
         nodes=list(walk(u.SendMessageW(tree,0x110a,0,0)))
@@ -67,6 +67,26 @@ def verify(process, terminal, u, windows, title, until, english=False):
                     for index in range(u.SendMessageW(c,0x146,0,0)):
                         text=ctypes.create_unicode_buffer(1024);u.SendMessageW(c,0x148,index,ctypes.addressof(text));options.append(text.value)
                 for expected in (('System clipboard','Last selected text') if english else ('Системный буфер обмена','Последний выделенный текст')):assert expected in options,(expected,options)
+            if name in ('Quick commands','Быстрые команды'):
+                visible=[c for c in children(dialog) if u.IsWindowVisible(c)]
+                listing=next(c for c in visible if cls(c).lower()=='listbox')
+                edits=[c for c in visible if cls(c).lower()=='edit']
+                assert len(edits)==2,(name,edits)
+                buttons={title(c).replace('&',''):c for c in visible if cls(c).lower()=='button'}
+                count=u.SendMessageW(listing,0x18b,0,0)
+                u.SendMessageW(buttons['Add' if english else 'Добавить'],0xf5,0,0)
+                for edit,text in zip(edits,['Delete','echo Проверка && echo 2']):
+                    buffer=ctypes.create_unicode_buffer(text)
+                    u.SendMessageW(edit,0xc,0,ctypes.addressof(buffer))
+                u.SendMessageW(buttons['Save' if english else 'Сохранить'],0xf5,0,0)
+                assert u.SendMessageW(listing,0x18b,0,0)==count+1
+                row=u.SendMessageW(listing,0x188,0,0);buf=ctypes.create_unicode_buffer(256)
+                u.SendMessageW(listing,0x189,row,ctypes.addressof(buf));assert buf.value=='Delete',buf.value
+                buf=ctypes.create_unicode_buffer(1024)
+                u.SendMessageW(edits[1],0xd,len(buf),ctypes.addressof(buf))
+                assert buf.value=='echo Проверка && echo 2',buf.value
+                u.SendMessageW(buttons['Delete' if english else 'Удалить'],0xf5,0,0)
+                assert u.SendMessageW(listing,0x18b,0,0)==count
             checked.append(name)
         assert set(checked)==wanted,(checked,nodes)
         print('PASS: live SSH Change Settings: '+', '.join(checked),flush=True)

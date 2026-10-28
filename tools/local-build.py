@@ -247,7 +247,7 @@ def main():
             cmake = args.cmake.resolve() if args.cmake else wheels / "cmake/data/bin/cmake.exe"
             ninja = args.ninja.resolve() if args.ninja else next(wheels.glob("ninja-*.data/scripts/ninja.exe"))
             report["bootstrap"] = wheel_info
-            check("translations", {"config.c", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c",
+            check("translations", {"config.c", "quick-commands-config.h", "utils/kittyng-quick-commands.c", "linux/quick-commands.h", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c",
                   "locale/ru.json", "windows/platform.h", "tools/check-translations.py"},
                   [([PYTHON, "tools/check-translations.py"], None)])
             check("utility-translations", {"windows/puttygen.c", "windows/pageant.c",
@@ -283,6 +283,8 @@ def main():
                          [PYTHON, "test/portable_key_paths.py", directory / "test_key_paths.exe"]),
                         ("session-browser", "test_session_browser", ["test/session_browser.py"],
                          [PYTHON, "test/session_browser.py", directory / "test_session_browser.exe"]),
+                        ("quick-commands", "test_quick_commands", ["test/quick_commands.py", "test/test_quick_commands.c"],
+                         [PYTHON, "test/quick_commands.py", directory / "test_quick_commands.exe"]),
                         ("staticwrap", "test_staticwrap", ["test/test_staticwrap.c"],
                          [directory / "test_staticwrap.exe", "--language", "ru"]),
                         ("staticwrap-en", "test_staticwrap", ["test/test_staticwrap.c"],
@@ -381,6 +383,8 @@ def main():
                     check(arch + "/settings-layout", files,
                           [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--settings-layout"], ssh_environment(work)),
                            ([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--settings-layout", "--english"], ssh_environment(work))], compiler=compiler)
+                    check(arch + "/quick-commands-menu", files,
+                          [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--quick-only"], ssh_environment(work))], compiler=compiler)
                     if arch == "x64":
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                         files.add("test/windows_menu_runtime.py")

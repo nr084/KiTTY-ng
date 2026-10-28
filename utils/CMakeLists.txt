@@ -1,6 +1,7 @@
 add_sources_from_current_dir(utils
   kittyng-i18n.c
   kittyng-message.c
+  kittyng-quick-commands.c
   antispoof.c
   backend_socket_log.c
   base64_decode_atom.c

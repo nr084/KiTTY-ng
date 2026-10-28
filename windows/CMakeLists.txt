@@ -285,3 +285,6 @@ else()
   target_link_options(test_staticwrap PRIVATE -Wl,--gc-sections)
 endif()
 target_link_libraries(test_staticwrap utils ${platform_libraries})
+
+add_executable(test_quick_commands ${CMAKE_SOURCE_DIR}/test/test_quick_commands.c)
+target_link_libraries(test_quick_commands utils ${platform_libraries})

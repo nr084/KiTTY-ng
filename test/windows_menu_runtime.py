@@ -61,6 +61,9 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
   ini=settings/'kitty.ini';ini.write_text('[KiTTY]\nWinSCPPath=Программа с пробелами/WinSCP.exe\nshortcuts=yes\n',encoding='utf-16')
   env['KITTY_NG_PROBE_WINSCP']='1'
   for name in ('ProgramFiles','ProgramFiles(x86)','ProgramW6432'): env[name]=str(root/'absent-installation')
+ if '--quick-only' in sys.argv:
+  settings=root/'profiles';settings.mkdir(exist_ok=True)
+  (settings/'kitty.ini').write_text('[KiTTY]\nunknown=keep\n[QuickCommands]\ncmd1_name=Тест & один\ncmd1_instruction=echo Привет\ncmd1_enter=no\ncmd2_name=Test two\ncmd2_instruction=echo second\ncmd2_enter=yes\n',encoding='utf-16')
  thread=threading.Thread(target=serve,daemon=True);thread.start()
  key_path=root/'Ключи с пробелами'/'проверка.ppk'
  log_args=['-i',str(key_path)] if '--eventlog-only' in sys.argv else []
@@ -68,7 +71,28 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
  try:
   assert ready.wait(15),failure
   hwnd=until(lambda:next((h for h in windows(process.pid) if 'KiTTY-ng' in title(h) and u.GetDlgItem(h,3001)==None),None))
-  if '--settings-layout' in sys.argv:
+  if '--quick-only' in sys.argv:
+   u.GetSystemMenu.argtypes=[w.HWND,w.BOOL];u.GetSystemMenu.restype=w.HMENU
+   u.GetSubMenu.argtypes=[w.HMENU,ctypes.c_int];u.GetSubMenu.restype=w.HMENU
+   u.GetMenuItemID.argtypes=[w.HMENU,ctypes.c_int];u.GetMenuItemID.restype=w.UINT
+   u.GetMenuItemCount.argtypes=[w.HMENU]
+   parent=u.GetSystemMenu(hwnd,False)
+   entries=[(i,u.GetSubMenu(parent,i)) for i in range(u.GetMenuItemCount(parent))]
+   quick_index,quick=next((i,m) for i,m in entries if m and u.GetMenuItemID(m,0)==0x900)
+   special_index=next(i for i,m in entries if m and 0x400<=u.GetMenuItemID(m,0)<0x800)
+   assert quick_index==special_index+1,(special_index,quick_index)
+   u.SendMessageW(hwnd,0x117,quick,0)
+   u.SendMessageW(hwnd,0x112,0x240,0) # lock input
+   u.SendMessageW(hwnd,0x112,0x900,0);time.sleep(.15);assert not received,received
+   u.SendMessageW(hwnd,0x112,0x240,0)
+   u.SendMessageW(hwnd,0x112,0x900,0)
+   until(lambda:len(received)>=len('echo Привет'.encode()))
+   assert bytes(received)=='echo Привет'.encode(),received
+   u.SendMessageW(hwnd,0x112,0x910,0)
+   expected='echo Приветecho second\r'.encode()
+   until(lambda:len(received)>=len(expected));assert bytes(received)==expected,received
+   print('PASS: quick commands order, literal UTF-8, optional Enter and input lock',flush=True)
+  elif '--settings-layout' in sys.argv:
    from windows_settings_layout import verify
    verify(process,hwnd,u,windows,title,until,'--english' in sys.argv)
   elif '--winscp-only' in sys.argv:
@@ -220,7 +244,7 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
    for i in range(u.SendMessageW(listing,0x18b,0,0)):
     b=ctypes.create_unicode_buffer(4096);u.SendMessageW(listing,0x189,i,ctypes.addressof(b));texts.append(b.value)
    assert any('Подключ' in x or 'Разреш' in x for x in texts),texts
-  if not any(x in sys.argv for x in ('--settings-layout','--download-only','--seed-only','--tray-only','--legacy-arrows-only','--winscp-only','--eventlog-only')): print('PASS: actual terminal menu launches both matching x64 probes; Windows Shift+arrows reach SSH; Cyrillic event log is readable')
+  if not any(x in sys.argv for x in ('--quick-only','--settings-layout','--download-only','--seed-only','--tray-only','--legacy-arrows-only','--winscp-only','--eventlog-only')): print('PASS: actual terminal menu launches both matching x64 probes; Windows Shift+arrows reach SSH; Cyrillic event log is readable')
  finally:
   done.set();process.terminate();process.communicate(timeout=10)
   for transport in connection:transport.close()

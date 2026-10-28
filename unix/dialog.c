@@ -15,6 +15,7 @@
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
+#include "kittyng-build-date.h"
 #include "gtkcompat.h"
 #include "columns.h"
 #include "unifont.h"
@@ -3959,10 +3960,12 @@ void about_box(void *window)
 
     {
         char *buildinfo_text = buildinfo("\n");
+        char *version_text = dupprintf(KR_UI("%s (built %s)"), ver, kr_build_date());
         char *label_text = dupprintf(
             "%s\n\n%s\n\n%s\n\n%s",
-            appname, ver, buildinfo_text,
+            appname, version_text, buildinfo_text,
             "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
+        sfree(version_text);
         w = gtk_label_new(label_text);
         gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);
 #if GTK_CHECK_VERSION(2,0,0)

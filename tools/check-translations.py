@@ -35,7 +35,7 @@ for macro in ("CLIPNAME_IMPLICIT", "CLIPNAME_EXPLICIT"):
     match = re.search(r'^#define\s+' + macro + r'\s+(' + literal.pattern + r')', platform_text, re.M)
     assert match, macro
     labels.add(ast.literal_eval(match.group(1)))
-for filename in ["config.c", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c"]:
+for filename in ["config.c", "quick-commands-config.h", "windows/config.c", "windows/kittyng-language.c", "windows/kittyng-proxy-ui.c", "ssh/ca-config.c"]:
     text = re.sub(r'/\*.*?\*/', '', (root / filename).read_text(), flags=re.S)
     for match in re.finditer(r'\b(ctrl_[a-z_]+)\s*\(', text):
         name = match.group(1)
@@ -74,6 +74,13 @@ for path in [*(root / "windows").glob("*.c"), *(root / "linux").glob("*.c"), *(r
     for call in re.finditer(r'\b(?:MessageBox[AW]?|kr_messagebox|nonfatal|fatalbox|modalfatalbox|cmdline_error|fatal_message_box|errorbox|show_error|gtk_message_dialog_new|gtk_message_dialog_format_secondary_text)\s*\(([^;]*?)\);',text,re.S):
         for label in strings(call[1]):
             if len(label.split())>2:labels.add(label)
+for filename, pattern in (
+    ("utils/kittyng-quick-commands.c", r'fail\(error,\s*('+literal.pattern+r')'),
+    ("quick-commands-config.h", r'quick_translate\(('+literal.pattern+r')'),
+    ("linux/quick-commands.h", r'kr_mac_translate\(('+literal.pattern+r')')):
+    for match in re.finditer(pattern, (root / filename).read_text(encoding="utf8")):
+        labels.add(ast.literal_eval(match.group(1)))
+labels.update({"No quick commands", "%s (built %s)"})
 labels.add("Duplicate session")
 labels.update(event_labels)
 print(f"Event log audit: {len(event_labels)} literal templates")

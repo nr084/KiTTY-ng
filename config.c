@@ -26,6 +26,10 @@
 #include "session-browser.h"
 #include "tree234.h"
 
+#if defined(_WIN32) || defined(KITTY_NG_LINUX)
+#include "quick-commands-config.h"
+#endif
+
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
 #define HOST_BOX_TITLE "Host Name (or IP address)"
@@ -2486,6 +2490,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_checkbox(s, "Warn before closing window", 'w',
                   HELPCTX(behaviour_closewarn),
                   conf_checkbox_handler, I(CONF_warn_on_close));
+
+#if defined(_WIN32) || defined(KITTY_NG_LINUX)
+    quick_editor_setup(b);
+#endif
 
     /*
      * The Window/Translation panel.

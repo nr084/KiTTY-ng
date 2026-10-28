@@ -10,6 +10,7 @@
 #include <time.h>
 
 #include "putty.h"
+#include "kittyng-build-date.h"
 #include "kittyng.h"
 #include "kittyng-logui.h"
 #define dupprintf kr_printf
@@ -400,7 +401,10 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         SetWindowText(hwnd, str);
         sfree(str);
         SetDlgItemText(hwnd, IDA_BRAND, appname);
-        SetDlgItemText(hwnd, IDA_VERSION, ver);
+        str = dupprintf(kr_translate("%s (built %s)"), ver, kr_build_date());
+        wchar_t *version_text = dup_mb_to_wc(CP_UTF8, str);
+        SetDlgItemTextW(hwnd, IDA_VERSION, version_text);
+        sfree(version_text); sfree(str);
         LOGFONTW font = {0};
         HFONT original = (HFONT)SendDlgItemMessage(hwnd, IDA_BRAND, WM_GETFONT, 0, 0);
         if (GetObjectW(original, sizeof(font), &font)) {
