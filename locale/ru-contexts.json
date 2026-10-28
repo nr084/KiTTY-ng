@@ -13,7 +13,9 @@
     "English": "Русский",
     "Logging": "Журналирование",
     "Serial": "Последовательный порт",
-    "Start fullscreen": "Полноэкранный запуск"
+    "Start fullscreen": "Полноэкранный запуск",
+    "%s (from %s)": "%s (с %s)",
+    "remote host": "удалённый сервер"
   },
   "macos-ui": {
     "Allow OSC 52 clipboard writes": "Разрешать запись OSC 52",
