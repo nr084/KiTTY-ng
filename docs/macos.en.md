@@ -16,6 +16,8 @@ Portable Windows profiles remain shared, with data outside `.app`. The shared RU
 
 **Session → End session** closes only the active tab/connection. Other sessions stay open; the configured close warning is respected.
 
+![Confirm ending one session](screenshots/macos-end-session-en.png)
+
 ## Quick commands in 0.85-10
 
 Up to 20 shared commands: configure with **Window → Quick commands**, run from the separate top menu immediately right of **Session** or the terminal context menu. The list is stored in `kitty.ini` outside `.app`, separately from profiles. [Guide](quick-commands.en.md). About shows the version and build date.
