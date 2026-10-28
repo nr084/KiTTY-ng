@@ -74,5 +74,3 @@ def verify(process, terminal, u, windows, title, until, english=False):
         k.VirtualFreeEx(handle,memory,0,0x8000);k.CloseHandle(handle)
         u.SendMessageW(dialog,0x111,2,0)
         until(lambda:not u.IsWindow(dialog))
-
-

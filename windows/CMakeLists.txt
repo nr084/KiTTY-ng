@@ -277,6 +277,11 @@ set_target_properties(puttygen PROPERTIES OUTPUT_NAME "kittygen-${kitty_ng_outpu
 set_target_properties(pageant PROPERTIES OUTPUT_NAME "kageant-${kitty_ng_output_arch}")
 
 add_executable(test_staticwrap ${CMAKE_SOURCE_DIR}/test/test_staticwrap.c controls.c)
-target_compile_options(test_staticwrap PRIVATE -ffunction-sections -fdata-sections)
-target_link_options(test_staticwrap PRIVATE -Wl,--gc-sections)
+if(MSVC)
+  target_compile_options(test_staticwrap PRIVATE /Gy)
+  target_link_options(test_staticwrap PRIVATE /OPT:REF)
+else()
+  target_compile_options(test_staticwrap PRIVATE -ffunction-sections -fdata-sections)
+  target_link_options(test_staticwrap PRIVATE -Wl,--gc-sections)
+endif()
 target_link_libraries(test_staticwrap utils ${platform_libraries})
