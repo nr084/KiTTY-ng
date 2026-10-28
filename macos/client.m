@@ -511,3 +511,11 @@ static void open_conf_in_host(Conf *configuration,MacTabHost *host){
 }
 
 void kr_mac_show_windows(void){for(MacTerminal *view in [windows copy])[view.terminalWindow makeKeyAndOrderFront:nil];for(NSWindow *window in NSApp.windows)if([window.title isEqualToString:@"KiTTY-ng"])[window makeKeyAndOrderFront:nil];}
+
+/* Confirm every window before closing any, so Cancel leaves all sessions live. */
+bool kr_mac_request_termination(void) {
+    NSArray *hosts = [tabHosts copy];
+    for (MacTabHost *host in hosts) if (![host windowShouldClose:host.window]) return false;
+    for (MacTabHost *host in hosts) [host.window close];
+    return true;
+}

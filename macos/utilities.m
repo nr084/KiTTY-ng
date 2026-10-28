@@ -95,6 +95,8 @@ int kr_mac_test_keygen_ui(void){
     [menu removeAllItems];NSArray *items=@[@[L(@"Show KiTTY-ng",@"Показать KiTTY-ng"),NSStringFromSelector(@selector(show:))],@[L(@"Start agent",@"Запустить агент"),NSStringFromSelector(@selector(start:))],@[L(@"Loaded keys",@"Загруженные ключи"),NSStringFromSelector(@selector(list:))],@[L(@"Add keys…",@"Добавить ключи…"),NSStringFromSelector(@selector(add:))],@[L(@"Remove all keys",@"Удалить все ключи"),NSStringFromSelector(@selector(removeAll:))],@[L(@"Stop agent",@"Остановить агент"),NSStringFromSelector(@selector(stop:))],@[@"KiTTYgen",NSStringFromSelector(@selector(keygen:))]];
     for(NSArray *item in items){NSMenuItem *entry=[[NSMenuItem alloc]initWithTitle:item[0] action:NSSelectorFromString(item[1]) keyEquivalent:@""];entry.target=self;[menu addItem:entry];}
     NSMenuItem *lang=[[NSMenuItem alloc]initWithTitle:L(@"Language",@"Язык") action:nil keyEquivalent:@""];NSMenu *sub=[NSMenu new];for(int i=0;i<2;i++){NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:i?@"Русский":@"English" action:@selector(language:) keyEquivalent:@""];item.target=self;item.representedObject=@(i);item.state=i==kr_mac_language()?NSControlStateValueOn:NSControlStateValueOff;[sub addItem:item];}lang.submenu=sub;[menu addItem:lang];
+    [menu addItem:[NSMenuItem separatorItem]];
+    NSMenuItem *quit=[[NSMenuItem alloc]initWithTitle:L(@"Quit",@"Закрыть") action:@selector(terminate:) keyEquivalent:@""];quit.target=NSApp;[menu addItem:quit];
 }
 @end
 static AgentController *agent;
