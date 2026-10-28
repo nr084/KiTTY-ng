@@ -74,7 +74,11 @@ int kr_mac_test_startup_ui(void) {
     NSFileManager *fm = NSFileManager.defaultManager;
     [fm createDirectoryAtURL:bundle withIntermediateDirectories:YES attributes:nil error:nil];
     [fm createDirectoryAtURL:chosen withIntermediateDirectories:YES attributes:nil error:nil];
+    install = install.URLByResolvingSymlinksInPath;
+    chosen = chosen.URLByResolvingSymlinksInPath;
+    bundle = [install URLByAppendingPathComponent:@"KiTTY-ng.app" isDirectory:YES];
     BOOL ok = YES;
+    fprintf(stderr,"Startup test: install=<%s>, actual=<%s>\n", install.path.UTF8String, initialRoot(bundle, preferences).path.UTF8String);
 #define STARTUP_CHECK(condition) do { if (!(condition)) { fprintf(stderr, "FAIL startup: %s\n", #condition); ok = NO; } } while (0)
     STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
     [preferences setObject:chosen.path forKey:rootPreference]; [preferences synchronize];
