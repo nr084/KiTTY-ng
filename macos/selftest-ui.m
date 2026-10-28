@@ -5,6 +5,7 @@
 #include "storage.h"
 #include "language.h"
 #include "utilities.h"
+#include "quick-commands.h"
 #include "client.h"
 #include "kittyng-auth.h"
 #include <stdlib.h>
@@ -54,6 +55,7 @@ int kr_mac_self_test_ui(void){
     CHECK(kr_mac_test_session_menu_ui()==0);
     CHECK(kr_mac_test_tabs_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);
+    CHECK(kr_mac_test_quick_commands_ui()==0);
     puts("PASS: native AppKit language round-trips, search cell/data preserved, stable language names, initial SSH/22 defaults");return 0;
 #undef CHECK
 }

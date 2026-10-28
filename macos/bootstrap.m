@@ -14,6 +14,8 @@
 #include "portable.h"
 #include "editor.h"
 #include "utilities.h"
+#include "quick-commands.h"
+#include "kittyng-build-date.h"
 #endif
 
 static BOOL Russian;
@@ -129,6 +131,7 @@ int kr_mac_test_startup_ui(void) {
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
     restoreRoot();
     Russian = kr_mac_language()==1;
+    kr_mac_initialize_quick_commands();
     kr_mac_install_status_menu();
     NSMenu *menu = [NSMenu new]; NSMenuItem *appItem = [NSMenuItem new]; [menu addItem:appItem];
     NSMenu *appMenu = [[NSMenu alloc] initWithTitle:@"KiTTY-ng"]; appItem.submenu = appMenu;
@@ -136,7 +139,7 @@ int kr_mac_test_startup_ui(void) {
     NSMenuItem *keygen=[[NSMenuItem alloc]initWithTitle:@"KiTTYgen" action:@selector(keygen:) keyEquivalent:@""];keygen.target=self;[appMenu addItem:keygen];NSMenuItem *agent=[[NSMenuItem alloc]initWithTitle:@"Kageant" action:@selector(agent:) keyEquivalent:@""];agent.target=self;[appMenu addItem:agent];NSMenuItem *authorities=[[NSMenuItem alloc]initWithTitle:L(@"SSH authorities…",@"Центры сертификации SSH…") action:@selector(authorities:) keyEquivalent:@""];authorities.target=self;[appMenu addItem:authorities];
     [appMenu addItem:[NSMenuItem separatorItem]];
     [appMenu addItemWithTitle:L(@"Quit KiTTY-ng", @"Завершить KiTTY-ng") action:@selector(terminate:) keyEquivalent:@"q"]; kr_mac_add_edit_menu(menu);
-    kr_mac_add_session_menu(menu);NSApp.mainMenu = menu;
+    kr_mac_add_session_menu(menu);kr_mac_add_quick_settings_menu(menu);NSApp.mainMenu = menu;
     self.window = [[NSWindow alloc] initWithContentRect:NSMakeRect(0,0,820,600) styleMask:NSWindowStyleMaskTitled|NSWindowStyleMaskClosable|NSWindowStyleMaskMiniaturizable|NSWindowStyleMaskResizable backing:NSBackingStoreBuffered defer:NO];
     self.window.releasedWhenClosed = NO; self.window.title = @"KiTTY-ng"; self.window.minSize = NSMakeSize(680,420);
     NSView *view = self.window.contentView;
@@ -252,9 +255,9 @@ int kr_mac_test_startup_ui(void) {
 - (void)searchChanged:(id)sender { [self reload]; }
 - (void)chooseFolder:(id)sender {
     NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseFiles = NO; panel.canChooseDirectories = YES; panel.allowsMultipleSelection = NO; panel.message = L(@"Choose the shared KiTTY portable directory", @"Выберите общий портативный каталог KiTTY");
-    if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = [NSURL fileURLWithPath:[NSString stringWithUTF8String:kr_mac_root()]]; [NSUserDefaults.standardUserDefaults setObject:self.root.path forKey:rootPreference]; self.folder = [self sessionsDirectory]; [self reload]; }
+    if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = [NSURL fileURLWithPath:[NSString stringWithUTF8String:kr_mac_root()]]; [NSUserDefaults.standardUserDefaults setObject:self.root.path forKey:rootPreference]; self.folder = [self sessionsDirectory]; kr_mac_initialize_quick_commands(); [NSNotificationCenter.defaultCenter postNotificationName:@"KiTTYNGPortableRootChanged" object:nil]; [self reload]; }
 }
-- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; alert.messageText = @TEXTVER; alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
+- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; char *version=kr_message_printf("%s (built %s)",TEXTVER,kr_build_date()); alert.messageText = [NSString stringWithUTF8String:version]; sfree(version); alert.informativeText = L(@"Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — " @__DATE__, @"Нативная версия macOS Universal 2. На базе PuTTY и KiTTY.\n© nr084 — " @__DATE__); [alert runModal]; }
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender { return kr_mac_request_termination() ? NSTerminateNow : NSTerminateCancel; }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end
