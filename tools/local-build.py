@@ -273,7 +273,7 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
-                        ("windows-theme-gui", "kitty-ng", ["test/windows_theme_gui.py", "windows/pageant.c", "windows/pageant.rc", "windows/puttygen.c", "windows/puttygen.rc"],
+                        ("windows-theme-gui", executable[:-4], ["test/windows_theme_gui.py", "windows/pageant.c", "windows/pageant.rc", "windows/puttygen.c", "windows/puttygen.rc"],
                          [PYTHON, "test/windows_theme_gui.py", directory, arch]),
                         ("windows-theme", "test_windows_theme", ["test/windows_theme.py", "test/test_windows_theme.c"],
                          [PYTHON, "test/windows_theme.py", directory / "test_windows_theme.exe"]),
@@ -307,6 +307,8 @@ def main():
                     ]
                     for suite, target, scripts, test_command in suites:
                         files = source_dependencies(ninja, directory, [target + ".exe"]) | set(scripts)
+                        if suite == "windows-theme-gui":
+                            files |= source_dependencies(ninja, directory, [utility_executable("puttygen", arch), utility_executable("pageant", arch)])
                         # This separate object is not referenced by the core
                         # test executables; dispatch is exercised below.
                         files -= {"windows/kittyng-companions.c", "windows/kittyng-companions.h"}
