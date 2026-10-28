@@ -40,6 +40,32 @@ for filename in ["config.c", "windows/config.c", "windows/kittyng-language.c", "
         for index in indices:
             if index < len(args): labels.update(strings(args[index]))
 
+# Audit every literal event-log template, including concatenated size formats.
+event_labels = set()
+for base in ("ssh", "proxy", "windows", "unix", "otherbackends", "utils"):
+    for path in (root / base).rglob("*.c"):
+        text = re.sub(r'/\*.*?\*/', '', path.read_text(encoding="utf8"), flags=re.S)
+        for match in re.finditer(r'\b(ppl_printf|ppl_logevent|bpp_logevent|logeventf|logevent)\s*\(', text):
+            args = callargs(text, match.end())
+            index = 0 if match.group(1) in ("ppl_printf", "ppl_logevent", "bpp_logevent") else 1
+            if len(args) <= index: continue
+            expression = args[index].strip()
+            for size in ("zu", "Iu"):
+                expanded = re.sub(r'\bSIZEu\b', '"'+size+'"', expression)
+                expanded = re.sub(r'\bPRIu32\b', '"u"', expanded)
+                if re.fullmatch(r'(?:'+literal.pattern+r'\s*)+', expanded):
+                    label = ''.join(ast.literal_eval(x) for x in literal.findall(expanded))
+                    if re.search(r'[A-Za-z]{3}', label): event_labels.add(label)
+# USER is a Telnet protocol field, not translatable prose.
+event_labels.discard("    USER=%s")
+for path in (root / "windows").glob("*.c"):
+    text = path.read_text(encoding="utf8")
+    for match in re.finditer(r'kr_messagebox\([^,]+,\s*('+literal.pattern+r')', text):
+        labels.add(ast.literal_eval(match.group(1)))
+labels.add("Duplicate session")
+labels.update(event_labels)
+print(f"Event log audit: {len(event_labels)} literal templates")
+
 # Technical names and literal control sequences are intentionally retained.
 technical = {"KiTTY-ng", "SSH", "Telnet", "Rlogin", "SUPDUP", "SSH-1", "SSH-2",
              "VT100+", "VT400", "Xterm R6", "Xterm 216+", "SCO", "Linux",
@@ -47,7 +73,9 @@ technical = {"KiTTY-ng", "SSH", "Telnet", "Rlogin", "SUPDUP", "SSH-1", "SSH-2",
              "ANSI", "OEM", "ClearType", "MIT-Magic-Cookie-1", "XDM-Authorization-1"}
 missing = sorted(s for s in labels if s and s not in catalog and s not in technical)
 format_pattern = re.compile(r'%(?:[-+ #0]*\d*(?:\.\d+|\.\*)?|\*)(?:hh|ll|[hljztL])?[diuoxXfFeEgGaAcsp%]')
-bad = [(en, ru) for en, ru in catalog.items() if format_pattern.findall(en) != format_pattern.findall(ru)]
+contexts=json.loads((root / "locale/ru-contexts.json").read_text(encoding="utf8"))
+all_pairs=list(catalog.items())+[pair for entries in contexts.values() for pair in entries.items()]
+bad = [(en, ru) for en, ru in all_pairs if format_pattern.findall(en) != format_pattern.findall(ru)]
 print(f"Configuration UI: {len(labels)} literals, {len(missing)} missing translations")
 for text in missing: print(json.dumps(text, ensure_ascii=False))
 for en, ru in bad: print("FORMAT MISMATCH:", repr(en), repr(ru))

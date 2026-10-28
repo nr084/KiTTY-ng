@@ -51,6 +51,16 @@ bool kr_tabs_enabled(void)
     return _wcsicmp(value,L"0") && _wcsicmp(value,L"no") &&
            _wcsicmp(value,L"false") && _wcsicmp(value,L"off");
 }
+/* Suppress only the initial host transition; never change system animation settings. */
+static void frame_initial_animation(HWND hwnd, BOOL disabled)
+{
+    HMODULE library = LoadLibraryExW(L"dwmapi.dll", NULL, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (!library) return;
+    typedef HRESULT (WINAPI *SetAttribute)(HWND, DWORD, LPCVOID, DWORD);
+    SetAttribute set = (SetAttribute)GetProcAddress(library, "DwmSetWindowAttribute");
+    if (set) set(hwnd, 3 /* DWMWA_TRANSITIONS_FORCEDISABLED */, &disabled, sizeof(disabled));
+    FreeLibrary(library);
+}
 static bool same_executable(HWND window)
 {
     DWORD pid, n = 32768; wchar_t mine[32768], other[32768];
@@ -416,7 +426,9 @@ static LRESULT CALLBACK frame_proc(HWND hwnd, UINT message, WPARAM wp, LPARAM lp
         if (f->count) {PostMessageW(f->pages[f->selected],WM_COMMAND,wp,lp);return 0;}break;
       case WM_SYSCOMMAND:
         if (wp<0xf000 && f->count) {PostMessageW(f->pages[f->selected],WM_SYSCOMMAND,wp,lp);return 0;}break;
-      case WM_TIMER: frame_refresh(f);return 0;
+      case WM_TIMER:
+        if(wp==2){KillTimer(hwnd,2);frame_initial_animation(hwnd,FALSE);return 0;}
+        frame_refresh(f);return 0;
       case WM_CLOSE: {
         bool warn=false;
         for(int i=0;i<f->count;i++) {
@@ -451,6 +463,7 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
     bool fullscreen=!(GetWindowLongPtrW(source,GWL_STYLE)&WS_CAPTION);
     f.frame=CreateWindowExW(0,TAB_CLASS,L"KiTTY-ng",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,r.left,r.top,r.right-r.left,r.bottom-r.top,NULL,NULL,instance,NULL);
     if (!f.frame) return true;
+    frame_initial_animation(f.frame, TRUE);
     SetWindowLongPtrW(f.frame,GWLP_USERDATA,(LONG_PTR)&f);
     f.strip=CreateWindowExW(0,WC_TABCONTROLW,L"",WS_CHILD|WS_CLIPSIBLINGS|WS_CLIPCHILDREN|TCS_BUTTONS|TCS_FLATBUTTONS|TCS_FIXEDWIDTH|TCS_FOCUSNEVER,0,0,1,1,f.frame,NULL,instance,NULL);
     HDC dc=GetDC(f.frame);f.dpi=GetDeviceCaps(dc,LOGPIXELSY);ReleaseDC(f.frame,dc);
@@ -470,7 +483,7 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
         placement.showCmd=SW_SHOWMAXIMIZED;
         SetWindowPlacement(f.frame,&placement);
     }
-    ShowWindow(f.frame,SW_SHOW);SetTimer(f.frame,1,200,NULL);
+    ShowWindow(f.frame,SW_SHOW);SetTimer(f.frame,1,200,NULL);SetTimer(f.frame,2,500,NULL);
     PostMessageW(source,WM_SYSCOMMAND,TAB_DUPLICATE,0);
     MSG msg;while(GetMessageW(&msg,NULL,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}
     *result=0;return true;

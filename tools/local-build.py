@@ -283,6 +283,8 @@ def main():
                          [PYTHON, "test/portable_key_paths.py", directory / "test_key_paths.exe"]),
                         ("session-browser", "test_session_browser", ["test/session_browser.py"],
                          [PYTHON, "test/session_browser.py", directory / "test_session_browser.exe"]),
+                        ("i18n", "test_i18n", ["test/test_i18n.c", "locale/ru.json", "locale/ru-contexts.json"],
+                         [directory / "test_i18n.exe"]),
                         ("portable", "test_kittyng", ["test/run_kittyng.py"],
                          [PYTHON, "test/run_kittyng.py", directory / "test_kittyng.exe"]),
                         ("legacy", "test_kittyng_legacy", ["test/run_kittyng_legacy.py", "test/kittyng-legacy-vectors.json"],
@@ -365,6 +367,11 @@ def main():
                     check(arch + "/duplicate-password-retry", files,
                           [([PYTHON, "test/duplicate_password_retry.py", directory / executable, "--report", logs / (arch + "-duplicate-password-retry.json")], ssh_environment(work))],
                           compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
+                    files.add("test/windows_menu_runtime.py")
+                    check(arch + "/eventlog-language", files,
+                          [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--eventlog-only"], ssh_environment(work)),
+                           ([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--eventlog-only", "--english"], ssh_environment(work))], compiler=compiler)
                     if arch == "x64":
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                         files.add("test/windows_menu_runtime.py")

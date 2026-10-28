@@ -8100,7 +8100,7 @@ SeatPromptResult term_get_userpass_input(Terminal *term, prompts_t *p)
         term->userpass_utf8_override = p->utf8 && terminal_use_utf8;
         /* We only print the `name' caption if we have to... */
         if (p->name_reqd && p->name) {
-            ptrlen plname = ptrlen_from_asciz(p->name);
+            ptrlen plname = ptrlen_from_asciz(p->from_server ? p->name : kr_event_text(p->name));
             term_write(term, plname);
             if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
                 term_write(term, PTRLEN_LITERAL("\r\n"));

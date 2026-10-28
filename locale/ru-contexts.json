@@ -1,0 +1,28 @@
+{
+  "windows": {},
+  "linux": {
+    "Always on top": "Поверх окон"
+  },
+  "macos-cli": {
+    "Unable to encode saved password": "Не удалось закодировать сохраняемый пароль",
+    "Selected proxy profile is missing or invalid; connection is blocked.": "Профиль выбранного прокси отсутствует или повреждён; соединение заблокировано.",
+    "Allow OSC 52 clipboard writes": "Разрешать запись OSC 52",
+    "Always on top": "Поверх окон",
+    "Automation": "Автоматика",
+    "Disabled": "Выключено",
+    "English": "Русский",
+    "Logging": "Журналирование",
+    "Serial": "Последовательный порт",
+    "Start fullscreen": "Полноэкранный запуск"
+  },
+  "macos-ui": {
+    "Allow OSC 52 clipboard writes": "Разрешать запись OSC 52",
+    "Always on top": "Поверх окон",
+    "Automation": "Автоматика",
+    "Disabled": "Выключено",
+    "English": "Русский",
+    "Logging": "Журналирование",
+    "Serial": "Последовательный порт",
+    "Start fullscreen": "Полноэкранный запуск"
+  }
+}

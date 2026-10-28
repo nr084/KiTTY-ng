@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 static NSMutableArray *jobs;
 static NSString *text(const char *s){return [NSString stringWithUTF8String:s]?:@"";}
-static NSString *tr(NSString *en,NSString *ru){return kr_mac_language()==1?ru:en;}
+static NSString *tr(NSString *en,NSString *ru){return kr_mac_localize_string(en);}
 static void error(NSString *s){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng";a.informativeText=s;[a runModal];}
 static NSURL *helper(NSString *name){
     if(![@[@"klink",@"kscp",@"ksftp",@"kittygen",@"kageant"]containsObject:name])return nil;

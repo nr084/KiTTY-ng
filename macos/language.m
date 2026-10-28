@@ -4,6 +4,8 @@
 #include "storage.h"
 #include "portable.h"
 #include "language.h"
+#include "kittyng-i18n.h"
+#import <objc/runtime.h>
 #include "cli-language.h"
 static int selected=-1;
 static NSString *preferences(NSStringEncoding *encoding){
@@ -30,30 +32,43 @@ bool kr_mac_set_language(int language){
     NSString *path=[[NSString stringWithUTF8String:base]stringByAppendingPathComponent:@"values.ini"];if(![data writeToFile:path options:NSDataWritingAtomic error:nil])return false;selected=language;kr_mac_cli_set_language(language?"ru":"en");return true;
 }
 
-static const struct{const char *en,*ru;}ui_strings[]={
-#include "translations.h"
-#include "../windows/kittyng-translations.h"
-};
 NSString *kr_mac_localize_string(NSString *text){
-    /* Language identifiers remain readable and stable in every locale. */
-    if([text isEqualToString:@"English"]||[text isEqualToString:@"Русский"])return text;
-
-    for(size_t i=0;i<lenof(ui_strings);i++){NSString *en=[NSString stringWithUTF8String:ui_strings[i].en],*ru=[NSString stringWithUTF8String:ui_strings[i].ru];if([text isEqualToString:en]||[text isEqualToString:ru])return kr_mac_language()?ru:en;}return text;
+    if (!text) return nil;
+    if ([text isEqualToString:@"English"] || [text isEqualToString:@"Русский"]) return text;
+    const char *key=kr_i18n_source(KR_TEXT_MAC_UI,text.UTF8String);
+    return [NSString stringWithUTF8String:kr_i18n_translate(kr_mac_language(),KR_TEXT_MAC_UI,key)];
+}
+/* Retain source keys on application-owned UI properties, independently of the
+ * displayed language. Editable contents and server/user data never bind here. */
+static char sourceKeys;
+static NSString *boundText(id owner, NSString *property, NSString *text) {
+    if (!text) return nil;
+    NSMutableDictionary *keys=objc_getAssociatedObject(owner,&sourceKeys);
+    if (!keys) {
+        keys=[NSMutableDictionary dictionary];
+        objc_setAssociatedObject(owner,&sourceKeys,keys,OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    NSString *key=keys[property];
+    if (!key) {
+        key=[NSString stringWithUTF8String:kr_i18n_source(KR_TEXT_MAC_UI,text.UTF8String)];
+        keys[property]=key;
+    }
+    return [NSString stringWithUTF8String:kr_i18n_translate(kr_mac_language(),KR_TEXT_MAC_UI,key.UTF8String)];
 }
 void kr_mac_localize_menu(NSMenu *menu){
-    menu.title=kr_mac_localize_string(menu.title);
-    for(NSMenuItem *item in menu.itemArray){item.title=kr_mac_localize_string(item.title);if(item.submenu)kr_mac_localize_menu(item.submenu);}
+    menu.title=boundText(menu,@"title",menu.title);
+    for(NSMenuItem *item in menu.itemArray){item.title=boundText(item,@"title",item.title);if(item.submenu)kr_mac_localize_menu(item.submenu);}
 }
 void kr_mac_localize_view(NSView *view){
     if([view.identifier isEqualToString:@"KiTTYNG.RawData"])return;
     /* Never recurse into AppKit controls: their private buttons/cells have
      * implementation titles (e.g. search), not application UI strings. */
     if([view isKindOfClass:NSSearchField.class]){((NSSearchField*)view).placeholderString=kr_mac_localize_string(@"Quick search");return;}
-    if([view isKindOfClass:NSPopUpButton.class]){for(NSMenuItem *item in ((NSPopUpButton*)view).itemArray)item.title=kr_mac_localize_string(item.title);return;}
-    if([view isKindOfClass:NSButton.class]){((NSButton*)view).title=kr_mac_localize_string(((NSButton*)view).title);return;}
-    if([view isKindOfClass:NSTextField.class]){NSTextField *field=(NSTextField*)view;if(field.placeholderString)field.placeholderString=kr_mac_localize_string(field.placeholderString);if(!((NSTextField*)view).editable)((NSTextField*)view).stringValue=kr_mac_localize_string(((NSTextField*)view).stringValue);return;}
-    if([view isKindOfClass:NSTableView.class]){for(NSTableColumn *column in ((NSTableView*)view).tableColumns)column.title=kr_mac_localize_string(column.title);return;}
-    if([view isKindOfClass:NSTabView.class]){for(NSTabViewItem *item in ((NSTabView*)view).tabViewItems){item.label=kr_mac_localize_string(item.label);kr_mac_localize_view(item.view);}return;}
+    if([view isKindOfClass:NSPopUpButton.class]){for(NSMenuItem *item in ((NSPopUpButton*)view).itemArray)item.title=boundText(item,@"title",item.title);return;}
+    if([view isKindOfClass:NSButton.class]){((NSButton*)view).title=boundText(view,@"title",((NSButton*)view).title);return;}
+    if([view isKindOfClass:NSTextField.class]){NSTextField *field=(NSTextField*)view;if(field.placeholderString)field.placeholderString=boundText(field,@"placeholder",field.placeholderString);if(!((NSTextField*)view).editable)((NSTextField*)view).stringValue=kr_mac_localize_string(((NSTextField*)view).stringValue);return;}
+    if([view isKindOfClass:NSTableView.class]){for(NSTableColumn *column in ((NSTableView*)view).tableColumns)column.title=boundText(column,@"title",column.title);return;}
+    if([view isKindOfClass:NSTabView.class]){for(NSTabViewItem *item in ((NSTabView*)view).tabViewItems){item.label=boundText(item,@"label",item.label);kr_mac_localize_view(item.view);}return;}
     if([view isKindOfClass:NSControl.class])return;
     for(NSView *child in view.subviews)kr_mac_localize_view(child);
 }

@@ -126,6 +126,13 @@ static void logfopen_callback(void *vctx, int mode)
                        ctx->logtype == LGTYP_SSHRAW ? "SSH raw data" :
                        "unknown"),
                       filename_to_str(ctx->currlogfilename));
+#ifdef _WIN32
+    extern const char *kr_translate(const char *);
+    event = kr_translate(event);
+#elif defined(KITTY_NG_LINUX) || defined(KITTY_NG_MACOS)
+    extern const char *kr_mac_translate(const char *);
+    event = kr_mac_translate(event);
+#endif
     lp_eventlog(ctx->lp, event);
     if (shout) {
         /*

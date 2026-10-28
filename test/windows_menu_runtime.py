@@ -40,6 +40,7 @@ listener=socket.socket();listener.bind(('127.0.0.1',0));listener.listen(1);liste
 def serve():
  try:
   client,_=listener.accept();transport=paramiko.Transport(client);connection.append(transport);transport.add_server_key(key);transport.start_server(server=Server());channel=transport.accept(15);assert channel;channel.settimeout(15)
+  channel.send(b"\r\nSERVER RAW: Access denied\r\n")
   while True:
    part=channel.recv(4096)
    if not part:break
@@ -61,7 +62,9 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
   env['KITTY_NG_PROBE_WINSCP']='1'
   for name in ('ProgramFiles','ProgramFiles(x86)','ProgramW6432'): env[name]=str(root/'absent-installation')
  thread=threading.Thread(target=serve,daemon=True);thread.start()
- process=subprocess.Popen([str(client),*(['-load','Legacy'] if '--legacy-arrows-only' in sys.argv else []),'--portable-dir',str(root/'profiles'),'--language','ru','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','test','-pw','synthetic','-hostkey',fp],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+ key_path=root/'Ключи с пробелами'/'проверка.ppk'
+ log_args=['-i',str(key_path)] if '--eventlog-only' in sys.argv else []
+ process=subprocess.Popen([str(client),*(['-load','Legacy'] if '--legacy-arrows-only' in sys.argv else []),'--portable-dir',str(root/'profiles'),'--language',('en' if '--english' in sys.argv else 'ru'),'-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','test','-pw','synthetic','-hostkey',fp,*log_args],env=env,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
  try:
   assert ready.wait(15),failure
   hwnd=until(lambda:next((h for h in windows(process.pid) if 'KiTTY-ng' in title(h) and u.GetDlgItem(h,3001)==None),None))
@@ -128,6 +131,43 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
    u.SendMessageW(hwnd,0x1f,0,0);until(lambda:not in_menu())
    u.SendMessageW(hwnd,0x8000+101,1,0x203);until(lambda:u.IsWindowVisible(hwnd))
    print('PASS: actual hidden tray icon callback opens menu on right-click and restores on double-click')
+  elif '--eventlog-only' in sys.argv:
+   u.SendMessageW(hwnd,0x112,0x10,0)
+   log=until(lambda:next((h for h in windows(process.pid) if u.GetDlgItem(h,1001)),None))
+   listing=u.GetDlgItem(log,1001);texts=[]
+   for i in range(u.SendMessageW(listing,0x18b,0,0)):
+    b=ctypes.create_unicode_buffer(8192);u.SendMessageW(listing,0x189,i,ctypes.addressof(b));texts.append(b.value)
+   joined='\n'.join(texts)
+   assert str(key_path) in joined and '\ufffd' not in joined, joined
+   for phrase in (['Reading key file','Access granted','Using SSH protocol version'] if '--english' in sys.argv else ['Чтение файла ключа','Доступ разрешён','Используется протокол SSH']):assert phrase in joined,joined
+   if '--english' not in sys.argv:
+    for phrase in ['Reading key file','Access granted','Using SSH protocol version','We claim version','Initialised']:assert phrase not in joined,joined
+   u.SendMessageW(listing,0x185,1,-1);u.SendMessageW(log,0x111,1002,0)
+   kernel=ctypes.WinDLL('kernel32');kernel.GlobalLock.argtypes=[w.HANDLE];kernel.GlobalLock.restype=ctypes.c_void_p
+   kernel.GlobalUnlock.argtypes=[w.HANDLE];u.GetClipboardData.argtypes=[w.UINT];u.GetClipboardData.restype=w.HANDLE
+   assert u.OpenClipboard(None)
+   try:
+    handle=u.GetClipboardData(13);assert handle;memory=kernel.GlobalLock(handle);assert memory
+    try:copied=ctypes.wstring_at(memory)
+    finally:kernel.GlobalUnlock(handle)
+   finally:u.CloseClipboard()
+   assert str(key_path) in copied and '\ufffd' not in copied,copied
+   def terminal_text():
+    u.SendMessageW(hwnd,0x112,0x170,0)
+    if not u.OpenClipboard(None):return ''
+    try:
+     handle=u.GetClipboardData(13)
+     if not handle:return ''
+     memory=kernel.GlobalLock(handle)
+     if not memory:return ''
+     try:return ctypes.wstring_at(memory)
+     finally:kernel.GlobalUnlock(handle)
+    finally:u.CloseClipboard()
+   screen=until(lambda:(text if 'SERVER RAW: Access denied' in (text:=terminal_text()) else None))
+   expected='Using username "test".' if '--english' in sys.argv else 'Имя пользователя: «test».'
+   assert expected in screen,screen
+   assert ('Unable to use key file' if '--english' in sys.argv else 'Не удалось использовать файл ключа') in screen,screen
+   print('PASS: native event log, Unicode clipboard and login messages use selected language; server payload unchanged')
   elif '--legacy-arrows-only' in sys.argv:
    # Local keyboard events exercise the Windows front end, not just the formatter.
    kernel=ctypes.WinDLL('kernel32');current=kernel.GetCurrentThreadId();target=u.GetWindowThreadProcessId(hwnd,None);assert u.AttachThreadInput(current,target,True)
@@ -177,7 +217,7 @@ with tempfile.TemporaryDirectory(prefix='windows-menu-',dir=binary.parent.parent
    for i in range(u.SendMessageW(listing,0x18b,0,0)):
     b=ctypes.create_unicode_buffer(4096);u.SendMessageW(listing,0x189,i,ctypes.addressof(b));texts.append(b.value)
    assert any('Подключ' in x or 'Разреш' in x for x in texts),texts
-  if not any(x in sys.argv for x in ('--download-only','--seed-only','--tray-only','--legacy-arrows-only','--winscp-only')): print('PASS: actual terminal menu launches both matching x64 probes; Windows Shift+arrows reach SSH; Cyrillic event log is readable')
+  if not any(x in sys.argv for x in ('--download-only','--seed-only','--tray-only','--legacy-arrows-only','--winscp-only','--eventlog-only')): print('PASS: actual terminal menu launches both matching x64 probes; Windows Shift+arrows reach SSH; Cyrillic event log is readable')
  finally:
   done.set();process.terminate();process.communicate(timeout=10)
   for transport in connection:transport.close()

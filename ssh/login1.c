@@ -388,6 +388,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
         s->cur_prompt->to_server = true;
         s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
         s->cur_prompt->name = dupstr("SSH login name");
         add_prompt(s->cur_prompt, dupstr("login as: "), true);
         s->spr = seat_get_userpass_input(
@@ -433,7 +434,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     s->keyfile = conf_get_filename(s->conf, CONF_keyfile);
     if (!filename_is_null(s->keyfile)) {
         int keytype;
-        ppl_logevent("Reading key file \"%s\"", filename_to_str(s->keyfile));
+        ppl_logevent("Reading key file \"%s\"", filename_to_utf8_display(s->keyfile));
         keytype = key_type(s->keyfile);
         if (keytype == SSH_KEYTYPE_SSH1 ||
             keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
@@ -449,7 +450,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             } else {
                 ppl_logevent("Unable to load key (%s)", error);
                 ppl_printf("Unable to load key file \"%s\" (%s)\r\n",
-                           filename_to_str(s->keyfile), error);
+                           filename_to_utf8_display(s->keyfile), error);
 
                 strbuf_free(s->publickey_blob);
                 s->publickey_blob = NULL;
@@ -458,7 +459,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             ppl_logevent("Unable to use this key file (%s)",
                          key_type_to_str(keytype));
             ppl_printf("Unable to use key file \"%s\" (%s)\r\n",
-                       filename_to_str(s->keyfile),
+                       filename_to_utf8_display(s->keyfile),
                        key_type_to_str(keytype));
         }
     }
@@ -664,7 +665,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             if (seat_verbose(s->ppl.seat))
                 ppl_printf("Trying public key authentication.\r\n");
             ppl_logevent("Trying public key \"%s\"",
-                         filename_to_str(s->keyfile));
+                         filename_to_utf8_display(s->keyfile));
             s->tried_publickey = true;
             got_passphrase = false;
             while (!got_passphrase) {
@@ -682,9 +683,10 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
                     s->cur_prompt->to_server = false;
                     s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
                     s->cur_prompt->name = dupstr("SSH key passphrase");
                     add_prompt(s->cur_prompt,
-                               dupprintf("Passphrase for key \"%s\": ",
+                               kr_message_printf("Passphrase for key \"%s\": ",
                                          s->publickey_comment), false);
                     s->spr = seat_get_userpass_input(
                         ppl_get_iseat(&s->ppl), s->cur_prompt);
@@ -715,7 +717,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     got_passphrase = true;
                 } else if (retd == 0) {
                     ppl_printf("Couldn't load private key from %s (%s).\r\n",
-                               filename_to_str(s->keyfile), error);
+                               filename_to_utf8_display(s->keyfile), error);
                     got_passphrase = false;
                     break;             /* go and try something else */
                 } else if (retd == -1) {
@@ -929,8 +931,9 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             }
             s->cur_prompt->to_server = true;
             s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
             s->cur_prompt->name = dupstr("SSH password");
-            add_prompt(s->cur_prompt, dupprintf("%s@%s's password: ",
+            add_prompt(s->cur_prompt, kr_message_printf("%s@%s's password: ",
                                                 s->username, s->savedhost),
                        false);
         }

@@ -393,7 +393,7 @@ static char *dns_log_msg(const char *host, int addressfamily,
     return dupprintf("Looking up host \"%s\"%s for %s", host,
                      (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
                       addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
-                      ""), reason);
+                      ""), kr_event_text(reason));
 }
 
 SockAddr *name_lookup(const char *host, int port, char **canonicalname,

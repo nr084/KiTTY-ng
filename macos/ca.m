@@ -3,7 +3,7 @@
 #include "storage.h"
 #include "language.h"
 #include "cli-language.h"
-static NSString *L(NSString *a,NSString *b){return kr_mac_language()?b:a;}
+static NSString *L(NSString *a,NSString *b){return kr_mac_localize_string(a);}
 void kr_mac_show_ca(void){
     NSAlert *dialog=[NSAlert new];dialog.messageText=L(@"SSH certification authorities",@"Центры сертификации SSH");NSView *panel=[[NSView alloc]initWithFrame:NSMakeRect(0,0,650,40)];NSPopUpButton *records=[[NSPopUpButton alloc]initWithFrame:NSMakeRect(0,6,650,28) pullsDown:NO];[records addItemWithTitle:L(@"New authority",@"Новый центр сертификации")];host_ca_enum *e=enum_host_ca_start();strbuf *name=strbuf_new();while(enum_host_ca_next(e,name)){[records addItemWithTitle:[NSString stringWithUTF8String:name->s]];strbuf_clear(name);}strbuf_free(name);enum_host_ca_finish(e);[panel addSubview:records];dialog.accessoryView=panel;[dialog addButtonWithTitle:L(@"Open / New",@"Открыть / Создать")];[dialog addButtonWithTitle:L(@"Cancel",@"Отмена")];if([dialog runModal]!=NSAlertFirstButtonReturn)return;
     host_ca *ca=records.indexOfSelectedItem?host_ca_load(records.titleOfSelectedItem.UTF8String):host_ca_new();if(!ca)return;

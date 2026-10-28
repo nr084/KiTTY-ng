@@ -522,7 +522,7 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
 
 #if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
     if(kr_mac_gui_prompts()){
-        for(size_t i=0;i<p->n_prompts;i++){char *question=dupcat(p->name?kr_mac_translate(p->name):"", "\n",p->instruction?kr_mac_translate(p->instruction):"","\n",kr_mac_translate(p->prompts[i]->prompt)),*reply=kr_mac_askpass(p->prompts[i]->echo?"text":"secret",question);sfree(question);if(!reply)return SPR_USER_ABORT;prompt_set_result(p->prompts[i],reply);smemclr(reply,strlen(reply));sfree(reply);}return SPR_OK;
+        for(size_t i=0;i<p->n_prompts;i++){char *question=dupcat(p->name?(p->from_server?p->name:kr_mac_translate(p->name)):"", "\n",p->instruction?p->instruction:"","\n",(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt))),*reply=kr_mac_askpass(p->prompts[i]->echo?"text":"secret",question);sfree(question);if(!reply)return SPR_USER_ABORT;prompt_set_result(p->prompts[i],reply);smemclr(reply,strlen(reply));sfree(reply);}return SPR_OK;
     }
 #endif
     console_open(&outfp, &infd);
@@ -532,7 +532,7 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
      */
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
-        ptrlen plname = ptrlen_from_asciz(p->name);
+        ptrlen plname = ptrlen_from_asciz(p->from_server ? p->name : kr_event_text(p->name));
         console_write(outfp, plname);
         if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
             console_write(outfp, PTRLEN_LITERAL("\n"));

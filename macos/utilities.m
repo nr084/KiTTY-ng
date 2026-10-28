@@ -6,7 +6,7 @@
 #include "utilities.h"
 #include <unistd.h>
 #include <signal.h>
-static NSString *L(NSString *en,NSString *ru){return kr_mac_language()==1?ru:en;}
+static NSString *L(NSString *en,NSString *ru){return kr_mac_localize_string(en);}
 static NSMutableArray *generators;
 @interface KeyGenerator:NSObject <NSWindowDelegate>
 @property(nonatomic,strong) NSWindow *window;

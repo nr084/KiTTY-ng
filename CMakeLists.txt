@@ -27,6 +27,9 @@ add_dependencies(utils cmake_commit_c)
 add_subdirectory(utils)
 add_subdirectory(stubs)
 
+add_executable(test_i18n test/test_i18n.c utils/kittyng-i18n.c)
+target_include_directories(test_i18n PRIVATE ${CMAKE_SOURCE_DIR})
+
 add_library(logging OBJECT
   logging.c utils/logeventf.c)
 

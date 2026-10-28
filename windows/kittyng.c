@@ -1,6 +1,7 @@
 /* kitty-ng UI extensions. See LICENCE and LICENCE-KiTTY.txt. */
 #include "putty.h"
 #include "kittyng.h"
+#include "kittyng-i18n.h"
 #include "kittyng-portable.h"
 #include "kittyng-legacy-crypt.h"
 #include <bcrypt.h>
@@ -11,10 +12,6 @@ int kr_windows_language(LANGID language)
 {
     return PRIMARYLANGID(language) == LANG_RUSSIAN ? 1 : 0;
 }
-static const struct { const char *en, *ru; } translations[] = {
-#include "kittyng-translations.h"
-};
-
 int kr_language(void)
 {
     if (ui_language < 0) {
@@ -57,6 +54,8 @@ bool kr_set_language(int language)
 const char *kr_translate(const char *english)
 {
     if (english && kr_language()) {
+        const char *exact = kr_i18n_translate(kr_language(), KR_TEXT_WINDOWS, english);
+        if (exact != english) return exact;
         /* Controls insert accelerator '&' markers before reaching Win32. */
         char *clean = NULL;
         const char *plain = english;
@@ -69,11 +68,8 @@ const char *kr_translate(const char *english)
             plain = clean;
         }
         const char *result = english;
-        for (size_t i = 0; i < lenof(translations); i++)
-            if (!strcmp(plain, translations[i].en)) {
-                result = translations[i].ru;
-                break;
-            }
+        result = kr_i18n_translate(kr_language(), KR_TEXT_WINDOWS, plain);
+        if (result == plain) result = english;
         sfree(clean);
         return result;
     }
@@ -82,9 +78,7 @@ const char *kr_translate(const char *english)
 
 const char *kr_untranslate(const char *text)
 {
-    for (size_t i = 0; i < lenof(translations); i++)
-        if (!strcmp(text, translations[i].ru)) return translations[i].en;
-    return text;
+    return kr_i18n_source(KR_TEXT_WINDOWS, text);
 }
 
 char *kr_printf(const char *format, ...)

@@ -885,10 +885,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                     }
                 }
                 if (list) {
-                    ppl_logevent("Server also has %s host key%s, but we "
-                                 "don't know %s", list,
-                                 nkeys > 1 ? "s" : "",
-                                 nkeys > 1 ? "any of them" : "it");
+                    ppl_logevent("Additional unrecognised server host key algorithms: %s", list);
                     sfree(list);
                 }
             }

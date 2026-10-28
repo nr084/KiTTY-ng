@@ -1,17 +1,12 @@
 /* Reuse the audited Russian utility strings; SSH payloads are not translated. */
 #include "putty.h"
+#include "kittyng-i18n.h"
 #include "storage.h"
 #include "portable.h"
 #include "cli-language.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <crt_externs.h>
 #include <ctype.h>
-static const struct{const char *en,*ru;}translations[]={
-#include "error-translations.h"
-#include "translations.h"
-#include "../windows/kittyng-translations.h"
-#include "cli-extra-translations.h"
-};
 static int language=-1;
 void kr_mac_cli_set_language(const char *name){language=!strcmp(name,"ru")?1:0;setenv("KITTY_NG_LANGUAGE",language?"ru":"en",1);}
 static int choice(void){
@@ -21,7 +16,9 @@ static int choice(void){
     int argc=*_NSGetArgc();char **argv=*_NSGetArgv();for(int i=1;i+1<argc;i++)if(!strcmp(argv[i],"--language")&&(!strcmp(argv[i+1],"ru")||!strcmp(argv[i+1],"en")))language=!strcmp(argv[i+1],"ru");
 return language;
 }
-const char *kr_mac_translate(const char *text){if(text&&choice())for(size_t i=0;i<lenof(translations);i++)if(!strcmp(text,translations[i].en))return translations[i].ru;return text;}
+const char *kr_mac_translate(const char *text) {
+    return kr_i18n_translate(choice(), KR_TEXT_MAC_CLI, text);
+}
 int kr_mac_vfprintf(FILE *stream,const char *format,va_list ap){return vfprintf(stream,kr_mac_translate(format),ap);}
 int kr_mac_fprintf(FILE *stream,const char *format,...){va_list ap;va_start(ap,format);int result=kr_mac_vfprintf(stream,format,ap);va_end(ap);return result;}
 int kr_mac_printf(const char *format,...){va_list ap;va_start(ap,format);int result=kr_mac_vfprintf(stdout,format,ap);va_end(ap);return result;}

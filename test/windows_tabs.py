@@ -89,7 +89,7 @@ def keyboard(page,index,letter):
 
 binary=Path(sys.argv[1]).resolve();pids=set();processes=[]
 with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent) as folder:
- root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n'+('Maximize\\1\\\n' if '--maximized' in sys.argv else '')+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
+ root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n'+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
  key_args=[]
  if client_key is not None:
   ppk=root/'synthetic.ppk';ppk.write_bytes(PPK)
@@ -103,6 +103,8 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
  try:
   p=launch();first=wait(lambda:next((h for h in enum() if pid(h)==p.pid and title(h)=='Demo session 1'),None))
   assert not any(cls(h)=='SysTabControl32' and u.IsWindowVisible(h) for h in enum(first))
+  if '--maximized' in sys.argv:
+   u.ShowWindow(first,3);wait(lambda:u.IsZoomed(first))
   u.PostMessageW(first,0x112,0x30,0)
   host=wait(lambda:next((h for h in enum() if cls(h)=='KiTTYng.SessionTabs' and u.GetParent(first)==h),None));pids.add(pid(host))
   strip=wait(lambda:next((h for h in enum(host) if cls(h)=='SysTabControl32'),None))
@@ -163,6 +165,9 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
    from PIL import ImageGrab
    target=Path(sys.argv[sys.argv.index('--screenshot')+1]);target.parent.mkdir(parents=True,exist_ok=True)
    u.SetForegroundWindow(host);time.sleep(.4);rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect))
+   dwm=ctypes.WinDLL('dwmapi')
+   dwm.DwmGetWindowAttribute.argtypes=[w.HWND,w.DWORD,ctypes.c_void_p,w.DWORD]
+   assert dwm.DwmGetWindowAttribute(host,9,ctypes.byref(rect),ctypes.sizeof(rect))==0
    ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).save(target)
 
   # Window commands must continue to target the containing window.
@@ -238,6 +243,8 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   # Whole-window close must still warn; Cancel keeps the connection alive.
   u.PostMessageW(host,0x10,0,0)
   dialog=wait(lambda:next((h for h in enum() if pid(h)==pid(host) and cls(h)=='#32770'),None))
+  expected='Закрыть все сеансы в этом окне?' if '--russian' in sys.argv else 'Close all sessions in this window?'
+  assert any(title(h)==expected for h in enum(dialog)), [title(h) for h in enum(dialog)]
   u.PostMessageW(dialog,0x111,2,0);wait(lambda:not u.IsWindow(dialog));assert u.IsWindow(first)
   keyboard(first,1,'q')
   u.PostMessageW(host,0x111,0x7101,0);wait(lambda:not u.IsWindow(host))

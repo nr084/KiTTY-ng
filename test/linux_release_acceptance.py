@@ -18,6 +18,7 @@ run('native-gui',gui('linux_native.py','--binary',app/'AppRun','--output',out/'n
 run('tabs',gui('linux_tabs.py',app/'AppRun',out/'tabs'))
 run('tabs-key',gui('linux_tabs.py',app/'AppRun',out/'tabs-key','--key'))
 run('duplicate-password-retry',gui('duplicate_password_retry.py',app/'AppRun','--report',out/'duplicate-password-retry.json'))
+run('language',['python3',str(root/'linux_language.py'),str(app/'usr/bin/klink')])
 run('ssh-sftp-agent',['python3',str(root/'linux_ssh.py'),'--bin-dir',str(app/'usr/bin'),'--output',str(out/'ssh')])
 run('keygen-gui',gui('linux_utilities_gui.py','--binary',app/'AppRun','--output',out/'keygen'))
 run('agent-gui',gui('linux_agent_gui.py','--binary',app/'AppRun'))

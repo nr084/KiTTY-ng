@@ -25,6 +25,22 @@ typedef enum {
 #include "misc.h"
 #include "marshal.h"
 
+/* Translate application diagnostic fragments, never protocol data. */
+char *kr_message_printf(const char *format, ...);
+
+static inline const char *kr_event_text(const char *text)
+{
+#ifdef _WIN32
+    extern const char *kr_translate(const char *);
+    return kr_translate(text);
+#elif defined(KITTY_NG_LINUX) || defined(KITTY_NG_MACOS)
+    extern const char *kr_mac_translate(const char *);
+    return kr_mac_translate(text);
+#else
+    return text;
+#endif
+}
+
 /*
  * We express various time intervals in unsigned long minutes, but may need to
  * clip some values so that the resulting number of ticks does not overflow an
@@ -2568,6 +2584,19 @@ enum {
  */
 Filename *filename_from_str(const char *string);
 const char *filename_to_str(const Filename *fn);
+
+/* Display paths as UTF-8 without changing native filesystem path semantics. */
+static inline const char *filename_to_utf8_display(const Filename *fn)
+{
+#ifdef _WIN32
+    return fn->utf8path;
+#else
+    return filename_to_str(fn);
+#endif
+}
+
+
+
 bool filename_equal(const Filename *f1, const Filename *f2);
 bool filename_is_null(const Filename *fn);
 Filename *filename_copy(const Filename *fn);

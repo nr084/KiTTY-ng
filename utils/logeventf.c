@@ -19,6 +19,10 @@ void logevent_and_free(LogContext *ctx, char *event)
 
 void logeventvf(LogContext *ctx, const char *fmt, va_list ap)
 {
+#if defined(KITTY_NG_LINUX) || defined(KITTY_NG_MACOS)
+    extern const char *kr_mac_translate(const char *);
+    fmt = kr_mac_translate(fmt);
+#endif
     logevent_and_free(ctx, dupvprintf(fmt, ap));
 }
 

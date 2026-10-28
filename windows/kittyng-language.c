@@ -1,6 +1,7 @@
 #include "putty.h"
 #include "dialog.h"
 #include "kittyng.h"
+#include "kittyng-i18n.h"
 
 typedef struct LanguageControls {
     dlgcontrol *selector;
@@ -13,16 +14,13 @@ static void language_handler(dlgcontrol *ctrl, dlgparam *dlg,
     LanguageControls *language = ctrl->context.p;
     if (ctrl == language->selector && event == EVENT_REFRESH) {
         /* Keep language IDs independent of their positions in the list. */
-        static const struct { int id; const char *name; } languages[] = {
-            { 0, "English" },
-            { 1, "\320\240\321\203\321\201\321\201\320\272\320\270\320\271" },
-        };
         dlg_update_start(ctrl, dlg);
         dlg_listbox_clear(ctrl, dlg);
-        for (size_t i = 0; i < lenof(languages); i++) {
-            dlg_listbox_addwithid(ctrl, dlg, languages[i].name,
-                                 languages[i].id);
-            if (languages[i].id == language->selected)
+        for (size_t i = 0; i < kr_i18n_language_count(); i++) {
+            const KrLanguageInfo *language_info = kr_i18n_language(i);
+            dlg_listbox_addwithid(ctrl, dlg, language_info->native_name,
+                                 language_info->id);
+            if (language_info->id == language->selected)
                 dlg_listbox_select(ctrl, dlg, i);
         }
         dlg_update_done(ctrl, dlg);

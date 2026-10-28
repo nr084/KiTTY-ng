@@ -1,45 +1,11 @@
 /* Reuse KiTTY-ng translations and portable values; never translate payloads. */
 #include "putty.h"
+#include "kittyng-i18n.h"
 #include "cli-language.h"
 #include "names.h"
 #include "portable.h"
 #include "storage.h"
 #include <ctype.h>
-static const struct {
-    const char *en, *ru;
-} translations[] = {
-    {"Run command…", "Выполнить команду…"},
-    {"Lock / unlock input", "Блокировать / разблокировать ввод"},
-    {"Enable custom shortcuts", "Пользовательские сочетания клавиш"},
-    {"Ctrl-click opens web links", "Ctrl+щелчок открывает веб-ссылки"},
-    {"Automation", "Автоматизация"},
-    {"File transfer", "Передача файлов"},
-    {"Commands after login", "Команды после входа"},
-    {"Startup automation", "Автоматизация после входа"},
-    {"Automatic command", "Автокоманда"},
-    {"UTF-8 startup script", "Скрипт UTF-8"},
-    {"Initial delay (ms)", "Начальная задержка (мс)"},
-    {"Delay between characters (ms)", "Задержка между символами (мс)"},
-    {"Delay between commands (ms)", "Задержка между командами (мс)"},
-    {"Reconnection", "Переподключение"},
-    {"Reconnect delay (seconds; 0 disables)",
-     "Задержка переподключения (сек; 0 — отключено)"},
-    {"SCP / SFTP transfers", "Передача SCP / SFTP"},
-    {"Remote directory", "Удалённый каталог"},
-    {"Alternate destination", "Другой адрес назначения"},
-    {"Additional kscp options", "Дополнительные параметры kscp"},
-    {"Shared proxy profile", "Общий профиль прокси"},
-    {"Proxy profile from Proxies", "Профиль из Proxies"},
-    {"KiTTY-ng window options", "Параметры окна KiTTY-ng"},
-    {"Start maximized", "Запускать развёрнутым"},
-    {"Start fullscreen", "Запускать на весь экран"},
-    {"Always on top", "Поверх окон"},
-    {"Allow OSC 52 clipboard writes", "Разрешить запись в буфер через OSC 52"},
-#include "../windows/kittyng-translations.h"
-#include "cli-extra-translations.h"
-#include "error-translations.h"
-#include "translations.h"
-};
 static int language = -1;
 void kr_mac_cli_set_language(const char *name) {
     language = !strcmp(name, "ru");
@@ -89,11 +55,7 @@ static int choice(void) {
     return language;
 }
 const char *kr_mac_translate(const char *text) {
-    if (text && choice())
-        for (size_t i = 0; i < lenof(translations); i++)
-            if (!strcmp(text, translations[i].en))
-                return translations[i].ru;
-    return text;
+    return kr_i18n_translate(choice(), KR_TEXT_LINUX, text);
 }
 int kr_mac_vfprintf(FILE *stream, const char *format, va_list ap) {
     return vfprintf(stream, kr_mac_translate(format), ap);

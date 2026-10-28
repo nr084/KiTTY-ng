@@ -1,8 +1,8 @@
 """New portable Mac policies and cell-border geometry; actual production code."""
 from pathlib import Path
-import subprocess,tempfile,json
+import subprocess,tempfile,json,re
 r=Path(__file__).resolve().parents[1]
-lookup=next(line for line in (r/'macos/cli-language.c').read_text().splitlines() if line.startswith('const char *kr_mac_translate('))
+lookup=re.search(r'const char \*kr_mac_translate\([^)]*\)\s*\{[^}]*\}', (r/'macos/cli-language.c').read_text(encoding='utf8')).group(0)
 program=r"""
 #include <assert.h>
 #include <stdio.h>
@@ -12,9 +12,7 @@ program=r"""
 #define lenof(x) (sizeof(x)/sizeof(*(x)))
 static int language=1;
 static int choice(void){return language;}
-static const struct {const char *en,*ru;}translations[]={
-#include "macos/error-translations.h"
-};
+#include "kittyng-i18n.h"
 """+lookup+r"""
 int main(void){
  assert(!strcmp(kr_mac_upload_path(NULL,""),"."));
@@ -38,6 +36,6 @@ int main(void){
 """
 with tempfile.TemporaryDirectory(prefix='macos-followups-',dir=r/'build') as temp:
  p=Path(temp);(p/'test.c').write_text(program,encoding='utf-8')
- subprocess.run([str(r/'_tools/llvm-mingw/20261006-local/toolchain/bin/x86_64-w64-mingw32-clang.exe'),'-I'+str(r),str(p/'test.c'),'-o',str(p/'test.exe')],check=True)
+ subprocess.run([str(r/'_tools/llvm-mingw/20261020/toolchain/bin/x86_64-w64-mingw32-clang.exe'),'-I'+str(r),str(p/'test.c'),str(r/'utils/kittyng-i18n.c'),'-o',str(p/'test.exe')],check=True)
  subprocess.run([str(p/'test.exe')],check=True)
 (r/'dist/macos-followups-test.json').write_text(json.dumps({'status':'passed','box_cases':768,'scope':'production geometry, destination policy, translation lookup; not AppKit rendering'})+'\n')

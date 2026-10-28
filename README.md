@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**Выпущен 0.85-8**: улучшения вкладок и повторная авторизация дубликатов в Windows, Linux и macOS. [Изменения](docs/releases/0.85-8.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-8).
+**KiTTY-ng 0.85-9 для Windows и Linux**: общее русско-английское языковое ядро, переводы сообщений SSH и исправления вкладок. macOS Universal готовится отдельно. [Изменения](docs/releases/0.85-9.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
 
 **macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Нативные вкладки сеансов включены.
 
@@ -16,13 +16,13 @@
 
 ## Скачать
 
-| Платформа | Сборка 0.85-8 | Запуск |
+| Платформа | Сборка 0.85-9 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.tar.zst) | `chmod +x`, запуск |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86_64.tar.zst) | `chmod +x`, запуск |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | Universal DMG — готовится на Mac | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
@@ -36,8 +36,8 @@
 
 ## Возможности
 
-- macOS 0.85-8: нативные вкладки, дублирование временных подключений без записи профиля и верхнее меню активного сеанса. [Подробнее](docs/tabs.md).
-- Вкладки Windows/Linux в 0.85-8: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
+- macOS (ранее выпущенные возможности): нативные вкладки, дублирование временных подключений без записи профиля и верхнее меню активного сеанса. [Подробнее](docs/tabs.md).
+- Вкладки Windows/Linux в 0.85-9: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
 
 - Папки сеансов, быстрый поиск без учёта регистра, редактирование и дублирование.
 - Формат оригинального KiTTY и переносимые ссылки на ключи и сертификаты.
@@ -83,7 +83,7 @@
 - [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-8](docs/releases/0.85-8.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-9](docs/releases/0.85-9.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 
@@ -100,3 +100,5 @@
 База: [PuTTY 0.85](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html). Расширения и совместимость: [KiTTY](https://github.com/cyd01/KiTTY), исходный коммит `75fa2abcd220c17249ff7252f8d5224137001f2d`. История KiTTY сохранена в Git.
 
 См. [лицензию PuTTY](LICENCE) и [лицензию KiTTY](LICENCE-KiTTY.txt). Новый значок с двумя соединёнными терминалами: [исходное изображение](icons/kitty-ng.png), [сведения о генерации](icons/kitty-ng-prompt.txt).
+
+[Общее языковое ядро и правила перевода](docs/localization.md): русский и английский встроены; дополнительные языковые DLL отложены.

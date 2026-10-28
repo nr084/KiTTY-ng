@@ -693,7 +693,7 @@ SeatPromptResult console_get_userpass_input(prompts_t *p)
      */
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
-        ptrlen plname = ptrlen_from_asciz(p->name);
+        ptrlen plname = ptrlen_from_asciz(p->from_server ? p->name : kr_event_text(p->name));
         put_datapl(conio, plname);
         if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
             put_datalit(conio, "\n");

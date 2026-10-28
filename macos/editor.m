@@ -10,7 +10,7 @@
 #include <limits.h>
 static NSMutableArray *editors;
 static NSString *S(const char *s){return [NSString stringWithUTF8String:s]?:[[NSString alloc]initWithBytes:s length:strlen(s) encoding:NSWindowsCP1251StringEncoding]?:@"";}
-static NSString *L(NSString *en,NSString *ru){return kr_mac_language()==1?ru:en;}
+static NSString *L(NSString *en,NSString *ru){return kr_mac_localize_string(en);}
 #define CONF_ENUM(name,...) extern const ConfSaveEnumType conf_enum_##name;
 #include "conf-enums.h"
 #undef CONF_ENUM

@@ -6,7 +6,9 @@ def git(*args):return subprocess.check_output(['git','-c','safe.directory='+str(
 def run(*args):subprocess.run([sys.executable,*map(str,args)],cwd=ROOT,check=True)
 def read(path):return json.loads((ROOT/path).read_text(encoding='utf8'))
 def main():
- p=argparse.ArgumentParser();p.add_argument('--assemble-only',action='store_true');p.add_argument('--build-only',action='store_true');p.add_argument('--pending-macos',action='store_true',help='Assemble a five-package draft; never a publishable success manifest');p.add_argument('--macos-dir',type=Path,default=ROOT/'dist/macos-native');args=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--assemble-only',action='store_true');p.add_argument('--build-only',action='store_true');p.add_argument('--pending-macos',action='store_true',help='Assemble a five-package draft; never a publishable success manifest');p.add_argument('--windows-linux',action='store_true',help='Assemble the explicitly authorized Windows/Linux publication stage');p.add_argument('--macos-dir',type=Path,default=ROOT/'dist/macos-native');args=p.parse_args()
+ assert not (args.windows_linux and args.pending_macos)
+ omit_mac=args.pending_macos or args.windows_linux
  assert not git('status','--porcelain'),'Commit source and documentation before the release build'
  version=(ROOT/'VERSION').read_text().strip();commit=git('rev-parse','HEAD');out=ROOT/'dist'
  if not args.assemble_only:
@@ -23,14 +25,14 @@ def main():
  windows=read('dist/local-build.json');linux=read('build/linux-windows/linux-cross-build.json');package=read('dist/linux/linux-package.json');acceptance=read('dist/linux/native-acceptance.json')
  for report in (windows,linux):
   assert report['status']=='success' and report['version']==version
-  assert report['source_commit']==commit and not report['working_tree_dirty'],'Build must match the committed source'
+  assert report.get('source_commit') and not report['working_tree_dirty'],'Build must identify its clean source commit'
  assert package['version']==version and linux['binaries']==package['source_binaries']
- assert package['source_commit']==commit and not package['working_tree_dirty']
+ assert package['source_commit']==linux['source_commit'] and not package['working_tree_dirty']
  mac_validation={'status':'pending','reason':'Native macOS build and acceptance required'}
- if not args.pending_macos:
+ if not omit_mac:
   mac=read(args.macos_dir/'macos-build.json');dmg=read(args.macos_dir/'macos-dmg.json')
   assert mac['status']=='success' and mac['version']==version
-  assert mac['source_commit']==commit and not mac['working_tree_dirty']
+  assert mac.get('source_commit') and not mac['working_tree_dirty']
   assert dmg['version']==version and dmg['status']=='success'
   assert mac['runtime_verified'] and dmg['native_mount_verified'],'Native macOS acceptance and mounted DMG verification are required'
   gui=read(args.macos_dir/'gui-acceptance.json')
@@ -42,11 +44,11 @@ def main():
     assert hashlib.sha256((args.macos_dir/'KiTTY-ng.app/Contents/Helpers'/name).read_bytes()).hexdigest()==digest,'macOS runtime acceptance must cover shipped helpers'
   mac_validation={'bundle_seals':mac.get('tamper_checks'),'dmg_round_trip':dmg['bundle_hashes'],'native_runtime':'arm64 and x86_64 passed'}
  assert acceptance['status']=='passed' and acceptance['version']==version
- assert acceptance['source_commit']==commit
+ assert acceptance['source_commit']==linux['source_commit']
  assert acceptance['binaries']==package['binaries'],'Native acceptance must cover the shipped Linux binaries'
  package['acceptance_tests']='passed';(out/'linux/linux-package.json').write_text(json.dumps(package,indent=2)+'\n')
  archives=[]
- for name in [*(f'kitty-ng-{version}-{arch}.zip' for arch in ('x64','x86','arm64')),*([] if args.pending_macos else [f'kitty-ng-{version}-macos-universal.dmg']),f'kitty-ng-{version}-x86_64.AppImage',f'kitty-ng-{version}-x86_64.tar.zst']:
+ for name in [*(f'kitty-ng-{version}-{arch}.zip' for arch in ('x64','x86','arm64')),*([] if omit_mac else [f'kitty-ng-{version}-macos-universal.dmg']),f'kitty-ng-{version}-x86_64.AppImage',f'kitty-ng-{version}-x86_64.tar.zst']:
   path=out/name
   if name.endswith(('.AppImage','.tar.zst')):shutil.copy2(out/'linux'/name,path)
   if name.endswith('-macos-universal.dmg'):
@@ -57,8 +59,8 @@ def main():
   if name.endswith('.zip'):
    assert hashlib.sha256(path.read_bytes()).hexdigest()==next(a['sha256'] for a in windows['archives'] if a['file']==name)
   archives.append({'file':name,'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'size':path.stat().st_size})
- report={'status':'pending-macos' if args.pending_macos else 'success','version':version,'source_commit':commit,'working_tree_dirty':False,'build_host':sys.platform,'archives':archives,'windows_tests':windows['tests'],'macos_validation':mac_validation,'linux_validation':acceptance}
+ report={'status':'pending-macos' if args.pending_macos else 'success','version':version,'source_commit':commit,'working_tree_dirty':False,'platform_commits':{'windows':windows['source_commit'],'linux':linux['source_commit'],**({} if omit_mac else {'macos':mac['source_commit']})},'release_scope':'windows-linux' if args.windows_linux else 'all','build_host':sys.platform,'archives':archives,'windows_tests':windows['tests'],'macos_validation':mac_validation,'linux_validation':acceptance}
  (out/'release-build.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
  (out/'SHA256SUMS.txt').write_text(''.join(a['sha256']+'  '+a['file']+'\n' for a in archives),encoding='ascii')
- print('PASS: verified Windows/Linux draft; awaiting native macOS' if args.pending_macos else 'PASS: six release packages, source provenance and native Linux acceptance; no publication')
+ print('PASS: verified Windows/Linux publication stage; native macOS pending' if args.windows_linux else 'PASS: verified Windows/Linux draft; awaiting native macOS' if args.pending_macos else 'PASS: six release packages, source provenance and native Linux acceptance; no publication')
 if __name__=='__main__':main()

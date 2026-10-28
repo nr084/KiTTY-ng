@@ -474,7 +474,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
     if (!filename_is_null(s->keyfile)) {
         int keytype;
         ppl_logevent("Reading key file \"%s\"",
-                     filename_to_str(s->keyfile));
+                     filename_to_utf8_display(s->keyfile));
         keytype = key_type(s->keyfile);
         if (keytype == SSH_KEYTYPE_SSH2 ||
             keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
@@ -491,7 +491,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             } else {
                 ppl_logevent("Unable to load key (%s)", error);
                 ppl_printf("Unable to load key file \"%s\" (%s)\r\n",
-                           filename_to_str(s->keyfile), error);
+                           filename_to_utf8_display(s->keyfile), error);
                 strbuf_free(s->publickey_blob);
                 s->publickey_blob = NULL;
             }
@@ -499,7 +499,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             ppl_logevent("Unable to use this key file (%s)",
                          key_type_to_str(keytype));
             ppl_printf("Unable to use key file \"%s\" (%s)\r\n",
-                       filename_to_str(s->keyfile),
+                       filename_to_utf8_display(s->keyfile),
                        key_type_to_str(keytype));
             s->publickey_blob = NULL;
         }
@@ -515,7 +515,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
         char *comment = NULL;
 
         ppl_logevent("Reading certificate file \"%s\"",
-                     filename_to_str(s->detached_cert_file));
+                     filename_to_utf8_display(s->detached_cert_file));
         int keytype = key_type(s->detached_cert_file);
         if (!(keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
               keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH)) {
@@ -559,7 +559,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                          cert_error);
             ppl_printf(
                 "Unable to use certificate file \"%s\" (%s)\r\n",
-                filename_to_str(s->detached_cert_file), cert_error);
+                filename_to_utf8_display(s->detached_cert_file), cert_error);
             sfree(cert_error);
         }
 
@@ -767,6 +767,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             s->cur_prompt->utf8 = true;
             s->cur_prompt->to_server = true;
             s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
             s->cur_prompt->name = dupstr("SSH login name");
             add_prompt(s->cur_prompt, dupstr("login as: "), true);
             s->spr = seat_get_userpass_input(
@@ -1191,9 +1192,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         s->cur_prompt = ssh_ppl_new_prompts(&s->ppl);
                         s->cur_prompt->to_server = false;
                         s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
                         s->cur_prompt->name = dupstr("SSH key passphrase");
                         add_prompt(s->cur_prompt,
-                                   dupprintf("Passphrase for key \"%s\": ",
+                                   kr_message_printf("Passphrase for key \"%s\": ",
                                              s->publickey_comment),
                                    false);
                         s->spr = seat_get_userpass_input(
@@ -1804,8 +1806,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->cur_prompt->utf8 = true;
                 s->cur_prompt->to_server = true;
                 s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
                 s->cur_prompt->name = dupstr("SSH password");
-                add_prompt(s->cur_prompt, dupprintf("%s@%s's password: ",
+                add_prompt(s->cur_prompt, kr_message_printf("%s@%s's password: ",
                                                     s->username, s->hostname),
                            false);
 
@@ -1893,6 +1896,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     s->cur_prompt->utf8 = true;
                     s->cur_prompt->to_server = true;
                     s->cur_prompt->from_server = false;
+                        s->cur_prompt->utf8 = true;
                     s->cur_prompt->name = dupstr("New SSH password");
                     s->cur_prompt->instruction = mkstr(prompt);
                     s->cur_prompt->instr_reqd = true;
@@ -2378,7 +2382,7 @@ static void ssh2_userauth_add_alg_and_publickey(
          */
         if (verbose) {
             ppl_logevent("Sending public key with certificate from \"%s\"",
-                         filename_to_str(s->detached_cert_file));
+                         filename_to_utf8_display(s->detached_cert_file));
         }
         {
             /* Strip off any existing certificate-nature from pkalg,
@@ -2413,7 +2417,7 @@ static void ssh2_userauth_add_alg_and_publickey(
          * real auth attempt.) */
 	if (verbose) {
             ppl_logevent("Not substituting certificate \"%s\" for public "
-                         "key: %s", filename_to_str(s->detached_cert_file),
+                         "key: %s", filename_to_utf8_display(s->detached_cert_file),
                          fail_reason->s);
             if (s->publickey_blob) {
                 /* If the user provided a specific key file to use (i.e.
@@ -2424,8 +2428,8 @@ static void ssh2_userauth_add_alg_and_publickey(
                  * Event Log. */
                 ppl_printf("Unable to use certificate \"%s\" with public "
                            "key \"%s\": %s\r\n",
-                           filename_to_str(s->detached_cert_file),
-                           filename_to_str(s->keyfile),
+                           filename_to_utf8_display(s->detached_cert_file),
+                           filename_to_utf8_display(s->keyfile),
                            fail_reason->s);
             }
         }

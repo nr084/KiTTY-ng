@@ -24,6 +24,15 @@ prompts_t *new_prompts(void)
 
 void add_prompt(prompts_t *p, char *promptstr, bool echo)
 {
+    if (!p->from_server) {
+        const char *translated = kr_event_text(promptstr);
+        if (translated != promptstr) {
+            char *copy = dupstr(translated);
+            sfree(promptstr);
+            promptstr = copy;
+            p->utf8 = true;
+        }
+    }
     prompt_t *pr = snew(prompt_t);
     pr->prompt = promptstr;
     pr->echo = echo;

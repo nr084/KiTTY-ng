@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**0.85-8 is available**: tab improvements and authentication reuse for duplicate sessions on Windows, Linux and macOS. [Release notes](docs/releases/0.85-8.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-8).
+**KiTTY-ng 0.85-9 for Windows and Linux**: a shared English/Russian localization engine, translated SSH messages, and tab fixes. The macOS Universal package is being prepared separately. [Release notes](docs/releases/0.85-9.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
 
 **macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
 
@@ -16,13 +16,13 @@
 
 ## Download
 
-| Platform | Release 0.85-8 | Launch |
+| Platform | Release 0.85-9 | Launch |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86_64.tar.zst) | `chmod +x`, launch |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-8/kitty-ng-0.85-8-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | Universal DMG — native Mac preparation pending | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
@@ -36,8 +36,8 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ## Features
 
-- macOS 0.85-8: native tabs, temporary connection duplication without saving profiles, and a top menu for the active session. [Details](docs/tabs.en.md).
-- Windows/Linux tabs in 0.85-8: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
+- macOS (previously released features): native tabs, temporary connection duplication without saving profiles, and a top menu for the active session. [Details](docs/tabs.en.md).
+- Windows/Linux tabs in 0.85-9: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
 
 - Session folders, case-insensitive quick search, editing and duplication.
 - Original KiTTY profile format and portable key/certificate references.
@@ -83,7 +83,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 - [Windows](docs/windows.en.md) · [macOS](docs/macos.en.md) · [Linux](docs/linux.en.md).
 - [Portable profiles and migration](docs/portable.en.md).
 - [Local builds](docs/build.en.md) · [Migration report](docs/migration.md) (Russian).
-- [0.85-8 release notes](docs/releases/0.85-8.md) · [Roadmap](docs/planned.md) (Russian).
+- [0.85-9 release notes](docs/releases/0.85-9.md) · [Roadmap](docs/planned.md) (Russian).
 
 ## Compatibility and validation
 
@@ -100,3 +100,5 @@ Original copyright notices and license texts are retained separately in [the PuT
 The base is [PuTTY 0.85](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html). The original KiTTY history is preserved through commit `75fa2abcd220c17249ff7252f8d5224137001f2d`.
 
 The new connected-terminal icon is available as [the image source](icons/kitty-ng.png), with [generation details](icons/kitty-ng-prompt.txt).
+
+English and Russian are built in. Additional language DLLs are deferred; see the [localization architecture](docs/localization.md) (Russian).

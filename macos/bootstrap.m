@@ -17,7 +17,7 @@
 #endif
 
 static BOOL Russian;
-static NSString *L(NSString *en, NSString *ru) { return Russian ? ru : en; }
+static NSString *L(NSString *en, NSString *ru) { return kr_mac_localize_string(en); }
 static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value.UTF8String);NSString *name=decoded?[NSString stringWithUTF8String:decoded]:value;free(decoded);return name?:value;}
 
 @interface SessionTableView : NSTableView

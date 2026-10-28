@@ -41,7 +41,7 @@ char **pty_argv;
 char *pty_osx_envrestore_prefix;
 static NSString *S(const char *text){if(!text)return @"";NSString *s=[NSString stringWithUTF8String:text];return s?:[[NSString alloc]initWithBytes:text length:strlen(text) encoding:NSWindowsCP1251StringEncoding]?:@"";}
 static BOOL RU(void){return kr_mac_language()==1;}
-static NSString *T(NSString *en,NSString *ru){return RU()?ru:en;}
+static NSString *T(NSString *en,NSString *ru){return kr_mac_localize_string(en);}
 static void message(const char *text){NSAlert *alert=[NSAlert new];alert.messageText=@"KiTTY-ng";alert.informativeText=S(kr_mac_translate(text));[alert runModal];}
 void nonfatal(const char *format,...){va_list ap;va_start(ap,format);char *text=dupvprintf(format,ap);va_end(ap);message(text);sfree(text);}
 void modalfatalbox(const char *format,...){va_list ap;va_start(ap,format);char *text=dupvprintf(format,ap);va_end(ap);message(text);sfree(text);[NSApp terminate:nil];exit(1);}
