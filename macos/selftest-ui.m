@@ -2,9 +2,11 @@
 #import <AppKit/AppKit.h>
 #include "putty.h"
 #include "portable.h"
+#include "storage.h"
 #include "language.h"
 #include "utilities.h"
 #include "client.h"
+#include "kittyng-auth.h"
 #include <stdlib.h>
 int kr_mac_self_test_ui(void){
     const char *enabled=getenv("KITTY_NG_SELF_TEST"),*root=kr_mac_root();
@@ -37,6 +39,14 @@ int kr_mac_self_test_ui(void){
         CHECK([app.mainMenu.itemArray.lastObject.title isEqualToString:title]);
         CHECK([[edit itemAtIndex:1].title isEqualToString:language?@"Копировать":@"Copy"]);
     }
+    Conf *auth=conf_new();load_settings("Default Settings",auth);conf_set_str(auth,CONF_host,"synthetic.invalid");
+    prompts_t *prompt=new_prompts();prompt->from_server=false;prompt->name=dupstr("SSH password");add_prompt(prompt,dupstr("Password: "),false);
+    prompt_set_result(prompt->prompts[0],"synthetic-runtime-auth-marker");kr_auth_capture(auth,prompt,SPR_OK);
+    Conf *copy=kr_auth_duplicate(auth,true);conf_free(auth);CHECK(kr_auth_reuse(copy,prompt));CHECK(!kr_auth_reuse(copy,prompt));
+    CHECK(!save_settings("runtime-auth-native-test",copy));Conf *reload=conf_new();CHECK(load_settings("runtime-auth-native-test",reload));CHECK(!*conf_get_str(reload,CONF_kr_auth_password));conf_free(reload);del_settings("runtime-auth-native-test");
+    conf_set_int(copy,CONF_kr_auth_attempts,0);prompt->from_server=true;CHECK(!kr_auth_reuse(copy,prompt));prompt->from_server=false;
+    conf_set_str(copy,CONF_host,"different.invalid");CHECK(!kr_auth_reuse(copy,prompt));conf_free(copy);free_prompts(prompt);
+    puts("PASS: native auth cache survives source close, one attempt, never saved, server challenge and changed identity rejected");
     CHECK(kr_mac_test_session_menu_ui()==0);
     CHECK(kr_mac_test_tabs_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);

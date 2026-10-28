@@ -148,8 +148,19 @@ static BOOL macTabsEnabled(void){
 }
 @end
 
+static NSColor *macTestCloseColour(MacTabButton *button){
+    NSBitmapImageRep *bitmap=[[NSBitmapImageRep alloc]initWithBitmapDataPlanes:NULL pixelsWide:20 pixelsHigh:20 bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bytesPerRow:0 bitsPerPixel:0];
+    [NSGraphicsContext saveGraphicsState];NSGraphicsContext.currentContext=[NSGraphicsContext graphicsContextWithBitmapImageRep:bitmap];[button drawRect:button.bounds];[NSGraphicsContext restoreGraphicsState];
+    return [[bitmap colorAtX:5 y:10]colorUsingColorSpace:NSColorSpace.deviceRGBColorSpace];
+}
 int kr_mac_test_tabs_ui(void){
 #define TAB_CHECK(c) do{if(!(c)){fprintf(stderr,"FAIL tabs: %s\n",#c);return 1;}}while(0)
+    MacTabButton *close=[[MacTabButton alloc]initWithFrame:NSMakeRect(0,0,20,20)];close.closeControl=YES;
+    NSColor *gray=macTestCloseColour(close);
+    [close mouseEntered:nil];TAB_CHECK(close.hovered);
+    NSColor *red=macTestCloseColour(close);
+    TAB_CHECK(fabs(gray.redComponent-gray.greenComponent)<0.12&&red.redComponent>red.greenComponent+0.3);
+    [close mouseExited:nil];TAB_CHECK(!close.hovered);
     MacTabHost *host=[MacTabHost new];
     MacTerminal *a=[MacTerminal new],*b=[MacTerminal new],*c=[MacTerminal new];
     a.sessionTitle=@"Synthetic A";b.sessionTitle=@"Synthetic B";c.sessionTitle=@"Synthetic C";

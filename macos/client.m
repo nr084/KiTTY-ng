@@ -216,7 +216,12 @@ static SeatPromptResult host_key(Seat *seat,const char *host,int port,const char
 }
 static SeatPromptResult weak_crypto(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *context){NSAlert *a=[NSAlert new];a.messageText=T(@"SSH security warning",@"Предупреждение безопасности SSH");a.informativeText=dialog_text(text);[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a addButtonWithTitle:T(@"Continue",@"Продолжить")];BOOL accepted=[a runModal]==NSAlertSecondButtonReturn;if(!accepted)SEAT(seat)->manual_abort=true;return accepted?SPR_OK:SPR_USER_ABORT;}
 static SeatPromptResult prompts(Seat *seat,prompts_t *p){MacSession *s=SEAT(seat);
-    if(kr_auth_reuse(s->conf,p))return SPR_OK;
+    if(kr_auth_reuse(s->conf,p)){
+        /* The runtime cache and saved-profile password share one automatic
+         * password attempt. A rejected cache must open the native prompt. */
+        if(kr_auth_prompt(p)==CONF_kr_auth_password)s->password_tried=true;
+        return SPR_OK;
+    }
     if(!s->password_tried&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(s->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);s->password_tried=true;kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;}}
     for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if([a runModal]!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;
 }

@@ -4,6 +4,12 @@
 
 **Universal: Apple Silicon and Intel in one app.** The 0.85-7 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
+## Preparing 0.85-8
+
+Every tab context menu now offers Duplicate session, including inactive tabs. An authenticated source passes its password or key passphrase to an independent copy in memory only. A rejected password prompts again; OTPs and server challenges are never replayed. Closing the source leaves its copy connected, including with SessionTabs=0. The close button is gray normally and red on hover. Duplication in the current host creates no intermediate window and retains fullscreen/zoomed state.
+
+Portable Windows profiles remain shared, with data outside `.app`. The Windows chat will publish 0.85-8 after the user confirms Mac readiness.
+
 ## First launch
 
 1. Open `kitty-ng-0.85-7-macos-universal.dmg`.
