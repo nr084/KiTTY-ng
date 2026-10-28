@@ -6533,7 +6533,12 @@ static SeatPromptResult win_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
     SeatPromptResult spr;
-    spr = kr_auth_reuse(wgs->conf,p) ? SPR_OK :
+    bool reused = kr_auth_reuse(wgs->conf, p);
+    /* Runtime and saved passwords share one automatic attempt. */
+    if (reused && kr_auth_prompt(p) == CONF_kr_auth_password)
+        wgs->kr_saved_password_tried = true;
+    spr = reused ? SPR_OK :
+        (wgs->kr_saved_password_tried && kr_auth_prompt(p) == CONF_kr_auth_password) ? SPR_INCOMPLETE :
         cmdline_get_passwd_input(p, &wgs->cmdline_get_passwd_state, true);
     if (spr.kind == SPRK_INCOMPLETE && !wgs->kr_saved_password_tried &&
         p->n_prompts == 1 && !p->prompts[0]->echo && p->to_server &&

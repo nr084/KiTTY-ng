@@ -17,6 +17,7 @@ run('appimage-version',['xvfb-run','-a',str(root/f'kitty-ng-{version}-x86_64.App
 run('native-gui',gui('linux_native.py','--binary',app/'AppRun','--output',out/'native'))
 run('tabs',gui('linux_tabs.py',app/'AppRun',out/'tabs'))
 run('tabs-key',gui('linux_tabs.py',app/'AppRun',out/'tabs-key','--key'))
+run('duplicate-password-retry',gui('duplicate_password_retry.py',app/'AppRun','--report',out/'duplicate-password-retry.json'))
 run('ssh-sftp-agent',['python3',str(root/'linux_ssh.py'),'--bin-dir',str(app/'usr/bin'),'--output',str(out/'ssh')])
 run('keygen-gui',gui('linux_utilities_gui.py','--binary',app/'AppRun','--output',out/'keygen'))
 run('agent-gui',gui('linux_agent_gui.py','--binary',app/'AppRun'))

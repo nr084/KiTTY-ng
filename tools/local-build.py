@@ -360,6 +360,11 @@ def main():
                            ([PYTHON, "test/windows_tabs.py", directory / executable, "--key"], ssh_environment(work)),
                            ([PYTHON, "test/windows_tabs.py", directory / executable, "--fullscreen"], ssh_environment(work))],
                           compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable])
+                    files.update({"test/duplicate_password_retry.py", "test/kittyng-password-vector.json"})
+                    check(arch + "/duplicate-password-retry", files,
+                          [([PYTHON, "test/duplicate_password_retry.py", directory / executable, "--report", logs / (arch + "-duplicate-password-retry.json")], ssh_environment(work))],
+                          compiler=compiler)
                     if arch == "x64":
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                         files.add("test/windows_menu_runtime.py")

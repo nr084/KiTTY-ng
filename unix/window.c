@@ -605,7 +605,16 @@ static SeatPromptResult gtk_seat_get_userpass_input(Seat *seat, prompts_t *p)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     SeatPromptResult spr;
-    spr = kr_auth_reuse(inst->conf,p) ? SPR_OK :
+    bool reused = kr_auth_reuse(inst->conf, p);
+#ifdef KITTY_NG_LINUX
+    /* Runtime and saved passwords share one automatic attempt. */
+    if (reused && kr_auth_prompt(p) == CONF_kr_auth_password)
+        inst->saved_password_used = true;
+#endif
+    spr = reused ? SPR_OK :
+#ifdef KITTY_NG_LINUX
+        (inst->saved_password_used && kr_auth_prompt(p) == CONF_kr_auth_password) ? SPR_INCOMPLETE :
+#endif
         cmdline_get_passwd_input(p, &inst->cmdline_get_passwd_state, true);
 #ifdef KITTY_NG_LINUX
     if(spr.kind==SPRK_INCOMPLETE&&!inst->saved_password_used&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(inst->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);inst->saved_password_used=true;spr=SPR_OK;}}
