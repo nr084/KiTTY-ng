@@ -15,6 +15,11 @@ export KITTY_NG_PORTABLE_DIR="$work"
 unset KITTY_NG_GUI_PROMPTS
 runner=()
 if [[ -n ${KITTY_NG_TEST_ARCH:-} ]]; then runner=(/usr/bin/arch "-$KITTY_NG_TEST_ARCH"); fi
+if [[ ${KITTY_NG_SESSION_MENU_TEST:-} == 1 ]]; then
+  KITTY_NG_SELF_TEST=1 "${runner[@]}" "$app/Contents/MacOS/kitty-ng" --self-test-ui > "$log" 2>&1
+  cat "$log"
+  exit 0
+fi
 {
   date
   sw_vers

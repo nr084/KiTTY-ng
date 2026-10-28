@@ -92,6 +92,7 @@ void uxsel_input_remove(uxsel_id *id){}
 - (void)toggleTop:(id)sender;
 - (void)toggleLock:(id)sender;
 - (void)hideWindow:(id)sender;
+- (void)finishSession:(id)sender;
 - (void)fullscreen:(id)sender;
 - (void)showLog:(id)sender;
 - (void)settings:(id)sender;
@@ -321,6 +322,52 @@ static MacCommandSubmenu *commandSubmenu(MacTerminal *terminal,BOOL routed,BOOL 
     menu.quick=quick;menu.routed=routed;menu.terminal=terminal;menu.delegate=menu;menu.allowsContextMenuPlugIns=NO;
     [menu menuNeedsUpdate:menu];return menu;
 }
+/* Keep weak page identities: a menu left open across a disconnect must not
+ * retain or reactivate a disposed session. Titles are user/server data. */
+@interface MacSessionMenuTarget : NSObject
+@property(nonatomic,weak) MacTerminal *page;
+@end
+@implementation MacSessionMenuTarget
+@end
+@interface MacOpenSessionsMenu : NSMenu <NSMenuDelegate,NSMenuItemValidation>
+@end
+@implementation MacOpenSessionsMenu
+- (instancetype)init {
+    if((self=[super initWithTitle:kr_mac_localize_string(@"Open sessions")])){
+        self.delegate=self;self.allowsContextMenuPlugIns=NO;
+    }return self;
+}
+- (BOOL)validateMenuItem:(NSMenuItem*)item {
+    MacTerminal *page=((MacSessionMenuTarget*)item.representedObject).page;
+    return !NSApp.modalWindow && page.host && !page.host.closing && [page.host.pages containsObject:page];
+}
+- (void)activateSession:(NSMenuItem*)item {
+    if(![self validateMenuItem:item])return;
+    MacTerminal *page=((MacSessionMenuTarget*)item.representedObject).page;
+    [page.host selectPage:page];
+    if(page.terminalWindow.miniaturized)[page.terminalWindow deminiaturize:nil];
+    [page.terminalWindow makeKeyAndOrderFront:nil];
+    [page.terminalWindow makeFirstResponder:page];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+- (void)menuNeedsUpdate:(NSMenu*)menu {
+    [self removeAllItems];self.title=kr_mac_localize_string(@"Open sessions");
+    NSUInteger windowNumber=0;
+    for(MacTabHost *host in [tabHosts copy]){
+        if(host.closing||!host.pages.count)continue;
+        windowNumber++;
+        for(MacTerminal *page in [host.pages copy]){
+            NSString *title=[NSString stringWithFormat:@"%lu · %@",(unsigned long)windowNumber,page.sessionTitle?:@"KiTTY-ng"];
+            NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:title action:@selector(activateSession:) keyEquivalent:@""];
+            MacSessionMenuTarget *target=[MacSessionMenuTarget new];target.page=page;
+            item.target=self;item.representedObject=target;item.identifier=@"KiTTYNG.RawData";
+            item.state=host.window.keyWindow&&host.selected==page?NSControlStateValueOn:NSControlStateValueOff;
+            [self addItem:item];
+        }
+    }
+    if(!self.numberOfItems){NSMenuItem *empty=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"No open sessions") action:nil keyEquivalent:@""];empty.enabled=NO;[self addItem:empty];}
+}
+@end
 static NSArray *sessionCommands(void){
     return @[@[T(@"Duplicate session",@"Дублировать сеанс"),@"duplicate:"],
         @[T(@"Session settings…",@"Настройки сеанса…"),@"settings:"],
@@ -330,6 +377,7 @@ static NSArray *sessionCommands(void){
         @[T(@"Hide window",@"Скрыть окно"),@"hideWindow:"],
         @[T(@"Fullscreen",@"Полный экран"),@"fullscreen:"],
         @[T(@"Restart session",@"Перезапустить сеанс"),@"restart:"],
+        @[kr_mac_localize_string(@"End session"),@"finishSession:"],
         @[kr_mac_localize_string(@"Special Commands"),@"specialCommands"],
         @[kr_mac_localize_string(@"Quick commands"),@"quickCommands"],
         @[T(@"Send automatic commands",@"Отправить автокоманды"),@"startup:"],
@@ -378,22 +426,26 @@ static MacTerminal *activeTerminal(void){
 void kr_mac_add_session_menu(NSMenu *menu){
     static TerminalMenuRouter *router;if(!router)router=[TerminalMenuRouter new];
     NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:T(@"Session",@"Сеанс") action:NULL keyEquivalent:@""];
-    item.submenu=terminalMenu(router,YES);[menu addItem:item];
+    item.submenu=terminalMenu(router,YES);
+    NSMenuItem *separator=NSMenuItem.separatorItem;separator.identifier=@"KiTTYNG.Session.listSeparator";[item.submenu addItem:separator];
+    NSMenuItem *sessions=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"Open sessions") action:nil keyEquivalent:@""];
+    sessions.identifier=@"KiTTYNG.Session.openSessions";sessions.submenu=[MacOpenSessionsMenu new];[item.submenu addItem:sessions];
+    [menu addItem:item];
     NSMenuItem *quick=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"Quick commands") action:nil keyEquivalent:@""];
     quick.identifier=@"KiTTYNG.QuickCommands.Menu";quick.submenu=commandSubmenu(nil,YES,YES);[menu addItem:quick];
 }
 int kr_mac_test_session_menu_ui(void){
     NSMenu *context=terminalMenu(nil,NO);
-    if(context.numberOfItems!=16||context.allowsContextMenuPlugIns)return 1;
+    if(context.numberOfItems!=17||context.allowsContextMenuPlugIns)return 1;
     if(![context.itemArray[0].representedObject isEqualToString:@"duplicate:"])return 1;
     [context addItem:[[NSMenuItem alloc]initWithTitle:@"AutoFill" action:NULL keyEquivalent:@""]];
     [context insertItem:[[NSMenuItem alloc]initWithTitle:@"Injected item" action:NULL keyEquivalent:@""] atIndex:0];
-    if(context.numberOfItems!=16)return 1;
+    if(context.numberOfItems!=17)return 1;
     kr_mac_add_session_menu(NSApp.mainMenu);
     NSMenu *top=NSApp.mainMenu.itemArray[NSApp.mainMenu.numberOfItems-2].submenu;
-    if(top.numberOfItems+1!=context.numberOfItems)return 1;
+    if(top.numberOfItems-1!=context.numberOfItems)return 1;
     NSUInteger contextIndex=0;
-    for(NSUInteger i=0;i<top.numberOfItems;i++){
+    for(NSUInteger i=0;i<top.numberOfItems-2;i++){
         NSMenuItem *item=top.itemArray[i];
         if([context.itemArray[contextIndex].representedObject isEqual:@"quickCommands"])contextIndex++;
         if(![item.representedObject isEqual:context.itemArray[contextIndex++].representedObject])return 1;
@@ -403,6 +455,32 @@ int kr_mac_test_session_menu_ui(void){
     if(![NSApp.mainMenu.itemArray.lastObject.identifier isEqualToString:@"KiTTYNG.QuickCommands.Menu"])return 1;
     for(NSMenuItem *entry in quick.itemArray)if(entry.action==@selector(sendQuick:)&&[(MacCommandSubmenu*)quick validateMenuItem:entry])return 1;
     puts("PASS: identical terminal/context commands, duplicate, no injected AutoFill, inactive-session routing disabled");return 0;
+}
+
+int kr_mac_test_session_navigation_ui(void){
+#define NAV_CHECK(c) do{if(!(c)){fprintf(stderr,"FAIL session navigation: %s\n",#c);return 1;}}while(0)
+    for(int language=0;language<2;language++){
+        NAV_CHECK(kr_mac_set_language(language));
+        MacTabHost *first=[MacTabHost new],*second=[MacTabHost new];
+        MacTerminal *a=[MacTerminal new],*b=[MacTerminal new],*c=[MacTerminal new];
+        a.sessionTitle=@"Данные & A";b.sessionTitle=@"Данные & B";c.sessionTitle=@"Other C";
+        [first addPage:a];[first addPage:b];[second addPage:c];
+        MacOpenSessionsMenu *menu=[MacOpenSessionsMenu new];[menu menuNeedsUpdate:menu];
+        NAV_CHECK(menu.numberOfItems==3);
+        NAV_CHECK([menu.title isEqualToString:language?@"Открытые сеансы":@"Open sessions"]);
+        NSMenuItem *selectA=menu.itemArray[0],*staleB=menu.itemArray[1],*selectC=menu.itemArray[2];
+        NAV_CHECK([selectA.title containsString:a.sessionTitle]);
+        [first.window orderOut:nil];[menu activateSession:selectA];
+        NAV_CHECK(first.selected==a&&first.window.visible&&first.window.firstResponder==a);
+        [menu activateSession:selectC];NAV_CHECK(second.selected==c&&second.window.firstResponder==c);
+        [b finishSession:nil];NAV_CHECK(first.pages.count==1&&first.selected==a&&second.pages.count==1);
+        NAV_CHECK(![menu validateMenuItem:staleB]);[menu activateSession:staleB];
+        [a finishSession:nil];NAV_CHECK(!first.pages.count&&second.pages.count==1);
+        [c finishSession:nil];[menu menuNeedsUpdate:menu];
+        NAV_CHECK(menu.numberOfItems==1&&!menu.itemArray[0].enabled);
+    }
+    puts("PASS: RU/EN session menu selects inactive tabs across windows, restores hidden windows, keeps literal titles, rejects stale entries and ends only the selected session");return 0;
+#undef NAV_CHECK
 }
 
 @implementation MacTerminal
@@ -439,6 +517,19 @@ int kr_mac_test_session_menu_ui(void){
 - (void)toggleTop:(id)sender {if(self.session){bool top=!conf_get_bool(self.session->conf,CONF_alwaysontop);conf_set_bool(self.session->conf,CONF_alwaysontop,top);self.terminalWindow.level=top?NSFloatingWindowLevel:NSNormalWindowLevel;}}
 - (void)toggleLock:(id)sender {if(self.session)self.session->input_locked=!self.session->input_locked;}
 - (void)hideWindow:(id)sender {[self.terminalWindow orderOut:nil];}
+- (void)finishSession:(id)sender {
+    MacTabHost *host=self.host;
+    if(!host||![host.pages containsObject:self])return;
+    MacSession *s=self.session;
+    if(s&&!s->closed&&conf_get_bool(s->conf,CONF_warn_on_close)){
+        NSAlert *alert=[NSAlert new];alert.messageText=kr_mac_localize_string(@"End this session?");
+        [alert addButtonWithTitle:kr_mac_localize_string(@"Cancel")];
+        [alert addButtonWithTitle:kr_mac_localize_string(@"End session")];
+        if([alert runModal]!=NSAlertSecondButtonReturn){[host.window makeFirstResponder:host.selected];return;}
+    }
+    [host closePage:self];
+}
+
 - (void)fullscreen:(id)sender {[self.terminalWindow toggleFullScreen:nil];}
 - (void)settings:(id)sender {if(self.session){const char *name=conf_get_str(self.session->conf,CONF_kr_session_name);if(*name)kr_mac_edit_profile(name,true);else kr_mac_quick_connect_conf(self.session->conf);}}
 - (void)showLog:(id)sender {NSAlert *alert=[NSAlert new];alert.messageText=T(@"Event log",@"Журнал событий");NSScrollView *scroll=[[NSScrollView alloc]initWithFrame:NSMakeRect(0,0,650,300)];scroll.hasVerticalScroller=YES;NSTextView *text=[[NSTextView alloc]initWithFrame:scroll.bounds];text.editable=NO;text.string=[self.events componentsJoinedByString:@"\n"];text.font=[NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];scroll.documentView=text;alert.accessoryView=scroll;[alert runModal];}

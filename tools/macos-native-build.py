@@ -109,12 +109,22 @@ def main():
         if caption_proof:
             reuse_unaffected = True
             report['caption_only_test_reuse'] = caption_proof
+        spec = importlib.util.spec_from_file_location('macos_session_menu_reuse', ROOT/'tools/macos-session-menu-reuse.py')
+        session_api = importlib.util.module_from_spec(spec); spec.loader.exec_module(session_api)
+        session_proof = session_api.proof(ROOT, previous['source_commit'], report['source_commit'])
+        if any(previous.get(k)!=report.get(k) for k in ('os','command_line_tools','build_packages')):
+            session_proof = None
+        if session_proof:
+            reuse_unaffected = True
+            report['session_menu_test_reuse'] = session_proof
         if reuse_unaffected:
             old_helpers=dest/'KiTTY-ng.app/Contents/Helpers'
             report['unchanged_helper_evidence']=dict(source_commit=previous['source_commit'],
                 changed_source_files=source_changes,
                 tested_binaries_sha256={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in old_helpers.iterdir() if p.is_file()})
             report['reused_checks_reason']='Caption-only assignment and GUI-only translation; all existing dependent code/tests unchanged; changed caption requires fresh GUI check' if caption_proof else 'Only app-specific Objective-C changed; existing core/helper tests are unaffected; changed UI smoke cases run again'
+    if report.get('session_menu_test_reuse'):
+        report['reused_checks_reason']='App-only session-menu changes and added GUI context strings; unchanged core/helper tests retained, session-menu UI runs fresh'
     report['fingerprint'] = fingerprint
     environment = os.environ.copy()
     environment.update(LC_ALL='C', LANG='C')
@@ -155,6 +165,8 @@ def main():
                     print('REUSE: unchanged compilation', arch, flush=True)
                 binaries[arch] = cache
                 checks = dict(previous.get('native_tests',{}).get(arch,{})) if previous.get('fingerprint')==fingerprint or reuse_unaffected else {}
+                if report.get('session_menu_test_reuse'):
+                    checks.pop('smoke',None)
                 if reuse_unaffected and (any(p in source_changes for p in ('macos/language.m','macos/selftest-ui.m')) or 'macos/Smoke-test KiTTY-ng.command' in changed):
                     checks.pop('smoke',None)
                 report['native_tests'][arch] = checks
@@ -237,6 +249,8 @@ def main():
                     continue
                 test_env=environment.copy()
                 test_env['KITTY_NG_TEST_ARCH']=arch
+                if report.get('session_menu_test_reuse'):
+                    test_env['KITTY_NG_SESSION_MENU_TEST']='1'
                 run(['/bin/zsh',work/'Smoke-test KiTTY-ng.command'],logs/('smoke-'+arch+'.log'),test_env)
                 report['native_tests'][arch]['smoke']='passed'
             for arch in report['architectures']:
