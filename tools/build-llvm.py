@@ -29,7 +29,7 @@ if metadata.exists(): info["toolchain"] = json.loads(metadata.read_text())
 info["source_commit"] = subprocess.check_output(["git", "-c", "safe.directory=" + str(root), "rev-parse", "HEAD"], cwd=root, text=True).strip()
 (directory / "compiler.json").write_text(json.dumps(info, indent=2) + "\n")
 targets = ["kitty-ng", "plink", "pscp", "psftp", "puttygen", "pageant"]
-if args.tests: targets += ["test_i18n", "test_kittyng", "test_kittyng_legacy", "testcrypt", "test_host_strfoo", "test_bpp", "test_companion_probe", "test_language_controls", "test_staticwrap", "test_quick_commands", "test_session_browser", "test_utility_ui", "test_key_paths", "test_extensions"]
+if args.tests: targets += ["test_i18n", "test_kittyng", "test_kittyng_legacy", "testcrypt", "test_host_strfoo", "test_bpp", "test_companion_probe", "test_language_controls", "test_staticwrap", "test_quick_commands", "test_session_browser", "test_utility_ui", "test_windows_theme", "test_key_paths", "test_extensions"]
 commands = [
     [args.cmake, "-S", str(root), "-B", str(directory), "-G", "Ninja", "-DCMAKE_SYSTEM_NAME=Windows",
      "-DCMAKE_C_COMPILER=" + compiler.as_posix(),

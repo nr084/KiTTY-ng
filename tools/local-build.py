@@ -273,6 +273,10 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
+                        ("windows-theme-gui", "kitty-ng", ["test/windows_theme_gui.py", "windows/pageant.c", "windows/pageant.rc", "windows/puttygen.c", "windows/puttygen.rc"],
+                         [PYTHON, "test/windows_theme_gui.py", directory, arch]),
+                        ("windows-theme", "test_windows_theme", ["test/windows_theme.py", "test/test_windows_theme.c"],
+                         [PYTHON, "test/windows_theme.py", directory / "test_windows_theme.exe"]),
                         ("extensions", "test_extensions", ["test/extensions.py"],
                          [PYTHON, "test/extensions.py", directory / "test_extensions.exe"]),
                         ("extensions-assets", "test_key_paths", ["test/extensions_assets.py"],

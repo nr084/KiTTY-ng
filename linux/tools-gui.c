@@ -3,6 +3,7 @@
 #include "putty.h"
 #include <gtk/gtk.h>
 #include "tools-gui.h"
+#include "licence.h"
 #include "cli-language.h"
 #include "icons.h"
 #include "linux/language.h"
@@ -14,7 +15,7 @@
 #define L(en, ru) (!strcmp(kr_mac_translate("Cancel"), "Cancel") ? (en) : (ru))
 typedef struct Keygen {
     GtkWidget *window, *public, *comment, *algorithm, *bits, *language, *format,
-        *buttons[5];
+        *buttons[5], *about;
     char *directory, *key;
     guint signals[2];
 } Keygen;
@@ -203,6 +204,23 @@ static void algorithm_changed(GtkComboBox *combo, gpointer data) {
     gtk_widget_set_sensitive(k->bits, index != 0);
 }
 
+static void utility_about(GtkButton *button, gpointer window) {
+    char *info = buildinfo("\n");
+    gtk_show_about_dialog(GTK_WINDOW(window),
+        "program-name", g_object_get_data(G_OBJECT(window), "utility-name"),
+        "version", ver,
+        "comments", info,
+        "copyright", "PuTTY: " SHORT_COPYRIGHT_DETAILS "\nKiTTY: Cyril Dupont",
+        "website", "https://github.com/nr084/kitty-ng",
+        "website-label", "KiTTY-ng", NULL);
+    sfree(info);
+}
+static GtkWidget *utility_about_button(GtkWidget *window, const char *name) {
+    g_object_set_data(G_OBJECT(window), "utility-name", (gpointer)name);
+    GtkWidget *b = gtk_button_new_with_label(kr_mac_translate("About"));
+    g_signal_connect(b, "clicked", G_CALLBACK(utility_about), window);
+    return b;
+}
 static void key_language(GtkComboBox *combo, gpointer data) {
     Keygen *k = data;
     char *failure = NULL;
@@ -212,6 +230,7 @@ static void key_language(GtkComboBox *combo, gpointer data) {
         sfree(failure);
         return;
     }
+    gtk_button_set_label(GTK_BUTTON(k->about), kr_mac_translate("About"));
     const char *labels[] = {L("Load…", "Загрузить…"),
                             L("Generate…", "Создать…"),
                             L("Change passphrase…", "Парольная фраза…"),
@@ -236,6 +255,8 @@ static void keygen(void) {
     gtk_window_set_title(GTK_WINDOW(k->window), "KiTTYgen — KiTTY-ng");
     GtkWidget *header = gtk_header_bar_new();
     gtk_header_bar_set_title(GTK_HEADER_BAR(header), "KiTTYgen");
+    k->about = utility_about_button(k->window, "KiTTYgen");
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(header), k->about);
     gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header), TRUE);
     gtk_window_set_titlebar(GTK_WINDOW(k->window), header);
     gtk_window_set_default_size(GTK_WINDOW(k->window), 800, 520);
@@ -416,6 +437,11 @@ void kr_linux_agent_ensure(void) {
 static void agent(void) {
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Kageant — KiTTY-ng");
+    GtkWidget *header = gtk_header_bar_new();
+    gtk_header_bar_set_title(GTK_HEADER_BAR(header), "Kageant");
+    gtk_header_bar_set_show_close_button(GTK_HEADER_BAR(header), TRUE);
+    gtk_header_bar_pack_end(GTK_HEADER_BAR(header), utility_about_button(window, "Kageant"));
+    gtk_window_set_titlebar(GTK_WINDOW(window), header);
     gtk_window_set_default_size(GTK_WINDOW(window), 700, 360);
     kr_linux_icon(GTK_WINDOW(window));
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);

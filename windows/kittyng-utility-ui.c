@@ -1,6 +1,7 @@
 /* Localised utility presentation. Key data and network streams stay raw. */
 #include "putty.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #include <io.h>
 
 #define LOCALIZE_MESSAGE (WM_APP + 110)
@@ -69,6 +70,7 @@ void kr_utility_localize(HWND hwnd)
     EnumChildWindows(hwnd, translate_control, 0);
     kr_relocalize_menu(GetMenu(hwnd));
     DrawMenuBar(hwnd);
+    kr_theme_attach(hwnd);
 }
 
 bool kr_utility_dialog_event(HWND hwnd, UINT message)
@@ -78,7 +80,7 @@ bool kr_utility_dialog_event(HWND hwnd, UINT message)
         forget_label(hwnd, 0);
         kr_utility_free_menu(GetMenu(hwnd));
     }
-    if (message == WM_INITDIALOG) PostMessage(hwnd, LOCALIZE_MESSAGE, 0, 0);
+    if (message == WM_INITDIALOG) { kr_theme_attach(hwnd); PostMessage(hwnd, LOCALIZE_MESSAGE, 0, 0); }
     if (message != LOCALIZE_MESSAGE) return false;
     kr_utility_localize(hwnd);
     return true;

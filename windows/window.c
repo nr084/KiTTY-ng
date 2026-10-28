@@ -23,6 +23,7 @@
 #include "win-gui-seat.h"
 #include "tree234.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #include "kittyng-session-menu.h"
 #include "kittyng-tray.h"
 #include "kittyng-tabs.h"
@@ -2627,6 +2628,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
     switch (message) {
       case WM_CREATE:
+        kr_theme_attach(hwnd);
         kr_taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
         break;
       case WM_POWERBROADCAST:

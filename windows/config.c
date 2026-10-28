@@ -10,6 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #include "kittyng-extensions.h"
 #define dupprintf kr_printf
 
@@ -123,6 +124,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
 
     s = ctrl_getset(b, "Window/Appearance", "kittyng", "KiTTY-ng");
     kr_add_language_controls(b, s);
+    kr_add_theme_controls(b, s);
     ctrl_editbox(s, "Transparency (-1 disables, 0-240)", NO_SHORTCUT, 30,
                  HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_transparencynumber), ED_INT);

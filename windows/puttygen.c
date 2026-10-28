@@ -560,7 +560,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
           case 102:
             /* Load web browser */
             ShellExecute(hwnd, "open",
-                         "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
+                         "https://github.com/nr084/kitty-ng",
                          0, 0, SW_SHOWDEFAULT);
             return 0;
         }

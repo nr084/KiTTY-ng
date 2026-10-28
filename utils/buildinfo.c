@@ -5,11 +5,15 @@
  */
 
 #include "putty.h"
+#include "kittyng-build-date.h"
 
 char *buildinfo(const char *newline)
 {
     strbuf *buf = strbuf_new();
 
+    put_fmt(buf, "KiTTY-ng \302\251 nr084 %.4s%s", kr_build_date(), newline);
+    put_fmt(buf, kr_event_text("Build date: %s"), kr_build_date());
+    put_fmt(buf, "%shttps://github.com/nr084/kitty-ng%s", newline, newline);
     put_fmt(buf, "Build platform: %d-bit %s",
             (int)(CHAR_BIT * sizeof(void *)), BUILDINFO_PLATFORM);
 

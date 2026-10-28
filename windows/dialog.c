@@ -419,9 +419,8 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         char *buildinfo_text = buildinfo("\r\n");
         char *text = dupprintf(
             "%s\r\n\r\nPuTTY\r\n\302\251 " SHORT_COPYRIGHT_DETAILS
-            "\r\n\r\nKiTTY\r\n\302\251 2007-2013 Cyril Dupont"
-            "\r\n\r\nKiTTY-ng\r\n\302\251 %s nr084",
-            buildinfo_text, __DATE__ + 7);
+            "\r\n\r\nKiTTY\r\n\302\251 2007-2013 Cyril Dupont",
+            buildinfo_text);
         sfree(buildinfo_text);
         wchar_t *wide = dup_mb_to_wc(CP_UTF8, text);
         SetDlgItemTextW(hwnd, IDA_TEXT, wide);
@@ -1098,7 +1097,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         const char *dlg_title = process_seatdialogtext(
             dlg_text, &scary_heading, ctx->text);
 
-        LPCTSTR iconid = IDI_QUESTION;
+        LPCTSTR iconid = IDI_INFORMATION;
         if (scary_heading) {
             SetDlgItemText(hwnd, IDC_HK_TITLE, scary_heading);
             iconid = IDI_WARNING;
@@ -1125,12 +1124,13 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
                                         EM_GETLINECOUNT, 0, 0);
         height *= 8; /* height of a text line, by definition of dialog units */
 
-        int edittop = ctx->has_title ? 40 : 20;
+        height = min(max(height, 96), 240);
+        int edittop = ctx->has_title ? 38 : 18;
 
         RECT r;
-        r.left = 40;
+        r.left = 42;
         r.top = edittop;
-        r.right = 410;
+        r.right = 376;
         r.bottom = height;
         MapDialogRect(hwnd, &r);
         SetWindowPos(GetDlgItem(hwnd, IDC_HK_TEXT), NULL,
@@ -1140,16 +1140,16 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         static const struct {
             int id, x;
         } buttons[] = {
-            { IDCANCEL, 390 },
-            { IDC_HK_ACCEPT, 216 },
-            { IDC_HK_ONCE, 282 },
-            { IDC_HK_MOREINFO, 78 },
-            { IDHELP, 12 },
+            { IDCANCEL, 348 },
+            { IDC_HK_ACCEPT, 158 },
+            { IDC_HK_ONCE, 226 },
+            { IDC_HK_MOREINFO, 12 },
+            { IDHELP, 108 },
         };
         for (size_t i = 0; i < lenof(buttons); i++) {
             HWND ctl = GetDlgItem(hwnd, buttons[i].id);
             r.left = buttons[i].x;
-            r.top = edittop + height + 20;
+            r.top = edittop + height + 14;
             r.right = r.bottom = 0;
             MapDialogRect(hwnd, &r);
             SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
@@ -1162,7 +1162,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         int oldheight = r.bottom;
 
         r.left = r.top = r.right = 0;
-        r.bottom = edittop + height + 40;
+        r.bottom = edittop + height + 46;
         MapDialogRect(hwnd, &r);
         int newheight = r.bottom;
 

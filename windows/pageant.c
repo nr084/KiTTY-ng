@@ -11,6 +11,7 @@
 
 #include "putty.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #define MessageBox kr_messagebox
 #define AppendMenu kr_utility_append_menu
 #define SetDlgItemText kr_utility_set_item_text
@@ -50,6 +51,7 @@
 
 static HWND traywindow;
 static HWND keylist;
+static Filename *demo_screenshot_filename;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu, language_menu;
 static bool already_running;
@@ -169,7 +171,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
           case IDC_ABOUT_WEBSITE:
             /* Load web browser */
             ShellExecute(hwnd, "open",
-                         "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
+                         "https://github.com/nr084/kitty-ng",
                          0, 0, SW_SHOWDEFAULT);
             return 0;
         }
@@ -606,6 +608,15 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         InvalidateRect(GetDlgItem(hwnd, IDC_KEYLIST_LISTBOX), NULL, TRUE);
         return 0;
       }
+      case WM_TIMER:
+        if (demo_screenshot_filename && wParam == 101) {
+            KillTimer(hwnd, 101);
+            char *error = save_screenshot(hwnd, demo_screenshot_filename);
+            int result = error ? 1 : 0; sfree(error);
+            DestroyWindow(hwnd); PostQuitMessage(result);
+            return 0;
+        }
+        break;
       case WM_INITDIALOG: {
         /*
          * Centre the window.
@@ -675,10 +686,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         } else {
             /* Draw the full text. */
             bool selected = (di->itemState & ODS_SELECTED);
-            COLORREF newfg = GetSysColor(
-                selected ? COLOR_HIGHLIGHTTEXT : COLOR_WINDOWTEXT);
-            COLORREF newbg = GetSysColor(
-                selected ? COLOR_HIGHLIGHT : COLOR_WINDOW);
+            COLORREF newfg = selected ? GetSysColor(COLOR_HIGHLIGHTTEXT) : kr_theme_foreground();
+            COLORREF newbg = selected ? GetSysColor(COLOR_HIGHLIGHT) : kr_theme_background();
             COLORREF oldfg = SetTextColor(di->hDC, newfg);
             COLORREF oldbg = SetBkColor(di->hDC, newbg);
 
@@ -1745,6 +1754,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             add_keys_encrypted = true;
         } else if (match_opt("-keylist")) {
             show_keylist_on_startup = true;
+        } else if (match_optval("-demo-screenshot")) {
+            demo_screenshot_filename = cmdline_arg_to_filename(valarg);
         } else if (match_opt("-test-language-menu")) {
             test_language_menu = true;
         } else if (match_optval("-openssh-config", "-openssh_config")) {
@@ -1782,6 +1793,17 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * condition.
      */
     if (test_language_menu) return test_tray_language();
+    if (demo_screenshot_filename) {
+        /* Isolated in-process agent: never connect to or replace a user's agent. */
+        pageant_init();
+        HWND demo = CreateDialog(hinst, MAKEINTRESOURCE(IDD_KEYLIST), NULL, KeyListProc);
+        if (!demo) return 1;
+        ShowWindow(demo, SW_SHOWNORMAL); SetTimer(demo, 101, 500, NULL);
+        while (GetMessageW(&msg, NULL, 0, 0) > 0) {
+            if (!IsDialogMessageW(demo, &msg)) { TranslateMessage(&msg); DispatchMessageW(&msg); }
+        }
+        return (int)msg.wParam;
+    }
     HANDLE mutex;
     {
         char *err;
@@ -1828,6 +1850,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                                   CW_USEDEFAULT, CW_USEDEFAULT,
                                   100, 100, NULL, NULL, inst, NULL);
         winselgui_set_hwnd(traywindow);
+        kr_theme_attach(traywindow);
 
         /*
          * Initialise the cross-platform Pageant code.

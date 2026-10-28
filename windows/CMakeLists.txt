@@ -2,6 +2,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_sources_from_current_dir(utils
   kittyng.c
+  kittyng-theme.c
   kittyng-logui.c
   kittyng-session-menu.c
   kittyng-tray.c
@@ -52,7 +53,7 @@ add_sources_from_current_dir(utils
   utils/version.c
   utils/win_strerror.c
   unicode.c)
-target_link_libraries(utils PUBLIC bcrypt)
+target_link_libraries(utils PUBLIC bcrypt comctl32 uxtheme dwmapi)
 
 add_executable(test_kittyng ${CMAKE_SOURCE_DIR}/test/test_kittyng.c storage.c)
 target_link_libraries(test_kittyng utils ${platform_libraries})
@@ -62,6 +63,8 @@ add_executable(test_extensions ${CMAKE_SOURCE_DIR}/test/test_extensions.c ${CMAK
 target_link_libraries(test_extensions settings utils ${platform_libraries})
 add_executable(test_session_browser ${CMAKE_SOURCE_DIR}/test/test_session_browser.c)
 target_link_libraries(test_session_browser utils ${platform_libraries})
+add_executable(test_windows_theme ${CMAKE_SOURCE_DIR}/test/test_windows_theme.c)
+target_link_libraries(test_windows_theme utils ${platform_libraries})
 add_executable(test_utility_ui ${CMAKE_SOURCE_DIR}/test/test_utility_ui.c)
 target_link_libraries(test_utility_ui utils ${platform_libraries})
 add_executable(test_language_controls ${CMAKE_SOURCE_DIR}/test/test_language_controls.c

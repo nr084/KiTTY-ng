@@ -2115,5 +2115,11 @@
   "Unable to locate quick command settings.": "Не удалось определить расположение настроек быстрых команд.",
   "Enter a name and a single-line command (name: 128 bytes, command: 65535 bytes maximum).": "Введите название и команду в одну строку (название — до 128 байт, команда — до 65535 байт).",
   "No quick commands": "Нет быстрых команд",
-  "%s (built %s)": "%s (сборка %s)"
+  "%s (built %s)": "%s (сборка %s)",
+  "Build date: %s": "Дата сборки: %s",
+  "Interface theme": "Тема интерфейса",
+  "System theme": "Как в Windows",
+  "Light": "Светлая",
+  "Dark": "Тёмная",
+  "Unable to save interface theme.": "Не удалось сохранить тему интерфейса."
 }

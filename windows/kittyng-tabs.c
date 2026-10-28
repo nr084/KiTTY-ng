@@ -4,6 +4,7 @@
 #include "kittyng-portable.h"
 #include "kittyng-tabs.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #include "kittyng-tray.h"
 #include <shellapi.h>
 #include <commctrl.h>
@@ -189,13 +190,13 @@ static void tab_paint(TabFrame *f,HDC target)
     HDC dc=CreateCompatibleDC(target);
     HBITMAP bitmap=CreateCompatibleBitmap(target,bounds.right,bounds.bottom);
     HGDIOBJ old_bitmap=SelectObject(dc,bitmap),old_font=SelectObject(dc,f->font);
-    HBRUSH background=CreateSolidBrush(RGB(242,243,245));FillRect(dc,&bounds,background);DeleteObject(background);
+    HBRUSH background=CreateSolidBrush(kr_theme_dark()?RGB(27,28,31):RGB(242,243,245));FillRect(dc,&bounds,background);DeleteObject(background);
     SetBkMode(dc,TRANSPARENT);
     for(int i=0;i<f->count;i++){
         RECT r;if(!TabCtrl_GetItemRect(f->strip,i,&r) || r.right<0 || r.left>=bounds.right)continue;
         bool active=i==f->selected;
         RECT card=r;InflateRect(&card,-tab_px(f,2),-tab_px(f,2));
-        COLORREF color=active?RGB(218,234,253):i==f->hover?RGB(226,229,233):RGB(235,237,240);
+        COLORREF color=kr_theme_dark()?(active?RGB(49,66,90):i==f->hover?RGB(56,58,64):RGB(39,41,46)):(active?RGB(218,234,253):i==f->hover?RGB(226,229,233):RGB(235,237,240));
         HBRUSH brush=CreateSolidBrush(color);HPEN border=CreatePen(PS_SOLID,1,active?RGB(125,169,223):color);
         HGDIOBJ old_brush=SelectObject(dc,brush),old_pen=SelectObject(dc,border);
         RoundRect(dc,card.left,card.top,card.right,card.bottom,tab_px(f,12),tab_px(f,12));
@@ -230,7 +231,7 @@ static void tab_paint(TabFrame *f,HDC target)
         SelectObject(icon,saved_bitmap);DeleteObject(surface);DeleteDC(icon);
         wchar_t title[512];GetWindowTextW(f->pages[i],title,lenof(title));
         RECT text=r;text.left+=tab_px(f,14);text.right=close.left-tab_px(f,8);
-        SetTextColor(dc,active?RGB(24,65,116):RGB(84,92,103));
+        SetTextColor(dc,kr_theme_dark()?RGB(235,235,238):(active?RGB(24,65,116):RGB(84,92,103)));
         DrawTextW(dc,title,-1,&text,DT_SINGLELINE|DT_VCENTER|DT_END_ELLIPSIS|DT_NOPREFIX);
     }
     BitBlt(target,0,0,bounds.right,bounds.bottom,dc,0,0,SRCCOPY);
@@ -465,6 +466,7 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
     if (!f.frame) return true;
     frame_initial_animation(f.frame, TRUE);
     SetWindowLongPtrW(f.frame,GWLP_USERDATA,(LONG_PTR)&f);
+    kr_theme_attach(f.frame);
     f.strip=CreateWindowExW(0,WC_TABCONTROLW,L"",WS_CHILD|WS_CLIPSIBLINGS|WS_CLIPCHILDREN|TCS_BUTTONS|TCS_FLATBUTTONS|TCS_FIXEDWIDTH|TCS_FOCUSNEVER,0,0,1,1,f.frame,NULL,instance,NULL);
     HDC dc=GetDC(f.frame);f.dpi=GetDeviceCaps(dc,LOGPIXELSY);ReleaseDC(f.frame,dc);
     f.font=CreateFontW(-tab_px(&f,13),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,

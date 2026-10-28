@@ -1,6 +1,7 @@
 #include "putty.h"
 #include "dialog.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #include "kittyng-i18n.h"
 
 typedef struct LanguageControls {
@@ -51,4 +52,26 @@ void kr_add_language_controls(struct controlbox *b, struct controlset *s)
     c->column = 1;
     c->align_next_to = language->selector;
     ctrl_columns(s, 1, 100);
+}
+
+static void theme_handler(dlgcontrol *ctrl, dlgparam *dlg, void *data, int event)
+{
+    if (event == EVENT_REFRESH) {
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        dlg_listbox_addwithid(ctrl, dlg, "System theme", 0);
+        dlg_listbox_addwithid(ctrl, dlg, "Light", 1);
+        dlg_listbox_addwithid(ctrl, dlg, "Dark", 2);
+        dlg_listbox_select(ctrl, dlg, kr_theme_mode());
+        dlg_update_done(ctrl, dlg);
+    } else if (event == EVENT_SELCHANGE) {
+        int row = dlg_listbox_index(ctrl, dlg);
+        if (row >= 0 && !kr_theme_save(dlg_listbox_getid(ctrl, dlg, row)))
+            dlg_error_msg(dlg, "Unable to save interface theme.");
+    }
+}
+void kr_add_theme_controls(struct controlbox *b, struct controlset *s)
+{
+    ctrl_droplist(s, "Interface theme", NO_SHORTCUT, 50,
+                  HELPCTX(no_help), theme_handler, P(NULL));
 }

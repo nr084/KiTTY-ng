@@ -1,6 +1,7 @@
 /* kitty-ng UI extensions. See LICENCE and LICENCE-KiTTY.txt. */
 #include "putty.h"
 #include "kittyng.h"
+#include "kittyng-theme.h"
 #include "kittyng-i18n.h"
 #include "kittyng-portable.h"
 #include "kittyng-legacy-crypt.h"
@@ -107,6 +108,7 @@ BOOL kr_set_item_text(HWND hwnd, int id, const char *text)
 
 int kr_messagebox(HWND hwnd, const char *text, const char *caption, UINT flags)
 {
+    kr_theme_start();
     if (!text) text = "";
     if (!caption) caption = "";
     wchar_t *body = dup_mb_to_wc(kr_language() ? CP_UTF8 : CP_ACP, kr_translate(text));
@@ -127,6 +129,7 @@ static BOOL CALLBACK localize_child(HWND hwnd, LPARAM unused)
 
 void kr_localize_dialog(HWND hwnd)
 {
+    kr_theme_attach(hwnd);
     EnumChildWindows(hwnd, localize_child, 0);
 }
 
