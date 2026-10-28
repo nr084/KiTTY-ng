@@ -1097,6 +1097,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         const char *dlg_title = process_seatdialogtext(
             dlg_text, &scary_heading, ctx->text);
 
+        ctx->has_title = scary_heading != NULL;
         LPCTSTR iconid = IDI_INFORMATION;
         if (scary_heading) {
             SetDlgItemText(hwnd, IDC_HK_TITLE, scary_heading);
@@ -1124,13 +1125,13 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
                                         EM_GETLINECOUNT, 0, 0);
         height *= 8; /* height of a text line, by definition of dialog units */
 
-        height = min(max(height, 96), 240);
-        int edittop = ctx->has_title ? 38 : 18;
+        height = min(max(height, 80), 160);
+        int edittop = ctx->has_title ? 34 : 14;
 
         RECT r;
         r.left = 42;
         r.top = edittop;
-        r.right = 376;
+        r.right = 336;
         r.bottom = height;
         MapDialogRect(hwnd, &r);
         SetWindowPos(GetDlgItem(hwnd, IDC_HK_TEXT), NULL,
@@ -1140,16 +1141,16 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         static const struct {
             int id, x;
         } buttons[] = {
-            { IDCANCEL, 348 },
-            { IDC_HK_ACCEPT, 158 },
-            { IDC_HK_ONCE, 226 },
+            { IDCANCEL, 318 },
+            { IDC_HK_ACCEPT, 142 },
+            { IDC_HK_ONCE, 202 },
             { IDC_HK_MOREINFO, 12 },
-            { IDHELP, 108 },
+            { IDHELP, 96 },
         };
         for (size_t i = 0; i < lenof(buttons); i++) {
             HWND ctl = GetDlgItem(hwnd, buttons[i].id);
             r.left = buttons[i].x;
-            r.top = edittop + height + 14;
+            r.top = edittop + height + 10;
             r.right = r.bottom = 0;
             MapDialogRect(hwnd, &r);
             SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
@@ -1162,7 +1163,7 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
         int oldheight = r.bottom;
 
         r.left = r.top = r.right = 0;
-        r.bottom = edittop + height + 46;
+        r.bottom = edittop + height + 38;
         MapDialogRect(hwnd, &r);
         int newheight = r.bottom;
 

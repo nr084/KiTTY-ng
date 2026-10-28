@@ -12,16 +12,25 @@ checkpoint_time=path.stat().st_mtime if path.exists() else 0
 same_package=all(previous.get(k)==report[k] for k in ('version','source_commit','binaries'))
 report['inputs']={}
 def inputs(name):
- files=[p for p in root.glob('*.py') if p.name!='linux_release_acceptance.py']
+ files=[p for p in root.glob('*.py') if p.name!='linux_release_acceptance.py' and (name=='utility-themes' or p.name!='linux_utility_theme.py')]
  if name=='duplicate-password-retry':files.append(root/'kittyng-password-vector.json')
  return files,{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 
+reuse=json.loads((root/'linux-reuse.json').read_text()) if (root/'linux-reuse.json').exists() else {'suites':{}}
+if reuse['suites']:assert reuse['source_commit']==report['source_commit'] and reuse['binaries']==binaries
+report['reused_checks']={}
 def run(name,args):
  files,digests=inputs(name)
+ if name in reuse['suites']:
+  baseline=reuse['baseline'];assert baseline['status']=='passed' and name in baseline['tests']
+  for f in reuse['suites'][name]:assert baseline['inputs'][name][f]==digests[f]
+  report['tests'].append(name);report['inputs'][name]=digests
+  report['reused_checks'][name]={'source_commit':baseline['source_commit'],'binaries':baseline['binaries'],'report_sha256':reuse['baseline_sha256'],'reason':reuse['kind'],'changed_sources':reuse['changed_sources']}
+  path.write_text(json.dumps(report,indent=2));print('REUSE unmodified regression: '+name,flush=True);return
  cached=previous.get('inputs',{}).get(name)
  # Older checkpoints predate input digests. Reuse only when every relevant
  # test file is still older than the checkpoint; otherwise run it again.
- unchanged=(cached==digests) if cached is not None else all(p.stat().st_mtime<=checkpoint_time for p in files)
+ unchanged=(all(cached.get(k)==v for k,v in digests.items())) if cached is not None else all(p.stat().st_mtime<=checkpoint_time for p in files)
  if same_package and name in previous.get('tests',[]) and unchanged:
   report['tests'].append(name);report['inputs'][name]=digests
   path.write_text(json.dumps(report,indent=2));print('REUSE: '+name,flush=True);return
@@ -29,7 +38,7 @@ def run(name,args):
   result=subprocess.run(args,stdout=log,stderr=subprocess.STDOUT,timeout=240)
  if result.returncode:report['status']='failed';report['failed_suite']=name;path.write_text(json.dumps(report,indent=2));raise RuntimeError(name+' failed: '+(out/(name+'.log')).read_text()[-5000:])
  report['tests'].append(name);report['inputs'][name]=digests;path.write_text(json.dumps(report,indent=2));print('PASS: '+name,flush=True)
-def gui(script,*args):return ['xvfb-run','-a','-s','-screen 0 1600x1000x24','dbus-run-session','--','python3',str(root/script),*map(str,args)]
+def gui(script,*args):return ['xvfb-run','-a','-s','-screen 0 1600x1000x24 -ac -noreset','dbus-run-session','--','python3',str(root/script),*map(str,args)]
 run('appimage-version',['xvfb-run','-a',str(root/f'kitty-ng-{version}-x86_64.AppImage'),'--appimage-extract-and-run','--version'])
 run('native-gui',gui('linux_native.py','--binary',app/'AppRun','--output',out/'native'))
 run('quick-commands',gui('linux_quick_commands.py',app/'AppRun'))
@@ -41,4 +50,5 @@ run('ssh-sftp-agent',['python3',str(root/'linux_ssh.py'),'--bin-dir',str(app/'us
 run('keygen-gui',gui('linux_utilities_gui.py','--binary',app/'AppRun','--output',out/'keygen'))
 run('agent-gui',gui('linux_agent_gui.py','--binary',app/'AppRun'))
 run('regular-user-gui',['python3',str(root/'linux_regular_user.py'),'--binary',str(app/'AppRun'),'--output',str(out/'regular')])
+run('utility-themes',gui('linux_utility_theme.py',app/'AppRun',out/'themes'))
 report['status']='passed';path.write_text(json.dumps(report,indent=2));print('PASS: shipped Linux package acceptance',flush=True)

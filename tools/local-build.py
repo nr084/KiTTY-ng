@@ -375,6 +375,10 @@ def main():
                            ([PYTHON, "test/windows_tabs.py", directory / executable, "--fullscreen"], ssh_environment(work))],
                           compiler=compiler)
                     files = source_dependencies(ninja, directory, [executable])
+                    files.add("test/windows_hostkey_ui.py")
+                    check(arch + "/hostkey-ui", files,
+                          [([PYTHON, "test/windows_hostkey_ui.py", directory / executable], ssh_environment(work))], compiler=compiler)
+                    files = source_dependencies(ninja, directory, [executable])
                     files.update({"test/duplicate_password_retry.py", "test/kittyng-password-vector.json"})
                     check(arch + "/duplicate-password-retry", files,
                           [([PYTHON, "test/duplicate_password_retry.py", directory / executable, "--report", logs / (arch + "-duplicate-password-retry.json")], ssh_environment(work))],
