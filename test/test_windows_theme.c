@@ -47,12 +47,15 @@ int main(int argc,char **argv)
     SendMessageW(hwnd,WM_UNINITMENUPOPUP,(WPARAM)popup,0);
     mi.fMask=MIIM_DATA|MIIM_FTYPE;GetMenuItemInfoW(popup,0,TRUE,&mi);
     CHECK(mi.dwItemData==1234 && !(mi.fType&MFT_OWNERDRAW));
+    ShowWindow(hwnd, SW_SHOW); SetForegroundWindow(hwnd); pump();
     UINT_PTR timer = SetTimer(NULL, 0, 250, inspect_messagebox);
     CHECK(timer);
     CHECK(kr_theme_messagebox(hwnd, L"Close all sessions in this window?", L"Theme test",
                              MB_OKCANCEL | MB_ICONQUESTION, MAKELANGID(LANG_ENGLISH,SUBLANG_DEFAULT)) == IDCANCEL);
     KillTimer(NULL, timer);
     CHECK(footer_ok);
+    CHECK(!GetPropW(hwnd, L"KiTTY-ng MessageBox"));
+    ShowWindow(hwnd, SW_HIDE);
     CHECK(kr_theme_save(1));pump();CHECK(!kr_theme_dark());
     CHECK(TreeView_GetBkColor(tree)==GetSysColor(COLOR_WINDOW));
     wchar_t value[40];GetWindowTextW(edit,value,lenof(value));CHECK(!wcscmp(value,L"literal data"));

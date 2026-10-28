@@ -12,7 +12,7 @@ static HBRUSH dark_surface, dark_field;
 static int preference = -1;
 static bool dark;
 static UINT theme_changed;
-static unsigned messagebox_depth;
+static bool awaiting_messagebox;
 
 int kr_theme_mode(void)
 {
@@ -209,8 +209,10 @@ static LRESULT CALLBACK theme_activate(int code, WPARAM wp, LPARAM lp)
 {
     if (code == HCBT_ACTIVATE && !(GetWindowLongPtrW((HWND)wp, GWL_STYLE) & WS_CHILD))
     {
-        if (messagebox_depth)
+        if (awaiting_messagebox) {
             SetPropW((HWND)wp, L"KiTTY-ng MessageBox", (HANDLE)1);
+            awaiting_messagebox = false;
+        }
         kr_theme_attach((HWND)wp);
     }
     return CallNextHookEx(NULL, code, wp, lp);
@@ -225,9 +227,10 @@ int kr_theme_messagebox(HWND owner, const wchar_t *body,
                         const wchar_t *title, UINT flags, WORD language)
 {
     kr_theme_start();
-    messagebox_depth++;
+    bool previous = awaiting_messagebox;
+    awaiting_messagebox = true;
     int result = MessageBoxExW(owner, body, title, flags, language);
-    messagebox_depth--;
+    awaiting_messagebox = previous;
     return result;
 }
 
