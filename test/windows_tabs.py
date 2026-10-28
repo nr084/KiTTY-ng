@@ -142,6 +142,12 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   assert u.GetForegroundWindow()==host, ('Test window could not activate',cls(u.GetForegroundWindow()),title(u.GetForegroundWindow()))
   u.SetWindowPos(host,-2,0,0,0,0,0x13)
   def mouse(message,x,y=15,buttons=0):
+   # A posted button message does not perform the activation that a real
+   # desktop click would. Activate before the gesture, never force focus on
+   # the target terminal (keyboard() still verifies the production routing).
+   if message==0x201:
+    u.SetForegroundWindow(host)
+    wait(lambda:u.GetForegroundWindow()==host)
    point=w.POINT(round(x*scale),round(y*scale));u.ClientToScreen(strip,ctypes.byref(point))
    u.SetCursorPos(point.x,point.y)
    # Dispatch drag events synchronously to the real control; a shared desktop
