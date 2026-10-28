@@ -49,6 +49,8 @@ int kr_mac_self_test_ui(void){
     puts("PASS: native auth cache survives source close, one attempt, never saved, server challenge and changed identity rejected");
     extern int kr_mac_test_startup_ui(void);
     CHECK(kr_mac_test_startup_ui()==0);
+    extern int kr_mac_test_save_window_ui(void);
+    CHECK(kr_mac_test_save_window_ui()==0);
     CHECK(kr_mac_test_session_menu_ui()==0);
     CHECK(kr_mac_test_tabs_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);

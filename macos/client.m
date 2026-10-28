@@ -362,10 +362,11 @@ int kr_mac_test_session_menu_ui(void){
 - (void)settings:(id)sender {if(self.session){const char *name=conf_get_str(self.session->conf,CONF_kr_session_name);if(*name)kr_mac_edit_profile(name,true);else kr_mac_quick_connect_conf(self.session->conf);}}
 - (void)showLog:(id)sender {NSAlert *alert=[NSAlert new];alert.messageText=T(@"Event log",@"Журнал событий");NSScrollView *scroll=[[NSScrollView alloc]initWithFrame:NSMakeRect(0,0,650,300)];scroll.hasVerticalScroller=YES;NSTextView *text=[[NSTextView alloc]initWithFrame:scroll.bounds];text.editable=NO;text.string=[self.events componentsJoinedByString:@"\n"];text.font=[NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];scroll.documentView=text;alert.accessoryView=scroll;[alert runModal];}
 - (void)saveWindow {
-    MacSession *s=self.session;if(!s)return;const char *name=conf_get_str(s->conf,CONF_kr_session_name);if(!*name)return;char *path=kr_mac_profile_path(name);NSData *current=path?[NSData dataWithContentsOfFile:S(path)]:nil;sfree(path);
-    if(!current||![current isEqualToData:self.profileSource])return;
-    if(conf_get_bool(s->conf,CONF_saveonexit)){conf_set_int(s->conf,CONF_width,s->term->cols);conf_set_int(s->conf,CONF_height,s->term->rows);char *failure=save_settings(name,s->conf);bool ok=!failure&&kr_mac_write_succeeded();sfree(failure);if(!ok)return;}
+    MacSession *s=self.session;if(!s)return;const char *stored=conf_get_str(s->conf,CONF_kr_session_name);if(!*stored)return;char *name=dupstr(stored);char *path=kr_mac_profile_path(name);NSData *current=path?[NSData dataWithContentsOfFile:S(path)]:nil;sfree(path);
+    if(!current||![current isEqualToData:self.profileSource]){sfree(name);return;}
+    if(conf_get_bool(s->conf,CONF_saveonexit)){conf_set_int(s->conf,CONF_width,s->term->cols);conf_set_int(s->conf,CONF_height,s->term->rows);char *failure=save_settings(name,s->conf);bool ok=!failure&&kr_mac_write_succeeded();sfree(failure);if(!ok){sfree(name);return;}}
     if(conf_get_bool(s->conf,CONF_save_windowpos)){char *failure=NULL;settings_w *writer=open_settings_w(name,&failure);if(writer){NSRect frame=self.terminalWindow.frame;write_setting_i(writer,"MacWindowX",frame.origin.x);write_setting_i(writer,"MacWindowY",frame.origin.y);write_setting_i(writer,"MacWindowWidth",frame.size.width);write_setting_i(writer,"MacWindowHeight",frame.size.height);close_settings_w(writer);}sfree(failure);}
+    sfree(name);
 }
 - (BOOL)isFlipped{return YES;}
 - (BOOL)acceptsFirstResponder{return YES;}
@@ -518,4 +519,22 @@ bool kr_mac_request_termination(void) {
     for (MacTabHost *host in hosts) if (![host windowShouldClose:host.window]) return false;
     for (MacTabHost *host in hosts) [host.window close];
     return true;
+}
+
+int kr_mac_test_save_window_ui(void) {
+    Conf *conf=conf_new(); load_settings("Default Settings",conf);
+    conf_set_bool(conf,CONF_saveonexit,true); conf_set_bool(conf,CONF_save_windowpos,true);
+    const char *name="native-save-window";
+    char *error=save_settings(name,conf); if(error){sfree(error);conf_free(conf);return 1;}
+    char *path=kr_mac_profile_path(name);
+    MacTerminal *view=[MacTerminal new];
+    MacSession state={0}; Terminal terminal={0}; terminal.cols=80;terminal.rows=24;
+    state.conf=conf;state.term=&terminal;view.session=&state;
+    view.profileSource=[NSData dataWithContentsOfFile:S(path)];
+    [view saveWindow];view.session=NULL;
+    settings_r *reader=open_settings_r(name);
+    BOOL ok=reader && read_setting_i(reader,"MacWindowWidth",-1)==0 && !strcmp(conf_get_str(conf,CONF_kr_session_name),name);
+    close_settings_r(reader);del_settings(name);sfree(path);conf_free(conf);
+    if(ok)puts("PASS: SaveOnExit plus window geometry retains valid session name after Conf serialization");
+    return ok?0:1;
 }
