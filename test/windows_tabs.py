@@ -142,8 +142,10 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   def mouse(message,x,y=15,buttons=0):
    point=w.POINT(round(x*scale),round(y*scale));u.ClientToScreen(strip,ctypes.byref(point))
    u.SetCursorPos(point.x,point.y)
-   if message==0x201:u.mouse_event(2,0,0,0,0)
-   elif message==0x202:u.mouse_event(4,0,0,0,0)
+   # Dispatch drag events synchronously to the real control; a shared desktop
+   # can otherwise coalesce mouse movement between queued down/up events.
+   # Keyboard checks below still use SendInput, never posted WM_CHAR.
+   u.SendMessageW(strip,message,buttons,(round(y*scale)<<16)|round(x*scale))
    time.sleep(u.GetDoubleClickTime()/1000+.05 if message==0x202 else .15)
   mouse(0x201,35,buttons=1);mouse(0x200,250,buttons=1);mouse(0x202,250)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==1)
