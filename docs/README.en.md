@@ -4,6 +4,7 @@
 
 | Guide | Contents |
 | --- | --- |
+| [Interface themes](windows-themes.en.md) | System, light and dark themes for the client and utilities |
 | [Windows](windows.en.md) | Launch, language, utilities and transfers |
 | [macOS Universal](macos.en.md) | DMG, portable setup and shared Windows profiles |
 | [Linux · AppImage](linux.en.md) | AppImage, local Windows build and native validation |

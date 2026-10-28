@@ -2,6 +2,8 @@
 
 **KiTTY-ng 0.85-10 for Windows, macOS and Linux**: global quick commands, corrected Windows settings layout and Cyrillic text, and build dates in About. [Release notes](docs/releases/0.85-10.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10).
 
+**Windows/Linux update:** light, dark and system themes for the Windows client and utilities, corrected Kageant buttons and a smaller SSH trust dialog. [Interface themes](docs/windows-themes.en.md).
+
 **macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
 
 **Total Commander plugin: [kitty-ng-fs 1.1.1](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.1)** — embedded SSH/SFTP without Klink, with password prompts and server-key confirmation in TC. Installer and source code are available as separate archives.
