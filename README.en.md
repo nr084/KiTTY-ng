@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**KiTTY-ng 0.85-10 for Windows and Linux**: global quick commands, corrected Windows settings layout and Cyrillic text, and build dates in About. [Release notes](docs/releases/0.85-10.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10). macOS Universal is being prepared separately.
+**KiTTY-ng 0.85-10 for Windows, macOS and Linux**: global quick commands, corrected Windows settings layout and Cyrillic text, and build dates in About. [Release notes](docs/releases/0.85-10.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10).
 
 **macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
 
@@ -16,7 +16,7 @@
 
 ## Download
 
-Windows/Linux 0.85-10 is published. macOS is pending native preparation; [Mac handoff](docs/releases/0.85-10-macos-handoff.md).
+Release 0.85-10 includes six verified packages for Windows, macOS and Linux.
 
 | Platform | Release 0.85-10 | Launch |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ Windows/Linux 0.85-10 is published. macOS is pending native preparation; [Mac ha
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG is being prepared and will be added to this release | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-10/kitty-ng-0.85-10-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
@@ -92,7 +92,7 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 KiTTY saved passwords use a reversible format, not a secure secrets vault. Entire profiles encrypted with a master password are unsupported. Retired extensions are listed in the [decision matrix](docs/kitty-migration-decisions.json).
 
-The user confirmed operation on a MacBook Air M3 and Windows ARM64. Automated native Windows checks ran on x64/x86. The current local macOS build is compiled and tested on Mac: ARM64 and x86_64 through Rosetta, SSH, keys, transfers and AppKit. Physical Intel Macs, macOS 13, GSSAPI and real SSH CA handshakes still require dedicated validation. See the [native Mac report](docs/macos-native-validation.md) (Russian).
+The user confirmed operation on a MacBook Air M3 and Windows ARM64. Automated native Windows checks ran on x64/x86. The current local macOS build is compiled and tested on Mac: ARM64 and x86_64 through Rosetta, SSH, keys, transfers and AppKit. Physical Intel Macs, macOS 13 and live Kerberos credentials still require dedicated validation. Real OpenSSH host/user certificate handshakes have passed on both architectures. See the [native Mac report](docs/macos-native-validation.md) (Russian).
 
 ## Acknowledgements and licenses
 

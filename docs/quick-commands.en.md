@@ -10,7 +10,7 @@ Run a command from **Quick commands**, immediately after **Special Command** in 
 
 ## Storage
 
-Installed Windows: `HKCU\Software\KiTTY-NG\QuickCommands`. Portable Windows and Linux: the `[QuickCommands]` section of `kitty.ini` in the selected portable root.
+Installed Windows: `HKCU\Software\KiTTY-NG\QuickCommands`. Portable Windows, Linux and macOS: the `[QuickCommands]` section of `kitty.ini` in the selected portable root.
 
 ```ini
 [QuickCommands]
@@ -24,4 +24,10 @@ Slots are numbered 1–20. Use `yes` or `no` for Enter. Names and commands retai
 
 On the first run without this section, KiTTY-ng creates the Ubuntu example in the selected interface language. Creating the example does not execute it. Switching languages does not rename user commands, and deleting all commands does not recreate the example.
 
-Native macOS adaptation is prepared separately for the same release.
+## macOS
+
+In 0.85-10, open the native editor with **Window → Quick commands**. Run commands from the separate **Quick commands** menu immediately to the right of **Session** in the Mac menu bar, or the terminal submenu after **Special Commands**. The active tab receives the command.
+
+`kitty.ini` lives in the selected portable root outside `.app`. When placed beside the app, this is the directory containing `KiTTY-ng.app`. The format is shared with Windows and Linux.
+
+![Mac quick-command editor](screenshots/macos-quick-commands-en.png)

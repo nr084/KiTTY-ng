@@ -1,5 +1,5 @@
 enable_language(OBJC)
-add_executable(kitty-ng-macos bootstrap.m client.m transfer.m automation.c language.m editor.m utilities.m ca.m selftest.c selftest-ui.m ../unix/unicode.c ../unix/no-gtk.c ../stubs/no-console.c ../stubs/no-print.c)
+add_executable(kitty-ng-macos bootstrap.m quick-commands.m client.m transfer.m automation.c language.m editor.m utilities.m ca.m selftest.c selftest-ui.m ../unix/unicode.c ../unix/no-gtk.c ../stubs/no-console.c ../stubs/no-print.c)
 be_list(kitty-ng-macos KiTTY-ng SSH SERIAL OTHERBACKENDS)
 target_compile_definitions(kitty-ng-macos PRIVATE KITTY_NG_CLIENT)
 target_compile_options(kitty-ng-macos PRIVATE $<$<COMPILE_LANGUAGE:OBJC>:-fobjc-arc> $<$<COMPILE_LANGUAGE:OBJC>:-UNDEBUG>)

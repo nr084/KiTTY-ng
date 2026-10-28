@@ -64,7 +64,7 @@ static NSString *boundText(id owner, NSString *property, NSString *text) {
 }
 void kr_mac_localize_menu(NSMenu *menu){
     menu.title=boundText(menu,@"title",menu.title);
-    for(NSMenuItem *item in menu.itemArray){item.title=boundText(item,@"title",item.title);if(item.submenu)kr_mac_localize_menu(item.submenu);}
+    for(NSMenuItem *item in menu.itemArray){if([item.identifier isEqualToString:@"KiTTYNG.RawData"])continue;item.title=boundText(item,@"title",item.title);if(item.submenu)kr_mac_localize_menu(item.submenu);}
 }
 void kr_mac_localize_view(NSView *view){
     if([view.identifier isEqualToString:@"KiTTYNG.RawData"])return;

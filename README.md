@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**KiTTY-ng 0.85-10 для Windows и Linux**: общие быстрые команды, исправления компоновки и кириллицы настроек Windows, дата сборки в «О программе». [Изменения](docs/releases/0.85-10.md) · [Скачать](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10). macOS Universal готовится отдельно.
+**KiTTY-ng 0.85-10 для Windows, macOS и Linux**: общие быстрые команды, исправления компоновки и кириллицы настроек Windows, дата сборки в «О программе». [Изменения](docs/releases/0.85-10.md) · [Скачать](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10).
 
 **macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Нативные вкладки сеансов включены.
 
@@ -16,7 +16,7 @@
 
 ## Скачать
 
-Windows/Linux 0.85-10 опубликованы. macOS ожидает нативной подготовки: [задание Mac-чату](docs/releases/0.85-10-macos-handoff.md).
+Выпуск 0.85-10 включает шесть проверенных пакетов для Windows, macOS и Linux.
 
 | Платформа | Сборка 0.85-10 | Запуск |
 | --- | --- | --- |
@@ -24,7 +24,7 @@ Windows/Linux 0.85-10 опубликованы. macOS ожидает натив�
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG готовится и будет добавлен в этот выпуск | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-10/kitty-ng-0.85-10-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 

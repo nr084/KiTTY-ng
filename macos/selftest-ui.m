@@ -5,6 +5,7 @@
 #include "storage.h"
 #include "language.h"
 #include "utilities.h"
+#include "quick-commands.h"
 #include "client.h"
 #include "kittyng-auth.h"
 #include <stdlib.h>
@@ -12,6 +13,11 @@ int kr_mac_self_test_ui(void){
     const char *enabled=getenv("KITTY_NG_SELF_TEST"),*root=kr_mac_root();
     if(!enabled||strcmp(enabled,"1")||!root||!strstr(root,"/kitty-ng-smoke.")||(strncmp(root,"/tmp/",5)&&strncmp(root,"/private/tmp/",13)))return 2;
     NSApplication *app=NSApplication.sharedApplication;app.activationPolicy=NSApplicationActivationPolicyAccessory;
+    if(getenv("KITTY_NG_SESSION_MENU_TEST")){
+        app.mainMenu=[NSMenu new];
+        extern int kr_mac_test_session_navigation_ui(void);
+        return kr_mac_test_session_menu_ui()||kr_mac_test_session_navigation_ui();
+    }
     NSView *view=[[NSView alloc]initWithFrame:NSMakeRect(0,0,600,200)];
     NSSearchField *search=[[NSSearchField alloc]initWithFrame:NSMakeRect(0,0,300,30)];search.stringValue=@"demo query";[view addSubview:search];
     NSPopUpButton *picker=[[NSPopUpButton alloc]initWithFrame:NSMakeRect(0,50,150,30) pullsDown:NO];[picker addItemsWithTitles:@[@"English",@"Русский"]];[picker selectItemAtIndex:1];[view addSubview:picker];
@@ -53,7 +59,10 @@ int kr_mac_self_test_ui(void){
     CHECK(kr_mac_test_save_window_ui()==0);
     CHECK(kr_mac_test_session_menu_ui()==0);
     CHECK(kr_mac_test_tabs_ui()==0);
+    extern int kr_mac_test_session_navigation_ui(void);
+    CHECK(kr_mac_test_session_navigation_ui()==0);
     CHECK(kr_mac_test_keygen_ui()==0);
+    CHECK(kr_mac_test_quick_commands_ui()==0);
     puts("PASS: native AppKit language round-trips, search cell/data preserved, stable language names, initial SSH/22 defaults");return 0;
 #undef CHECK
 }

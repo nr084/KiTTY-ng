@@ -17,6 +17,8 @@
 #include "utilities.h"
 #include "editor.h"
 #include "cli-language.h"
+#include "quick-commands.h"
+#include "kittyng-quick-commands.h"
 #include <sys/select.h>
 #include <locale.h>
 #include <wchar.h>
@@ -29,7 +31,7 @@ typedef struct MacSession {
     __unsafe_unretained MacTerminal *view;
     Conf *conf; Terminal *term; Backend *backend; Ldisc *ldisc; LogContext *logctx;
     struct unicode_data ucs; rgb palette[OSC4_NCOLOURS];
-    bool painting, closed, password_tried, started, raw_mouse, input_locked, commands_started, manual_abort;
+    bool painting, closed, password_tried, started, raw_mouse, input_locked, commands_started, manual_abort, specials_ready;
     char *commands;size_t command_index;uint64_t command_due,reconnect_due;
 } MacSession;
 static NSMutableArray<MacTerminal *> *windows;
@@ -90,6 +92,7 @@ void uxsel_input_remove(uxsel_id *id){}
 - (void)toggleTop:(id)sender;
 - (void)toggleLock:(id)sender;
 - (void)hideWindow:(id)sender;
+- (void)finishSession:(id)sender;
 - (void)fullscreen:(id)sender;
 - (void)showLog:(id)sender;
 - (void)settings:(id)sender;
@@ -231,7 +234,8 @@ static bool cursor(Seat *seat,int *x,int *y){if(!SEAT(seat)->term)return false;t
 /* Notification from Ldisc, not a request to update it. Match the GTK seat. */
 static const SeatDialogPromptDescriptions descriptions={"Accept and save","Connect once","Cancel","Cancelled","Continue","Cancel"};
 static const SeatDialogPromptDescriptions *prompt_descriptions(Seat *seat){return &descriptions;}
-static const SeatVtable seat_vt={.output=output,.eof=eof,.sent=nullseat_sent,.banner=banner,.get_userpass_input=prompts,.notify_session_started=started,.notify_remote_exit=exited,.notify_remote_disconnect=nullseat_notify_remote_disconnect,.connection_fatal=fatal,.nonfatal=nonfatal_seat,.update_specials_menu=nullseat_update_specials_menu,.get_ttymode=nullseat_get_ttymode,.set_busy_status=nullseat_set_busy_status,.confirm_ssh_host_key=host_key,.confirm_weak_crypto_primitive=weak_crypto,.confirm_weak_cached_hostkey=weak_crypto,.prompt_descriptions=prompt_descriptions,.is_utf8=nullseat_is_always_utf8,.echoedit_update=nullseat_echoedit_update,.get_display=nullseat_get_display,.get_windowid=nullseat_get_windowid,.get_window_pixel_size=pixel_size,.stripctrl_new=nullseat_stripctrl_new,.set_trust_status=trust,.can_set_trust_status=nullseat_can_set_trust_status_yes,.has_mixed_input_stream=nullseat_has_mixed_input_stream_no,.verbose=nullseat_verbose_yes,.interactive=nullseat_interactive_yes,.get_cursor_position=cursor};
+static void specialCommandsChanged(Seat *seat){SEAT(seat)->specials_ready=true;}
+static const SeatVtable seat_vt={.output=output,.eof=eof,.sent=nullseat_sent,.banner=banner,.get_userpass_input=prompts,.notify_session_started=started,.notify_remote_exit=exited,.notify_remote_disconnect=nullseat_notify_remote_disconnect,.connection_fatal=fatal,.nonfatal=nonfatal_seat,.update_specials_menu=specialCommandsChanged,.get_ttymode=nullseat_get_ttymode,.set_busy_status=nullseat_set_busy_status,.confirm_ssh_host_key=host_key,.confirm_weak_crypto_primitive=weak_crypto,.confirm_weak_cached_hostkey=weak_crypto,.prompt_descriptions=prompt_descriptions,.is_utf8=nullseat_is_always_utf8,.echoedit_update=nullseat_echoedit_update,.get_display=nullseat_get_display,.get_windowid=nullseat_get_windowid,.get_window_pixel_size=pixel_size,.stripctrl_new=nullseat_stripctrl_new,.set_trust_status=trust,.can_set_trust_status=nullseat_can_set_trust_status_yes,.has_mixed_input_stream=nullseat_has_mixed_input_stream_no,.verbose=nullseat_verbose_yes,.interactive=nullseat_interactive_yes,.get_cursor_position=cursor};
 static void log_event(LogPolicy *lp,const char *text){MacSession *s=container_of(lp,MacSession,logpolicy);[s->view.events addObject:S(text)];if(s->view.events.count>2000)[s->view.events removeObjectAtIndex:0];}
 static int log_append(LogPolicy *lp,Filename *file,void(*callback)(void*,int),void *context){return 1;}
 static void log_error(LogPolicy *lp,const char *text){message(text);}
@@ -252,6 +256,118 @@ static const LogPolicyVtable log_vt={.eventlog=log_event,.askappend=log_append,.
 }
 @end
 
+static MacTerminal *activeTerminal(void);
+static BOOL commandReady(MacTerminal *terminal) {
+    MacSession *s=terminal.session;
+    return s&&s->started&&!s->closed&&!s->input_locked&&s->backend&&backend_sendok(s->backend);
+}
+/* Menus are rebuilt on opening, but the destination is resolved again at the
+ * click: switching tabs never leaves a stale target in the global menu. */
+@interface MacCommandSubmenu : NSMenu <NSMenuDelegate,NSMenuItemValidation>
+@property(nonatomic,weak) MacTerminal *terminal;
+@property BOOL routed,quick;
+@end
+@implementation MacCommandSubmenu
+- (MacTerminal *)destination { return self.routed?activeTerminal():self.terminal; }
+- (BOOL)validateMenuItem:(NSMenuItem *)item {
+    return item.action==@selector(edit:)?YES:commandReady([self destination]);
+}
+- (void)edit:(id)sender { kr_mac_show_quick_commands(sender); }
+- (void)sendQuick:(NSMenuItem *)item {
+    MacTerminal *terminal=[self destination];if(!commandReady(terminal))return;
+    NSString *instruction=item.representedObject[@"instruction"];
+    NSData *bytes=[instruction dataUsingEncoding:NSUTF8StringEncoding];
+    if(!bytes.length)return;
+    term_keyinput(terminal.session->term,CS_UTF8,bytes.bytes,bytes.length);
+    if([item.representedObject[@"enter"]boolValue])term_keyinput(terminal.session->term,CS_UTF8,"\r",1);
+}
+- (void)sendSpecial:(NSMenuItem *)item {
+    MacTerminal *terminal=[self destination];if(!commandReady(terminal))return;
+    backend_special(terminal.session->backend,[item.representedObject[@"code"]intValue],[item.representedObject[@"arg"]intValue]);
+}
+- (void)menuNeedsUpdate:(NSMenu *)menu {
+    [self removeAllItems];MacTerminal *terminal=[self destination];
+    if(self.quick){
+        KrQuickCommands list;char *error=NULL;
+        BOOL loaded=kr_quick_load(&list,kr_mac_localize_string(@"Update Ubuntu").UTF8String,&error);
+        if(loaded)for(int i=0;i<KR_QUICK_LIMIT;i++){
+            KrQuickCommand *c=&list.items[i];if(!c->name||!*c->name||!c->instruction||!*c->instruction)continue;
+            NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:S(c->name) action:@selector(sendQuick:) keyEquivalent:@""];
+            item.identifier=@"KiTTYNG.RawData";item.target=self;
+            item.representedObject=@{@"instruction":S(c->instruction),@"enter":@(c->enter)};
+            item.enabled=commandReady(terminal);[self addItem:item];
+        }
+        if(!self.numberOfItems){NSMenuItem *empty=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(error?S(error):@"No quick commands") action:nil keyEquivalent:@""];empty.enabled=NO;[self addItem:empty];}
+        kr_quick_free(&list);sfree(error);
+        [self addItem:[NSMenuItem separatorItem]];
+        NSMenuItem *edit=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"Edit quick commands…") action:@selector(edit:) keyEquivalent:@""];edit.target=self;[self addItem:edit];
+    }else{
+        const SessionSpecial *specials=terminal.session&&terminal.session->backend&&terminal.session->specials_ready?backend_get_specials(terminal.session->backend):NULL;
+        NSMutableArray<NSMenu*> *stack=[NSMutableArray arrayWithObject:self];
+        for(int i=0;specials&&stack.count&&i<1024;i++){
+            const SessionSpecial *special=&specials[i];NSMenu *parent=stack.lastObject;
+            if(special->code==SS_EXITMENU){[stack removeLastObject];continue;}
+            if(special->code==SS_SEP){[parent addItem:[NSMenuItem separatorItem]];continue;}
+            NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(S(special->name)) action:special->code==SS_SUBMENU?NULL:@selector(sendSpecial:) keyEquivalent:@""];
+            if(special->code==SS_SUBMENU){item.submenu=[[NSMenu alloc]initWithTitle:item.title];[stack addObject:item.submenu];}
+            else{item.target=self;item.representedObject=@{@"code":@(special->code),@"arg":@(special->arg)};item.enabled=commandReady(terminal);}
+            [parent addItem:item];
+        }
+        if(!self.numberOfItems){NSMenuItem *empty=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"No special commands") action:nil keyEquivalent:@""];empty.enabled=NO;[self addItem:empty];}
+    }
+}
+@end
+static MacCommandSubmenu *commandSubmenu(MacTerminal *terminal,BOOL routed,BOOL quick) {
+    MacCommandSubmenu *menu=[[MacCommandSubmenu alloc]initWithTitle:kr_mac_localize_string(quick?@"Quick commands":@"Special Commands")];
+    menu.quick=quick;menu.routed=routed;menu.terminal=terminal;menu.delegate=menu;menu.allowsContextMenuPlugIns=NO;
+    [menu menuNeedsUpdate:menu];return menu;
+}
+/* Keep weak page identities: a menu left open across a disconnect must not
+ * retain or reactivate a disposed session. Titles are user/server data. */
+@interface MacSessionMenuTarget : NSObject
+@property(nonatomic,weak) MacTerminal *page;
+@end
+@implementation MacSessionMenuTarget
+@end
+@interface MacOpenSessionsMenu : NSMenu <NSMenuDelegate,NSMenuItemValidation>
+@end
+@implementation MacOpenSessionsMenu
+- (instancetype)init {
+    if((self=[super initWithTitle:kr_mac_localize_string(@"Open sessions")])){
+        self.delegate=self;self.allowsContextMenuPlugIns=NO;
+    }return self;
+}
+- (BOOL)validateMenuItem:(NSMenuItem*)item {
+    MacTerminal *page=((MacSessionMenuTarget*)item.representedObject).page;
+    return !NSApp.modalWindow && page.host && !page.host.closing && [page.host.pages containsObject:page];
+}
+- (void)activateSession:(NSMenuItem*)item {
+    if(![self validateMenuItem:item])return;
+    MacTerminal *page=((MacSessionMenuTarget*)item.representedObject).page;
+    [page.host selectPage:page];
+    if(page.terminalWindow.miniaturized)[page.terminalWindow deminiaturize:nil];
+    [page.terminalWindow makeKeyAndOrderFront:nil];
+    [page.terminalWindow makeFirstResponder:page];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+- (void)menuNeedsUpdate:(NSMenu*)menu {
+    [self removeAllItems];self.title=kr_mac_localize_string(@"Open sessions");
+    NSUInteger windowNumber=0;
+    for(MacTabHost *host in [tabHosts copy]){
+        if(host.closing||!host.pages.count)continue;
+        windowNumber++;
+        for(MacTerminal *page in [host.pages copy]){
+            NSString *title=[NSString stringWithFormat:@"%lu · %@",(unsigned long)windowNumber,page.sessionTitle?:@"KiTTY-ng"];
+            NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:title action:@selector(activateSession:) keyEquivalent:@""];
+            MacSessionMenuTarget *target=[MacSessionMenuTarget new];target.page=page;
+            item.target=self;item.representedObject=target;item.identifier=@"KiTTYNG.RawData";
+            item.state=host.window.keyWindow&&host.selected==page?NSControlStateValueOn:NSControlStateValueOff;
+            [self addItem:item];
+        }
+    }
+    if(!self.numberOfItems){NSMenuItem *empty=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"No open sessions") action:nil keyEquivalent:@""];empty.enabled=NO;[self addItem:empty];}
+}
+@end
 static NSArray *sessionCommands(void){
     return @[@[T(@"Duplicate session",@"Дублировать сеанс"),@"duplicate:"],
         @[T(@"Session settings…",@"Настройки сеанса…"),@"settings:"],
@@ -261,6 +377,9 @@ static NSArray *sessionCommands(void){
         @[T(@"Hide window",@"Скрыть окно"),@"hideWindow:"],
         @[T(@"Fullscreen",@"Полный экран"),@"fullscreen:"],
         @[T(@"Restart session",@"Перезапустить сеанс"),@"restart:"],
+        @[kr_mac_localize_string(@"End session"),@"finishSession:"],
+        @[kr_mac_localize_string(@"Special Commands"),@"specialCommands"],
+        @[kr_mac_localize_string(@"Quick commands"),@"quickCommands"],
         @[T(@"Send automatic commands",@"Отправить автокоманды"),@"startup:"],
         @[T(@"Send script…",@"Отправить скрипт…"),@"script:"],
         @[T(@"Send files…",@"Отправить файлы…"),@"upload:"],
@@ -277,10 +396,13 @@ static NSMenu *terminalMenu(id target,BOOL routed){
     if([menu respondsToSelector:@selector(setAutomaticallyInsertsWritingToolsItems:)])menu.automaticallyInsertsWritingToolsItems=NO;
 #pragma clang diagnostic pop
     for(NSArray *command in sessionCommands()){
+        if(routed&&[command[1]isEqualToString:@"quickCommands"])continue;
         NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:command[0]
             action:routed?@selector(performSessionAction:):NSSelectorFromString(command[1]) keyEquivalent:@""];
         item.identifier=[@"KiTTYNG.Session." stringByAppendingString:command[1]];
-        item.representedObject=command[1];item.target=target;[menu addItem:item];
+        item.representedObject=command[1];item.target=target;
+        if([command[1]isEqualToString:@"quickCommands"]||[command[1]isEqualToString:@"specialCommands"]){item.action=NULL;item.submenu=commandSubmenu(routed?nil:target,routed,[command[1]isEqualToString:@"quickCommands"]);}
+        [menu addItem:item];
     }
     return menu;
 }
@@ -304,24 +426,61 @@ static MacTerminal *activeTerminal(void){
 void kr_mac_add_session_menu(NSMenu *menu){
     static TerminalMenuRouter *router;if(!router)router=[TerminalMenuRouter new];
     NSMenuItem *item=[[NSMenuItem alloc]initWithTitle:T(@"Session",@"Сеанс") action:NULL keyEquivalent:@""];
-    item.submenu=terminalMenu(router,YES);[menu addItem:item];
+    item.submenu=terminalMenu(router,YES);
+    NSMenuItem *separator=NSMenuItem.separatorItem;separator.identifier=@"KiTTYNG.Session.listSeparator";[item.submenu addItem:separator];
+    NSMenuItem *sessions=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"Open sessions") action:nil keyEquivalent:@""];
+    sessions.identifier=@"KiTTYNG.Session.openSessions";sessions.submenu=[MacOpenSessionsMenu new];[item.submenu addItem:sessions];
+    [menu addItem:item];
+    NSMenuItem *quick=[[NSMenuItem alloc]initWithTitle:kr_mac_localize_string(@"Quick commands") action:nil keyEquivalent:@""];
+    quick.identifier=@"KiTTYNG.QuickCommands.Menu";quick.submenu=commandSubmenu(nil,YES,YES);[menu addItem:quick];
 }
 int kr_mac_test_session_menu_ui(void){
     NSMenu *context=terminalMenu(nil,NO);
-    if(context.numberOfItems!=14||context.allowsContextMenuPlugIns)return 1;
+    if(context.numberOfItems!=17||context.allowsContextMenuPlugIns)return 1;
     if(![context.itemArray[0].representedObject isEqualToString:@"duplicate:"])return 1;
     [context addItem:[[NSMenuItem alloc]initWithTitle:@"AutoFill" action:NULL keyEquivalent:@""]];
     [context insertItem:[[NSMenuItem alloc]initWithTitle:@"Injected item" action:NULL keyEquivalent:@""] atIndex:0];
-    if(context.numberOfItems!=14)return 1;
+    if(context.numberOfItems!=17)return 1;
     kr_mac_add_session_menu(NSApp.mainMenu);
-    NSMenu *top=NSApp.mainMenu.itemArray.lastObject.submenu;
-    if(top.numberOfItems!=context.numberOfItems)return 1;
-    for(NSUInteger i=0;i<top.numberOfItems;i++){
+    NSMenu *top=NSApp.mainMenu.itemArray[NSApp.mainMenu.numberOfItems-2].submenu;
+    if(top.numberOfItems-1!=context.numberOfItems)return 1;
+    NSUInteger contextIndex=0;
+    for(NSUInteger i=0;i<top.numberOfItems-2;i++){
         NSMenuItem *item=top.itemArray[i];
-        if(![item.representedObject isEqual:context.itemArray[i].representedObject])return 1;
-        if([(TerminalMenuRouter*)item.target validateMenuItem:item])return 1;
+        if([context.itemArray[contextIndex].representedObject isEqual:@"quickCommands"])contextIndex++;
+        if(![item.representedObject isEqual:context.itemArray[contextIndex++].representedObject])return 1;
+        if(item.action&&[(TerminalMenuRouter*)item.target validateMenuItem:item])return 1;
     }
+    NSMenu *quick=NSApp.mainMenu.itemArray.lastObject.submenu;
+    if(![NSApp.mainMenu.itemArray.lastObject.identifier isEqualToString:@"KiTTYNG.QuickCommands.Menu"])return 1;
+    for(NSMenuItem *entry in quick.itemArray)if(entry.action==@selector(sendQuick:)&&[(MacCommandSubmenu*)quick validateMenuItem:entry])return 1;
     puts("PASS: identical terminal/context commands, duplicate, no injected AutoFill, inactive-session routing disabled");return 0;
+}
+
+int kr_mac_test_session_navigation_ui(void){
+#define NAV_CHECK(c) do{if(!(c)){fprintf(stderr,"FAIL session navigation: %s\n",#c);return 1;}}while(0)
+    for(int language=0;language<2;language++){
+        NAV_CHECK(kr_mac_set_language(language));
+        MacTabHost *first=[MacTabHost new],*second=[MacTabHost new];
+        MacTerminal *a=[MacTerminal new],*b=[MacTerminal new],*c=[MacTerminal new];
+        a.sessionTitle=@"Данные & A";b.sessionTitle=@"Данные & B";c.sessionTitle=@"Other C";
+        [first addPage:a];[first addPage:b];[second addPage:c];
+        MacOpenSessionsMenu *menu=[MacOpenSessionsMenu new];[menu menuNeedsUpdate:menu];
+        NAV_CHECK(menu.numberOfItems==3);
+        NAV_CHECK([menu.title isEqualToString:language?@"Открытые сеансы":@"Open sessions"]);
+        NSMenuItem *selectA=menu.itemArray[0],*staleB=menu.itemArray[1],*selectC=menu.itemArray[2];
+        NAV_CHECK([selectA.title containsString:a.sessionTitle]);
+        [first.window orderOut:nil];[menu activateSession:selectA];
+        NAV_CHECK(first.selected==a&&first.window.visible&&first.window.firstResponder==a);
+        [menu activateSession:selectC];NAV_CHECK(second.selected==c&&second.window.firstResponder==c);
+        [b finishSession:nil];NAV_CHECK(first.pages.count==1&&first.selected==a&&second.pages.count==1);
+        NAV_CHECK(![menu validateMenuItem:staleB]);[menu activateSession:staleB];
+        [a finishSession:nil];NAV_CHECK(!first.pages.count&&second.pages.count==1);
+        [c finishSession:nil];[menu menuNeedsUpdate:menu];
+        NAV_CHECK(menu.numberOfItems==1&&!menu.itemArray[0].enabled);
+    }
+    puts("PASS: RU/EN session menu selects inactive tabs across windows, restores hidden windows, keeps literal titles, rejects stale entries and ends only the selected session");return 0;
+#undef NAV_CHECK
 }
 
 @implementation MacTerminal
@@ -358,6 +517,19 @@ int kr_mac_test_session_menu_ui(void){
 - (void)toggleTop:(id)sender {if(self.session){bool top=!conf_get_bool(self.session->conf,CONF_alwaysontop);conf_set_bool(self.session->conf,CONF_alwaysontop,top);self.terminalWindow.level=top?NSFloatingWindowLevel:NSNormalWindowLevel;}}
 - (void)toggleLock:(id)sender {if(self.session)self.session->input_locked=!self.session->input_locked;}
 - (void)hideWindow:(id)sender {[self.terminalWindow orderOut:nil];}
+- (void)finishSession:(id)sender {
+    MacTabHost *host=self.host;
+    if(!host||![host.pages containsObject:self])return;
+    MacSession *s=self.session;
+    if(s&&!s->closed&&conf_get_bool(s->conf,CONF_warn_on_close)){
+        NSAlert *alert=[NSAlert new];alert.messageText=kr_mac_localize_string(@"End this session?");
+        [alert addButtonWithTitle:kr_mac_localize_string(@"Cancel")];
+        [alert addButtonWithTitle:kr_mac_localize_string(@"End session")];
+        if([alert runModal]!=NSAlertSecondButtonReturn){[host.window makeFirstResponder:host.selected];return;}
+    }
+    [host closePage:self];
+}
+
 - (void)fullscreen:(id)sender {[self.terminalWindow toggleFullScreen:nil];}
 - (void)settings:(id)sender {if(self.session){const char *name=conf_get_str(self.session->conf,CONF_kr_session_name);if(*name)kr_mac_edit_profile(name,true);else kr_mac_quick_connect_conf(self.session->conf);}}
 - (void)showLog:(id)sender {NSAlert *alert=[NSAlert new];alert.messageText=T(@"Event log",@"Журнал событий");NSScrollView *scroll=[[NSScrollView alloc]initWithFrame:NSMakeRect(0,0,650,300)];scroll.hasVerticalScroller=YES;NSTextView *text=[[NSTextView alloc]initWithFrame:scroll.bounds];text.editable=NO;text.string=[self.events componentsJoinedByString:@"\n"];text.font=[NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];scroll.documentView=text;alert.accessoryView=scroll;[alert runModal];}
@@ -383,7 +555,7 @@ int kr_mac_test_session_menu_ui(void){
     
 }
 - (void)connect {
-    MacSession *s=self.session;if(!s)return;s->started=false;s->closed=false;s->manual_abort=false;s->password_tried=false;conf_set_int(s->conf,CONF_kr_auth_attempts,0);s->commands_started=false;s->reconnect_due=0;cancel_commands(s);
+    MacSession *s=self.session;if(!s)return;s->started=false;s->closed=false;s->specials_ready=false;s->manual_abort=false;s->password_tried=false;conf_set_int(s->conf,CONF_kr_auth_attempts,0);s->commands_started=false;s->reconnect_due=0;cancel_commands(s);
     if(s->ldisc){ldisc_free(s->ldisc);s->ldisc=NULL;}if(s->backend){backend_free(s->backend);s->backend=NULL;}term_provide_backend(s->term,NULL);
     char *realhost=NULL;const struct BackendVtable *backend=backend_vt_from_proto(conf_get_int(s->conf,CONF_protocol));char *error=backend?backend_init(backend,&s->seat,&s->backend,s->logctx,s->conf,conf_get_str(s->conf,CONF_host),conf_get_int(s->conf,CONF_port),&realhost,conf_get_bool(s->conf,CONF_tcp_nodelay),conf_get_bool(s->conf,CONF_tcp_keepalives)):dupstr("This protocol is unavailable on macOS");
     if(error){fatal(&s->seat,error);sfree(error);}else{term_provide_backend(s->term,s->backend);s->ldisc=ldisc_create(s->conf,s->term,s->backend,&s->seat);term_setup_window_titles(s->term,realhost);backend_size(s->backend,s->term->cols,s->term->rows);}sfree(realhost);[self setNeedsDisplay:YES];

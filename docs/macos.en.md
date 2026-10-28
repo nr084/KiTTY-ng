@@ -2,7 +2,7 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** The 0.85-9 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** The 0.85-10 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
 
 ## Features in 0.85-8 and 0.85-9
 
@@ -10,9 +10,25 @@ Every tab context menu now offers Duplicate session, including inactive tabs. An
 
 Portable Windows profiles remain shared, with data outside `.app`. The shared RU/EN engine is checked natively for 0.85-9. The Mac DMG joins the published Windows/Linux packages with its own recorded source commit.
 
+## Switching and ending sessions
+
+**Session → Open sessions** lists every connection across all windows, including inactive tabs. The number before a title identifies its window. Selecting an entry activates that tab and restores its hidden or minimized window. Session titles are preserved literally.
+
+**Session → End session** closes only the active tab/connection. Other sessions stay open; the configured close warning is respected.
+
+![Confirm ending one session](screenshots/macos-end-session-en.png)
+
+## Quick commands in 0.85-10
+
+Up to 20 shared commands: configure with **Window → Quick commands**, run from the separate top menu immediately right of **Session** or the terminal context menu. The list is stored in `kitty.ini` outside `.app`, separately from profiles. [Guide](quick-commands.en.md). About shows the version and build date.
+
+![Quick-command editor](screenshots/macos-quick-commands-en.png)
+
+![Version and build date](screenshots/macos-about-en.png)
+
 ## First launch
 
-1. Open `kitty-ng-0.85-9-macos-universal.dmg`.
+1. Open `kitty-ng-0.85-10-macos-universal.dmg`.
 2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.
