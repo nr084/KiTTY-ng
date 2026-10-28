@@ -199,7 +199,7 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   def tab_menu(command_index):
    point=w.POINT(25,12);u.ClientToScreen(strip,ctypes.byref(point));u.SetCursorPos(point.x,point.y)
    u.PostMessageW(strip,0x204,2,(12<<16)|25);u.PostMessageW(strip,0x205,0,(12<<16)|25)
-   popup=wait(lambda:next((h for h in enum() if cls(h)=='#32768' and pid(h)==pid(host)),None))
+   popup=wait(lambda:next((h for h in enum() if cls(h)=='#32768' and pid(h)==pid(host) and u.IsWindowVisible(h)),None))
    menu=u.SendMessageW(popup,0x1e1,0,0)
    caption=ctypes.create_unicode_buffer(100)
    u.GetMenuStringW.argtypes=[w.HMENU,w.UINT,w.LPWSTR,ctypes.c_int,w.UINT]
@@ -217,6 +217,9 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   fourth=wait(lambda:next((h for h in enum(host) if title(h)=='Demo session 4'),None));pids.add(pid(fourth))
   u.PostMessageW(fourth,0x8000+0x4B0,host,0)
   wait(lambda:not u.IsWindow(fourth))
+  wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
+  mouse(0x201,250,buttons=1);mouse(0x202,250)
+  wait(lambda:u.IsWindowVisible(second))
   tab_menu(4)
   wait(lambda:u.SendMessageW(strip,0x130b,0,0)==0)
   assert u.IsWindowVisible(second) and not u.IsWindowVisible(first)
