@@ -62,6 +62,12 @@ for path in (root / "windows").glob("*.c"):
     text = path.read_text(encoding="utf8")
     for match in re.finditer(r'kr_messagebox\([^,]+,\s*('+literal.pattern+r')', text):
         labels.add(ast.literal_eval(match.group(1)))
+# Client-owned error dialogs, including early startup failures and utilities.
+for path in [*(root / "windows").glob("*.c"), *(root / "linux").glob("*.c"), *(root/name for name in ("cmdgen.c","pscp.c","psftp.c"))]:
+    text=re.sub(r'/\*.*?\*/','',path.read_text(encoding="utf8"),flags=re.S)
+    for call in re.finditer(r'\b(?:MessageBox[AW]?|kr_messagebox|nonfatal|fatalbox|modalfatalbox|cmdline_error|fatal_message_box|errorbox|show_error|gtk_message_dialog_new|gtk_message_dialog_format_secondary_text)\s*\(([^;]*?)\);',text,re.S):
+        for label in strings(call[1]):
+            if len(label.split())>2:labels.add(label)
 labels.add("Duplicate session")
 labels.update(event_labels)
 print(f"Event log audit: {len(event_labels)} literal templates")

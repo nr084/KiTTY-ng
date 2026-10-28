@@ -2091,5 +2091,9 @@
   "Access granted. Press Return to begin session. ": "Доступ разрешён. Нажмите Enter для начала сеанса. ",
   "Current password (blank for previously entered password): ": "Текущий пароль (пустой ввод — использовать предыдущий): ",
   "Enter new password: ": "Введите новый пароль: ",
-  "Confirm new password: ": "Подтвердите новый пароль: "
+  "Confirm new password: ": "Подтвердите новый пароль: ",
+  "Demo screenshot failure": "Не удалось создать демонстрационный снимок окна",
+  "test requires isolated portable preferences": "Для проверки требуются отдельные портативные настройки",
+  "Unsupported protocol number found": "Обнаружен неподдерживаемый номер протокола",
+  "Failed to initialize COM subsystem": "Не удалось инициализировать подсистему COM"
 }
