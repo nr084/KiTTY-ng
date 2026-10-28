@@ -246,7 +246,7 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   print('PASS: SessionTabs=0 retains independent top-level windows',flush=True)
   print('PASS: independent SSH tabs; bar hidden for one session; active-tab input; mouse drag and context-menu move preserve connections; tab close ignores WarnOnClose; window close still confirms',flush=True)
  finally:
-  if sys.exc_info()[0]:print("DEBUG windows:",[(cls(h),title(h)) for h in enum() if pid(h) in pids],"connections",len(channels),flush=True)
+  if sys.exc_info()[0]:print("DEBUG windows:",[(cls(h),title(h),[title(child) for child in enum(h)] if cls(h)=="#32770" else []) for h in enum() if pid(h) in pids],"connections",len(channels),flush=True)
   if "host" in locals() and u.IsWindow(host):
    from PIL import ImageGrab
    u.SetForegroundWindow(host);time.sleep(.3);rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).save(binary.parent/"tabs-debug.png")

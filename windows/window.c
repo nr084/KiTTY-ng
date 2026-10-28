@@ -1155,7 +1155,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         }
     }
     if (!kr_initial_tab_parent && conf_get_bool(wgs->conf, CONF_fullscreen) && conf_get_int(wgs->conf, CONF_resize_action) != RESIZE_DISABLED)
-        make_full_screen(wgs);
+        flip_full_screen(wgs);
     else if (!kr_initial_tab_parent && (conf_get_bool(wgs->conf, CONF_maximize) ||
              (conf_get_bool(wgs->conf, CONF_save_windowpos) && conf_get_bool(wgs->conf, CONF_windowstate))))
         ShowWindow(wgs->term_hwnd, SW_MAXIMIZE);
