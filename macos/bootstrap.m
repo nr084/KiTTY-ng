@@ -74,22 +74,25 @@ int kr_mac_test_startup_ui(void) {
     NSFileManager *fm = NSFileManager.defaultManager;
     [fm createDirectoryAtURL:bundle withIntermediateDirectories:YES attributes:nil error:nil];
     [fm createDirectoryAtURL:chosen withIntermediateDirectories:YES attributes:nil error:nil];
-    BOOL ok = [initialRoot(bundle, preferences).path isEqualToString:install.path];
+    BOOL ok = YES;
+#define STARTUP_CHECK(condition) do { if (!(condition)) { fprintf(stderr, "FAIL startup: %s\n", #condition); ok = NO; } } while (0)
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
     [preferences setObject:chosen.path forKey:rootPreference]; [preferences synchronize];
     preferences = [[NSUserDefaults alloc] initWithSuiteName:suite];
-    ok &= [initialRoot(bundle, preferences).path isEqualToString:chosen.path];
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:chosen.path]);
     NSURL *sessions = [install URLByAppendingPathComponent:@"Sessions/folder"];
     [fm createDirectoryAtURL:sessions withIntermediateDirectories:YES attributes:nil error:nil];
     [@"HostName\\synthetic.invalid\\\n" writeToURL:[sessions URLByAppendingPathComponent:@"Example"] atomically:YES encoding:NSUTF8StringEncoding error:nil];
-    ok &= [initialRoot(bundle, preferences).path isEqualToString:install.path];
-    ok &= !usableRoot(bundle) && !usableRoot([bundle URLByAppendingPathComponent:@"Contents"]);
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
+    STARTUP_CHECK(!usableRoot(bundle) && !usableRoot([bundle URLByAppendingPathComponent:@"Contents"]));
     [fm removeItemAtURL:[install URLByAppendingPathComponent:@"Sessions"] error:nil];
     [preferences setObject:bundle.path forKey:rootPreference];
-    ok &= [initialRoot(bundle, preferences).path isEqualToString:install.path];
+    STARTUP_CHECK([initialRoot(bundle, preferences).path isEqualToString:install.path]);
     [preferences removePersistentDomainForName:suite];
     [fm removeItemAtURL:install error:nil]; [fm removeItemAtURL:chosen error:nil];
     if (ok) puts("PASS: .app parent discovery, existing nested sessions override remembered folder, persistent folder selection, bundle rejected");
     return ok ? 0 : 1;
+#undef STARTUP_CHECK
 }
 
 @interface SessionTableView : NSTableView
