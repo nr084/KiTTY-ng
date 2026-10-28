@@ -6,7 +6,8 @@ logging.getLogger('paramiko').setLevel(logging.CRITICAL)
 def wait(fn):
     end=time.monotonic()+15
     while time.monotonic()<end:
-        value=fn()
+        try:value=fn()
+        except subprocess.CalledProcessError:value=None
         if value:return value
         time.sleep(.1)
     raise AssertionError('Timeout waiting for quick-command GUI')

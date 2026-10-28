@@ -1,6 +1,6 @@
 # KiTTY-ng
 
-**KiTTY-ng 0.85-9 для Windows, Linux и macOS**: общее русско-английское языковое ядро, переводы сообщений SSH и исправления вкладок. [Изменения](docs/releases/0.85-9.md) · [Скачать выпуск](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-9).
+**KiTTY-ng 0.85-10 для Windows и Linux**: общие быстрые команды, исправления компоновки и кириллицы настроек Windows, дата сборки в «О программе». [Изменения](docs/releases/0.85-10.md) · [Скачать](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10). macOS Universal готовится отдельно.
 
 **macOS Universal 2 · Портативный режим**: поддерживаются Apple Silicon и Intel. Профили и ключи хранятся вне приложения; общую портативную папку можно использовать с Windows. Нативные вкладки сеансов включены.
 
@@ -16,13 +16,13 @@
 
 ## Скачать
 
-| Платформа | Сборка 0.85-9 | Запуск |
+| Платформа | Сборка 0.85-10 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86_64.tar.zst) | `chmod +x`, запуск |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/kitty-ng/releases/download/v0.85-9/kitty-ng-0.85-9-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86_64.tar.zst) | `chmod +x`, запуск |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | Universal DMG готовится и будет добавлен в этот выпуск | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
@@ -37,13 +37,14 @@
 ## Возможности
 
 - macOS (ранее выпущенные возможности): нативные вкладки, дублирование временных подключений без записи профиля и верхнее меню активного сеанса. [Подробнее](docs/tabs.md).
-- Вкладки Windows/Linux в 0.85-9: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
+- Вкладки Windows/Linux в 0.85-10: дублирование в том же окне, перетаскивание, отдельные кнопки закрытия. [Подробнее](docs/tabs.md).
 
 - Папки сеансов, быстрый поиск без учёта регистра, редактирование и дублирование.
 - Формат оригинального KiTTY и переносимые ссылки на ключи и сертификаты.
 - SCP/SFTP через kscp, отправка перетаскиванием и скачивание.
 - Генератор KiTTYgen, агент Kageant и настройки аутентификации текущего сеанса.
 - Автокоманды и UTF-8-скрипты после входа, задержки и переподключение.
+- [Быстрые команды](docs/quick-commands.md): до 20 команд с названиями, общих для всех сеансов; настройка в «Окно → Быстрые команды».
 - Настройки терминала, горячие клавиши, русский и английский интерфейс.
 
 ## Total Commander · kitty-ng-fs
@@ -83,7 +84,7 @@
 - [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-9](docs/releases/0.85-9.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-10](docs/releases/0.85-10.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 

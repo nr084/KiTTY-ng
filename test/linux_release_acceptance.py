@@ -7,11 +7,28 @@ binaries={name:hashlib.sha256((app/'usr/bin'/name).read_bytes()).hexdigest() for
 assert binaries==package['binaries']
 report={'status':'running','version':version,'source_commit':build['source_commit'],'binaries':binaries,'tests':[]}
 path=out/'native-acceptance.json'
+previous=json.loads(path.read_text()) if '--resume' in sys.argv and path.exists() else {}
+checkpoint_time=path.stat().st_mtime if path.exists() else 0
+same_package=all(previous.get(k)==report[k] for k in ('version','source_commit','binaries'))
+report['inputs']={}
+def inputs(name):
+ files=[p for p in root.glob('*.py') if p.name!='linux_release_acceptance.py']
+ if name=='duplicate-password-retry':files.append(root/'kittyng-password-vector.json')
+ return files,{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+
 def run(name,args):
+ files,digests=inputs(name)
+ cached=previous.get('inputs',{}).get(name)
+ # Older checkpoints predate input digests. Reuse only when every relevant
+ # test file is still older than the checkpoint; otherwise run it again.
+ unchanged=(cached==digests) if cached is not None else all(p.stat().st_mtime<=checkpoint_time for p in files)
+ if same_package and name in previous.get('tests',[]) and unchanged:
+  report['tests'].append(name);report['inputs'][name]=digests
+  path.write_text(json.dumps(report,indent=2));print('REUSE: '+name,flush=True);return
  with (out/(name+'.log')).open('w') as log:
   result=subprocess.run(args,stdout=log,stderr=subprocess.STDOUT,timeout=240)
  if result.returncode:report['status']='failed';report['failed_suite']=name;path.write_text(json.dumps(report,indent=2));raise RuntimeError(name+' failed: '+(out/(name+'.log')).read_text()[-5000:])
- report['tests'].append(name);path.write_text(json.dumps(report,indent=2));print('PASS: '+name,flush=True)
+ report['tests'].append(name);report['inputs'][name]=digests;path.write_text(json.dumps(report,indent=2));print('PASS: '+name,flush=True)
 def gui(script,*args):return ['xvfb-run','-a','-s','-screen 0 1600x1000x24','dbus-run-session','--','python3',str(root/script),*map(str,args)]
 run('appimage-version',['xvfb-run','-a',str(root/f'kitty-ng-{version}-x86_64.AppImage'),'--appimage-extract-and-run','--version'])
 run('native-gui',gui('linux_native.py','--binary',app/'AppRun','--output',out/'native'))

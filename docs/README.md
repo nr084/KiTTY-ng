@@ -4,6 +4,7 @@
 
 | Руководство | Содержание |
 | --- | --- |
+| [Быстрые команды](quick-commands.md) | Общие команды, редактор и хранение вне профилей |
 | [Windows](windows.md) | Запуск, язык, утилиты и передача файлов |
 | [macOS Universal](macos.md) | DMG, portable-режим и общие Windows-профили |
 | [Linux · AppImage](linux.md) | AppImage, локальная сборка на Windows и нативные проверки |
