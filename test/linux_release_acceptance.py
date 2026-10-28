@@ -15,6 +15,7 @@ def run(name,args):
 def gui(script,*args):return ['xvfb-run','-a','-s','-screen 0 1600x1000x24','dbus-run-session','--','python3',str(root/script),*map(str,args)]
 run('appimage-version',['xvfb-run','-a',str(root/f'kitty-ng-{version}-x86_64.AppImage'),'--appimage-extract-and-run','--version'])
 run('native-gui',gui('linux_native.py','--binary',app/'AppRun','--output',out/'native'))
+run('quick-commands',gui('linux_quick_commands.py',app/'AppRun'))
 run('tabs',gui('linux_tabs.py',app/'AppRun',out/'tabs'))
 run('tabs-key',gui('linux_tabs.py',app/'AppRun',out/'tabs-key','--key'))
 run('duplicate-password-retry',gui('duplicate_password_retry.py',app/'AppRun','--report',out/'duplicate-password-retry.json'))

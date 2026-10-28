@@ -5653,14 +5653,6 @@ static void gtk_seat_update_specials_menu(Seat *seat)
     } else {
         gtk_widget_hide(inst->specialsitem1);
         gtk_widget_hide(inst->specialsitem2);
-#ifdef KITTY_NG_LINUX
-        MKSUBMENU(kr_mac_translate("Quick commands"));
-        GtkWidget *quick_menu = gtk_menu_new();
-        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), quick_menu);
-        g_signal_connect(quick_menu, "show", G_CALLBACK(quick_commands_show), inst);
-        quick_commands_show(quick_menu, inst);
-        MKSEP();
-#endif
     }
 }
 
@@ -6184,6 +6176,14 @@ void new_session_window(Conf *conf, const char *geometry_string)
         inst->specialsitem2 = menuitem;
         gtk_widget_hide(inst->specialsitem1);
         gtk_widget_hide(inst->specialsitem2);
+#ifdef KITTY_NG_LINUX
+        MKSUBMENU(kr_mac_translate("Quick commands"));
+        GtkWidget *quick_menu = gtk_menu_new();
+        gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), quick_menu);
+        g_signal_connect(quick_menu, "show", G_CALLBACK(quick_commands_show), inst);
+        quick_commands_show(quick_menu, inst);
+        MKSEP();
+#endif
         MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
         MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
         MKSEP();
