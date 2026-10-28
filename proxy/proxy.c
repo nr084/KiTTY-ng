@@ -390,7 +390,7 @@ static bool proxy_for_destination(SockAddr *addr, const char *hostname,
 static char *dns_log_msg(const char *host, int addressfamily,
                          const char *reason)
 {
-    return dupprintf("Looking up host \"%s\"%s for %s", host,
+    return kr_message_printf("Looking up host \"%s\"%s for %s", host,
                      (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
                       addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
                       ""), kr_event_text(reason));
@@ -609,7 +609,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         bufchain_sink_init(ps->pn->output, &ps->output_from_negotiator);
 
         {
-            char *logmsg = dupprintf("Will use %s proxy at %s:%d to connect"
+            char *logmsg = kr_message_printf("Will use %s proxy at %s:%d to connect"
                                      " to %s:%d", vt->type,
                                      conf_get_str(conf, CONF_proxy_host),
                                      conf_get_int(conf, CONF_proxy_port),
@@ -640,7 +640,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
         {
             char addrbuf[256], *logmsg;
             sk_getaddr(proxy_addr, addrbuf, lenof(addrbuf));
-            logmsg = dupprintf("Connecting to %s proxy at %s port %d",
+            logmsg = kr_message_printf("Connecting to %s proxy at %s port %d",
                                vt->type, addrbuf,
                                conf_get_int(conf, CONF_proxy_port));
             plug_log(plug, &ps->sock, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);

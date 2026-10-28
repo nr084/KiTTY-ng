@@ -15,25 +15,25 @@ void backend_socket_log(Seat *seat, LogContext *logctx, Socket *sock,
       case PLUGLOG_CONNECT_TRYING:
         sk_getaddr(addr, addrbuf, lenof(addrbuf));
         if (sk_addr_needs_port(addr)) {
-            msg = dupprintf("Connecting to %s port %d", addrbuf, port);
+            msg = kr_message_printf("Connecting to %s port %d", addrbuf, port);
         } else {
-            msg = dupprintf("Connecting to %s", addrbuf);
+            msg = kr_message_printf("Connecting to %s", addrbuf);
         }
         break;
       case PLUGLOG_CONNECT_FAILED:
         sk_getaddr(addr, addrbuf, lenof(addrbuf));
-        msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+        msg = kr_message_printf("Failed to connect to %s: %s", addrbuf, error_msg);
         break;
       case PLUGLOG_CONNECT_SUCCESS:
         if (addr)
             sk_getaddr(addr, addrbuf, lenof(addrbuf));
         else /* fallback if address unavailable */
-            sprintf(addrbuf, "remote host");
-        msg = dupprintf("Connected to %s", addrbuf);
+            snprintf(addrbuf, sizeof(addrbuf), "%s", kr_event_text("remote host"));
+        msg = kr_message_printf("Connected to %s", addrbuf);
         if (sock) {
             SocketEndpointInfo *local_end = sk_endpoint_info(sock, false);
             if (local_end) {
-                char *newmsg = dupprintf("%s (from %s)", msg,
+                char *newmsg = kr_message_printf("%s (from %s)", msg,
                                          local_end->log_text);
                 sfree(msg);
                 msg = newmsg;
@@ -47,7 +47,7 @@ void backend_socket_log(Seat *seat, LogContext *logctx, Socket *sock,
         int len, log_to_term;
 
         /* Suffix \r\n temporarily, so we can log to the terminal. */
-        msg = dupprintf("%s\r\n", error_msg);
+        msg = kr_message_printf("%s\r\n", error_msg);
         len = strlen(msg);
         assert(len >= 2);
 
