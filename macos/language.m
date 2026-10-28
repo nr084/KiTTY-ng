@@ -43,6 +43,7 @@ NSString *kr_mac_localize_string(NSString *text){
 static char sourceKeys;
 static NSString *boundText(id owner, NSString *property, NSString *text) {
     if (!text) return nil;
+    if ([text isEqualToString:@"English"] || [text isEqualToString:@"Русский"]) return text;
     NSMutableDictionary *keys=objc_getAssociatedObject(owner,&sourceKeys);
     if (!keys) {
         keys=[NSMutableDictionary dictionary];
