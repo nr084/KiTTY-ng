@@ -150,6 +150,7 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
     wait(lambda:u.GetForegroundWindow()==host)
    point=w.POINT(round(x*scale),round(y*scale));u.ClientToScreen(strip,ctypes.byref(point))
    u.SetCursorPos(point.x,point.y)
+   time.sleep(.15)  # Drain the real cursor move before the explicit native gesture.
    # Dispatch drag events synchronously to the real control; a shared desktop
    # can otherwise coalesce mouse movement between queued down/up events.
    # Keyboard checks below still use SendInput, never posted WM_CHAR.
@@ -190,23 +191,28 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   wait(lambda:u.SendMessageW(strip,0x1304,0,0)==3)
   from PIL import ImageGrab
   u.SetForegroundWindow(host);time.sleep(.3);rect=w.RECT();u.GetWindowRect(strip,ctypes.byref(rect))
+  # Establish a non-hover state explicitly after restore/duplicate changes geometry.
+  u.SetCursorPos(rect.left+4,rect.bottom+30)
+  u.SendMessageW(strip,0x2A3,0,0)
+  u.InvalidateRect(strip,None,False);u.UpdateWindow(strip);time.sleep(.2)
   pixels=ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).convert('RGB')
   def red_count(image):
    return sum(c[0]>150 and c[0]>c[1]*1.5 and c[0]>c[2]*1.5 for c in image.getdata())
-  assert red_count(pixels)==0, 'Close buttons should be gray before hover'
   columns=[x for x in range(pixels.width) if sum(120<c[0]<175 and 2<c[1]-c[0]<12 and 2<c[2]-c[1]<14 for c in [pixels.getpixel((x,y)) for y in range(pixels.height)])>3]
   groups=[]
   for x in columns:
    if not groups or x>groups[-1][-1]+1:groups.append([])
    groups[-1].append(x)
   assert len(groups)==3, 'Each tab must have its own gray close icon'
+  # Scope color assertions to icons: ClearType text has red subpixels on dark backgrounds.
+  assert all(red_count(pixels.crop((g[0],0,g[-1]+1,pixels.height)))==0 for g in groups), 'Close buttons should be gray before hover'
   x=sum(groups[-1])//len(groups[-1]);y=pixels.height//2
   point=w.POINT(x,y);u.ClientToScreen(strip,ctypes.byref(point));u.SetCursorPos(point.x,point.y)
   # Use the same synchronous native-control input as the drag test above.
   # Shared/remote desktops do not always generate WM_MOUSEMOVE on cursor warps.
   u.SendMessageW(strip,0x200,0,(y<<16)|x);time.sleep(.3)
   hovered=ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).convert('RGB')
-  assert red_count(hovered)>12, 'Hovered close button must become clearly red'
+  assert red_count(hovered.crop((groups[-1][0],0,groups[-1][-1]+1,hovered.height)))>12, 'Hovered close button must become clearly red'
   u.SendMessageW(strip,0x201,1,(y<<16)|x);u.SendMessageW(strip,0x202,0,(y<<16)|x)
   wait(lambda:not u.IsWindow(third));wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
   keyboard(second,2,'r')
