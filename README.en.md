@@ -1,20 +1,16 @@
 # KiTTY-ng
 
-**KiTTY-ng 0.85-10 for Windows, macOS and Linux**: global quick commands, corrected Windows settings layout and Cyrillic text, and build dates in About. [Release notes](docs/releases/0.85-10.md) · [Download](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10).
+**SSH client, file transfers and portable sessions for Windows, macOS and Linux.**
 
-**Windows/Linux update:** light, dark and system themes for the Windows client and utilities, corrected Kageant buttons and a smaller SSH trust dialog. [Interface themes](docs/windows-themes.en.md).
-
-**macOS Universal 2 · Portable**: runs on Apple Silicon and Intel. Keep profiles and keys outside the app bundle and share the same portable folder with Windows. Native session tabs are included.
-
-**Total Commander plugin: [kitty-ng-fs 1.1.1](https://github.com/nr084/KiTTY-ng/releases/tag/kitty-ng-fs-v1.1.1)** — embedded SSH/SFTP without Klink, with password prompts and server-key confirmation in TC. Installer and source code are available as separate archives.
+KiTTY-ng develops KiTTY's features on the modern **PuTTY 0.85** codebase. Manage connections, work in multiple tabs, transfer files, create SSH keys and automate everyday commands. English and Russian interfaces are built into the client and utilities.
 
 [Русский](README.md) | **English**
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-**SSH, files and portable sessions on Windows, macOS and Linux.** KiTTY-ng builds on KiTTY and PuTTY 0.85 with a terminal, connection management, keys and automation in English and Russian. The separate **kitty-ng-fs** SFTP plugin brings saved sessions to Total Commander.
+[Download 0.85-10](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10) · [Release notes](docs/releases/0.85-10.md) · [Guides](docs/README.md) · [Total Commander plugin](kitty-ng-fs/README.en.md)
 
-**Portable macOS app with shared Windows profiles.** Keep `KiTTY-ng.app` beside the Windows EXEs and use one `Sessions` directory. Settings and keys stay outside the app; internal file references can be relative to the shared folder.
+**macOS Universal 2 and portable mode.** One app for Apple Silicon and Intel. Profiles are compatible with Windows: share a `Sessions` folder, keys and `kitty.ini`. Data stays outside the `.app` bundle, and files within the portable folder can use relative paths.
 
 ## Download
 
@@ -40,16 +36,72 @@ The Mac app uses an ad-hoc signature without Developer ID or notarization. If bl
 
 ## Features
 
-- macOS (previously released features): native tabs, temporary connection duplication without saving profiles, and a top menu for the active session. [Details](docs/tabs.en.md).
-- Windows/Linux tabs in 0.85-10: duplicate in the same window, drag to reorder, and individual close buttons. [Details](docs/tabs.en.md).
+### Connections and SSH security
 
-- Session folders, case-insensitive quick search, editing and duplication.
-- Original KiTTY profile format and portable key/certificate references.
-- SCP/SFTP through kscp, drag-and-drop uploads and downloads.
-- KiTTYgen, Kageant and authentication settings from the current session.
-- Post-login commands and UTF-8 scripts, delays and reconnection.
-- [Quick commands](docs/quick-commands.en.md): up to 20 named commands shared by all sessions; configure them under Window → Quick commands.
-- Terminal settings, shortcuts, English and Russian interfaces.
+- Password, SSH key and agent authentication, including keyboard-interactive and SSH certificates.
+- Server host-key verification and trusted-key storage; configurable key-exchange and encryption algorithms.
+- Local, remote and dynamic SSH port forwarding.
+- Proxy connections and shared profiles from the `Proxies` directory.
+- Configurable reconnection after connection loss. See each platform guide for resume-from-sleep and authentication details.
+
+### Sessions and tabs
+
+- Saved connections in nested folders, case-insensitive quick search, and profile creation, editing, deletion and duplication.
+- Duplicate an active session into a new tab; click to switch, drag to reorder, and close tabs individually.
+- Tab context menu: duplicate, close, move left or right. The tab bar is hidden for a single session; tabs can be disabled.
+- Quick connections without saving a profile on macOS and Linux; their duplicates remain temporary too.
+- Session notes and settings changes for an open connection.
+
+[Working with tabs](docs/tabs.en.md)
+
+### Files and external tools
+
+- Upload and download over SCP/SFTP using the bundled `kscp`, including multiple files and directories.
+- Drag local files into an SSH terminal window to upload them.
+- Pass the current connection's host, port, proxy and authentication settings to the transfer helper.
+- Manage remote files interactively with `ksftp`.
+- **Windows:** launch an external WinSCP installation from the menu with a configurable executable path. WinSCP is not bundled.
+- **Total Commander:** the separate kitty-ng-fs plugin opens SFTP directly in its file panels; see below.
+
+### Automation
+
+- Automatic commands after SSH login and UTF-8 startup scripts.
+- Configurable delays after login, between lines and between characters; manually send a command or script file.
+- Keyboard shortcuts for client actions and sending text.
+- **Quick commands:** up to 20 named commands shared across sessions, each with an optional Enter action. Edit them under **Window → Quick commands**; commands live in global settings rather than individual profiles.
+
+Scripts are sent to the remote terminal. [Quick command setup](docs/quick-commands.en.md) · [Migrated KiTTY extensions](docs/migration.md)
+
+### Terminal and appearance
+
+- Configurable fonts, colours, encoding, keyboard, scrollback and window behaviour; Unicode and full-screen terminal applications.
+- Copy and paste, input protection, full-screen mode and a connection event log.
+- Open HTTP/HTTPS links with Ctrl + click. OSC 52 clipboard writes require explicit permission; remote clipboard reads are not supported.
+- **Windows:** light, dark or automatic system themes for the client and GUI utilities, tray minimisation, transparency and always-on-top mode.
+- **macOS:** native AppKit interface and active-session menus. **Linux:** GTK 3 interface styled by the desktop environment.
+- English and Russian interfaces through a shared language core. User data and remote server output are not translated.
+
+[Windows themes](docs/windows-themes.en.md)
+
+### Portable settings
+
+Compatible with the original KiTTY file format: `Sessions`, `SshHostKeys`, `Proxies` and `kitty.ini`. Share a settings folder between Windows, macOS and Linux. Keys, detached certificates, scripts and icons inside the portable root use relative references; external files use absolute paths.
+
+Windows supports portable and registry storage. Shared profiles do not imply identical platform features: see the [Windows](docs/windows.en.md), [macOS](docs/macos.en.md) and [Linux](docs/linux.en.md) guides for details and limitations.
+
+[Portable mode and migration from KiTTY](docs/portable.en.md)
+
+### Five bundled utilities
+
+| Utility | Purpose |
+| --- | --- |
+| **KiTTYgen** | Generate, load and export SSH keys, change passphrases and copy public keys. |
+| **Kageant** | SSH agent: keep loaded keys in memory and authenticate connections. |
+| **Klink** | Command-line connections and command execution. |
+| **Kscp** | Transfer files and directories over SCP/SFTP. |
+| **Ksftp** | Interactive SFTP client for managing remote files. |
+
+Windows utilities match the client's architecture; all five macOS helpers are Universal 2. Linux packages include the client and helpers in one AppImage/AppDir.
 
 ## Total Commander · kitty-ng-fs
 
