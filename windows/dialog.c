@@ -388,6 +388,36 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+/* Size the details and footer from the actual localized text and dialog font. */
+static void fit_about_dialog(HWND hwnd, const wchar_t *text)
+{
+    HWND details = GetDlgItem(hwnd, IDA_TEXT);
+    RECT content; GetWindowRect(details, &content);
+    MapWindowPoints(NULL, hwnd, (POINT *)&content, 2);
+    HDC dc = GetDC(details);
+    HFONT old = SelectObject(dc, (HFONT)SendMessageW(details, WM_GETFONT, 0, 0));
+    RECT measured = {0, 0, content.right-content.left-4, 0};
+    DrawTextW(dc, text, -1, &measured, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
+    SelectObject(dc, old); ReleaseDC(details, dc);
+    RECT units = {0, 0, 0, 8}; MapDialogRect(hwnd, &units);
+    int height = measured.bottom + units.bottom / 2;
+    int delta = height - (content.bottom-content.top);
+    SetWindowPos(details, NULL, 0, 0, content.right-content.left, height,
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    const int buttons[] = {IDA_LICENCE, IDA_WEB, IDOK};
+    for (size_t i = 0; i < lenof(buttons); i++) {
+        HWND button = GetDlgItem(hwnd, buttons[i]);
+        RECT r; GetWindowRect(button, &r);
+        MapWindowPoints(NULL, hwnd, (POINT *)&r, 2);
+        SetWindowPos(button, NULL, r.left, r.top+delta, 0, 0,
+                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    RECT window; GetWindowRect(hwnd, &window);
+    SetWindowPos(hwnd, NULL, 0, 0, window.right-window.left,
+                 window.bottom-window.top+delta,
+                 SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
 static Filename *about_demo_filename;
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                                   WPARAM wParam, LPARAM lParam)
@@ -424,6 +454,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         sfree(buildinfo_text);
         wchar_t *wide = dup_mb_to_wc(CP_UTF8, text);
         SetDlgItemTextW(hwnd, IDA_TEXT, wide);
+        fit_about_dialog(hwnd, wide);
         sfree(wide);
         MakeDlgItemBorderless(hwnd, IDA_TEXT);
         sfree(text);

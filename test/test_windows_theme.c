@@ -6,6 +6,20 @@
 const char *const appname="theme-test";
 void modalfatalbox(const char *format, ...) { abort(); }
 static void pump(void) { MSG m;int n=0;while(PeekMessageW(&m,NULL,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);assert(++n<10000);} }
+static bool footer_ok;
+static VOID CALLBACK inspect_messagebox(HWND unused, UINT msg, UINT_PTR timer, DWORD time)
+{
+    HWND box = GetForegroundWindow();
+    if (!GetPropW(box, L"KiTTY-ng MessageBox")) return;
+    RECT r; GetClientRect(box, &r);
+    RedrawWindow(box, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+    HDC dc = GetDC(box);
+    footer_ok = GetPixel(dc, 4, r.bottom-4) == RGB(32,33,36);
+    ReleaseDC(box, dc);
+    KillTimer(NULL, timer);
+    SendMessageW(box, WM_COMMAND, IDCANCEL, 0);
+}
+
 int main(int argc,char **argv)
 {
     HKEY isolated=NULL; wchar_t keyname[128];
@@ -33,6 +47,12 @@ int main(int argc,char **argv)
     SendMessageW(hwnd,WM_UNINITMENUPOPUP,(WPARAM)popup,0);
     mi.fMask=MIIM_DATA|MIIM_FTYPE;GetMenuItemInfoW(popup,0,TRUE,&mi);
     CHECK(mi.dwItemData==1234 && !(mi.fType&MFT_OWNERDRAW));
+    UINT_PTR timer = SetTimer(NULL, 0, 250, inspect_messagebox);
+    CHECK(timer);
+    CHECK(kr_theme_messagebox(hwnd, L"Close all sessions in this window?", L"Theme test",
+                             MB_OKCANCEL | MB_ICONQUESTION, MAKELANGID(LANG_ENGLISH,SUBLANG_DEFAULT)) == IDCANCEL);
+    KillTimer(NULL, timer);
+    CHECK(footer_ok);
     CHECK(kr_theme_save(1));pump();CHECK(!kr_theme_dark());
     CHECK(TreeView_GetBkColor(tree)==GetSysColor(COLOR_WINDOW));
     wchar_t value[40];GetWindowTextW(edit,value,lenof(value));CHECK(!wcscmp(value,L"literal data"));

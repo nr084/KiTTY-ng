@@ -12,6 +12,7 @@ static HBRUSH dark_surface, dark_field;
 static int preference = -1;
 static bool dark;
 static UINT theme_changed;
+static unsigned messagebox_depth;
 
 int kr_theme_mode(void)
 {
@@ -207,7 +208,11 @@ static void apply_theme(HWND hwnd)
 static LRESULT CALLBACK theme_activate(int code, WPARAM wp, LPARAM lp)
 {
     if (code == HCBT_ACTIVATE && !(GetWindowLongPtrW((HWND)wp, GWL_STYLE) & WS_CHILD))
+    {
+        if (messagebox_depth)
+            SetPropW((HWND)wp, L"KiTTY-ng MessageBox", (HANDLE)1);
         kr_theme_attach((HWND)wp);
+    }
     return CallNextHookEx(NULL, code, wp, lp);
 }
 void kr_theme_start(void)
@@ -215,6 +220,40 @@ void kr_theme_start(void)
     static HHOOK hook;
     if (!hook) hook = SetWindowsHookExW(WH_CBT, theme_activate, NULL, GetCurrentThreadId());
 }
+/* Mark only MessageBox windows, not arbitrary application dialogs. */
+int kr_theme_messagebox(HWND owner, const wchar_t *body,
+                        const wchar_t *title, UINT flags, WORD language)
+{
+    kr_theme_start();
+    messagebox_depth++;
+    int result = MessageBoxExW(owner, body, title, flags, language);
+    messagebox_depth--;
+    return result;
+}
+
+/* The native MessageBox paints its command area after WM_ERASEBKGND.
+ * Repaint that area after native painting, excluding every child control. */
+static void paint_messagebox_footer(HWND hwnd)
+{
+    RECT area; GetClientRect(hwnd, &area);
+    int top = area.bottom;
+    HDC dc = GetDC(hwnd);
+    int saved = SaveDC(dc);
+    for (HWND child = GetWindow(hwnd, GW_CHILD); child;
+         child = GetWindow(child, GW_HWNDNEXT)) {
+        if (!IsWindowVisible(child)) continue;
+        RECT r; GetWindowRect(child, &r);
+        MapWindowPoints(NULL, hwnd, (POINT *)&r, 2);
+        wchar_t cls[32]; GetClassNameW(child, cls, lenof(cls));
+        if (!_wcsicmp(cls, L"Button")) top = min(top, r.top);
+        ExcludeClipRect(dc, r.left, r.top, r.right, r.bottom);
+    }
+    RECT gap = {0, 0, 0, 6}; MapDialogRect(hwnd, &gap);
+    area.top = max(0, top - gap.bottom);
+    FillRect(dc, &area, dark_surface);
+    RestoreDC(dc, saved); ReleaseDC(hwnd, dc);
+}
+
 void kr_theme_attach(HWND hwnd)
 {
     kr_theme_start();
@@ -240,9 +279,16 @@ static bool paint_button(HWND hwnd)
     GetWindowTextW(hwnd, text, n+1);
     UINT flags = DT_SINGLELINE | DT_VCENTER;
     if (type == BS_GROUPBOX) {
-        RECT box = r; box.top += 7;
+        TEXTMETRICW metrics; GetTextMetricsW(dc, &metrics);
+        SIZE caption; GetTextExtentPoint32W(dc, text, n, &caption);
+        int inset = max(4, metrics.tmAveCharWidth);
+        RECT box = r; box.top += metrics.tmHeight / 2;
         FrameRect(dc, &box, (HBRUSH)GetStockObject(GRAY_BRUSH));
-        r.left += 10; r.bottom = r.top + 18;
+        r.left += inset * 2; r.bottom = r.top + metrics.tmHeight;
+        RECT backing = r;
+        backing.left -= inset / 2;
+        backing.right = min(r.right, r.left + caption.cx + inset / 2);
+        FillRect(dc, &backing, dark_surface);
     } else if (type == BS_CHECKBOX || type == BS_AUTOCHECKBOX ||
                type == BS_3STATE || type == BS_AUTO3STATE ||
                type == BS_RADIOBUTTON || type == BS_AUTORADIOBUTTON) {
@@ -262,6 +308,13 @@ static bool paint_button(HWND hwnd)
         RoundRect(dc, r.left, r.top, r.right, r.bottom, 7, 7);
         SelectObject(dc, bp); SelectObject(dc, pp); DeleteObject(brush); DeleteObject(pen);
         flags |= DT_CENTER;
+        if (style & BS_MULTILINE) {
+            InflateRect(&r, -4, -2);
+            flags = DT_CENTER | DT_WORDBREAK;
+            RECT measured = r;
+            DrawTextW(dc, text, -1, &measured, flags | DT_CALCRECT);
+            r.top += max(0, ((r.bottom-r.top)-(measured.bottom-measured.top))/2);
+        }
     }
     DrawTextW(dc, text, -1, &r, flags); sfree(text);
     if (focus) { InflateRect(&r, -4, -4); DrawFocusRect(dc, &r); }
@@ -301,6 +354,11 @@ static LRESULT CALLBACK themed_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
     if (msg == WM_UNINITMENUPOPUP) restore_menu(hwnd,(HMENU)wp);
     if (dark && (msg == WM_MEASUREITEM || msg == WM_DRAWITEM) && draw_menu(hwnd,msg,lp)) return TRUE;
     if (dark) {
+        if (msg == WM_PAINT && GetPropW(hwnd, L"KiTTY-ng MessageBox")) {
+            LRESULT result = DefSubclassProc(hwnd, msg, wp, lp);
+            paint_messagebox_footer(hwnd);
+            return result;
+        }
         if (msg >= WM_CTLCOLORMSGBOX && msg <= WM_CTLCOLORSTATIC) {
             SetTextColor((HDC)wp, IsWindowEnabled((HWND)lp) ? RGB(235,235,238) : RGB(140,142,147));
             bool field = msg == WM_CTLCOLOREDIT || msg == WM_CTLCOLORLISTBOX;

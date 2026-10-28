@@ -113,7 +113,7 @@ int kr_messagebox(HWND hwnd, const char *text, const char *caption, UINT flags)
     if (!caption) caption = "";
     wchar_t *body = dup_mb_to_wc(kr_language() ? CP_UTF8 : CP_ACP, kr_translate(text));
     wchar_t *title = dup_mb_to_wc(kr_language() ? CP_UTF8 : CP_ACP, kr_translate(caption));
-    int result = MessageBoxExW(hwnd, body, title, flags,
+    int result = kr_theme_messagebox(hwnd, body, title, flags,
         MAKELANGID(kr_language() ? LANG_RUSSIAN : LANG_ENGLISH, SUBLANG_DEFAULT));
     sfree(body); sfree(title);
     return result;
