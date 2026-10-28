@@ -127,9 +127,17 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   u.SetForegroundWindow(host)
   time.sleep(.2)
   rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));u.SetCursorPos(rect.left+100,rect.top+15)
-  if u.GetForegroundWindow()!=host:
+  for attempt in range(5):
+   if u.GetForegroundWindow()==host:break
+   # Previous suites can leave a foreground lock. A real Alt keystroke
+   # permits this test process to activate its own window without attaching
+   # input queues (which would conceal the regression under test).
+   u.keybd_event(0x12,0,0,0);u.keybd_event(0x12,0,2,0)
+   u.SetForegroundWindow(host)
+   u.SetCursorPos(rect.left+100,rect.top+15)
    u.mouse_event(2,0,0,0,0);u.mouse_event(4,0,0,0,0)
-  wait(lambda:u.GetForegroundWindow()==host)
+   time.sleep(.3)
+  assert u.GetForegroundWindow()==host, ('Test window could not activate',cls(u.GetForegroundWindow()),title(u.GetForegroundWindow()))
   u.SetWindowPos(host,-2,0,0,0,0,0x13)
   def mouse(message,x,y=15,buttons=0):
    point=w.POINT(round(x*scale),round(y*scale));u.ClientToScreen(strip,ctypes.byref(point))
