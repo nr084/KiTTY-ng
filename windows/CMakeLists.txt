@@ -169,7 +169,7 @@ else()
 endif()
 set_target_properties(kitty-ng PROPERTIES OUTPUT_NAME "kitty-ng-${kitty_ng_output_arch}")
 target_link_libraries(kitty-ng
-  guiterminal guimisc eventloop sshclient otherbackends settings network crypto
+  guiterminal guimisc eventloop sshclient otherbackends settings network crypto agent
   utils
   ${platform_libraries})
 set_target_properties(kitty-ng PROPERTIES WIN32_EXECUTABLE ON)
@@ -190,7 +190,7 @@ add_executable(puttytel
 be_list(puttytel PuTTYtel SERIAL OTHERBACKENDS)
 add_dependencies(puttytel generated_licence_h)
 target_link_libraries(puttytel
-  guiterminal guimisc eventloop otherbackends settings network utils
+  guiterminal guimisc eventloop otherbackends settings network crypto agent utils
   ${platform_libraries})
 set_target_properties(puttytel PROPERTIES WIN32_EXECUTABLE ON)
 installed_program(puttytel)
@@ -229,7 +229,7 @@ if(HAVE_CONPTY)
   be_list(pterm pterm)
   add_dependencies(pterm generated_licence_h)
   target_link_libraries(pterm
-    guiterminal guimisc eventloop settings network utils
+    guiterminal guimisc eventloop settings network crypto agent utils
     ${platform_libraries})
   set_target_properties(pterm PROPERTIES WIN32_EXECUTABLE ON)
   installed_program(pterm)

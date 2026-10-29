@@ -64,10 +64,12 @@ with tempfile.TemporaryDirectory(prefix='kitty-tabs-') as folder:
  if client_key is not None:
   ppk=root/'synthetic.ppk';ppk.write_bytes(PPK);key_args=['-i',str(ppk)]
  log=(output/'linux-tabs.log').open('w')
- process=subprocess.Popen([str(binary),'-load','Demo','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','demo','-hostkey',fingerprint,*key_args],env=env,stdout=log,stderr=log)
+ process=subprocess.Popen([str(binary),'-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-hostkey',fingerprint,*key_args],env=env,stdout=log,stderr=log)
  try:
   time.sleep(1)
   initial=wait(lambda:subprocess.check_output(["xdotool","search","--pid",str(process.pid)],text=True).split()[-1])
+  subprocess.run(["xdotool","windowfocus",initial,"type","demo"],check=True)
+  subprocess.run(["xdotool","key","Return"],check=True);time.sleep(.5)
   subprocess.run(["xdotool","windowfocus",initial,"type",PASSPHRASE if client_key is not None else "synthetic"],check=True)
   subprocess.run(["xdotool","key","Return"],check=True)
   wait(lambda:len(channels)==1)

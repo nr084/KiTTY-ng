@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "putty.h"
+#include "kittyng-auth.h"
 #if defined(KITTY_NG_MACOS) || defined(KITTY_NG_LINUX)
 #include "macos/helper.h"
 #include "macos/cli-language.h"
@@ -61,9 +62,12 @@ static void cmdline_save_param(CmdlineArg *p, CmdlineArg *value, int pri)
 }
 
 static char *cmdline_password = NULL;
+/* Borrowed from the frontend; never serialized to persistent settings. */
+static Conf *cmdline_runtime_conf;
 
 void cmdline_cleanup(void)
 {
+    cmdline_runtime_conf = NULL;
     int pri;
 
     if (cmdline_password) {
@@ -92,6 +96,10 @@ void cmdline_cleanup(void)
 SeatPromptResult cmdline_get_passwd_input(
     prompts_t *p, cmdline_get_passwd_input_state *state, bool restartable)
 {
+    if (!restartable && cmdline_runtime_conf && kr_auth_reuse(cmdline_runtime_conf, p)) {
+        if (kr_auth_prompt(p) == CONF_kr_auth_password) state->tried = true;
+        return SPR_OK;
+    }
     /*
      * We only handle prompts which don't echo (which we assume to be
      * passwords), and (currently) we only cope with a password prompt
@@ -1002,6 +1010,7 @@ int cmdline_process_param(CmdlineArg *arg, CmdlineArg *nextarg,
 
 void cmdline_run_saved(Conf *conf)
 {
+    cmdline_runtime_conf = conf;
     for (size_t pri = 0; pri < NPRIORITIES; pri++) {
         for (size_t i = 0; i < saves[pri].nsaved; i++)
             cmdline_process_param(saves[pri].params[i].p,

@@ -89,7 +89,7 @@ def keyboard(page,index,letter):
 
 binary=Path(sys.argv[1]).resolve();pids=set();processes=[]
 with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent) as folder:
- root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('CloseOnExit\\1\\\nWarnOnClose\\1\\\n'+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
+ root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('CloseOnExit\\0\\\nWarnOnClose\\1\\\n'+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
  key_args=[]
  if client_key is not None:
   ppk=root/'synthetic.ppk';ppk.write_bytes(PPK)

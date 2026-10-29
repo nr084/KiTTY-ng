@@ -1,5 +1,6 @@
 #include <wchar.h>
 #include "putty.h"
+#include "kittyng-auth.h"
 #include <shellapi.h>
 #include <commdlg.h>
 #include "kittyng.h"
@@ -100,7 +101,7 @@ bool kr_transfer_run(Conf *original, bool upload, const wchar_t *const *paths,
         *error = ERROR_NOT_SUPPORTED; return false;
     }
     if (!count || (!upload && (count != 1 || !remote || !*remote))) return false;
-    Conf *conf = conf_copy(original);
+    Conf *conf = kr_auth_duplicate(original, true);
     strbuf *arguments = strbuf_new();
     bool ok = false;
     if (!transfer_destination(conf)) goto cleanup;

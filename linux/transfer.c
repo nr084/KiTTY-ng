@@ -1,6 +1,7 @@
 /* File transfers use the same anonymous Conf pipe as the macOS port. */
 #define _GNU_SOURCE
 #include "putty.h"
+#include "kittyng-auth.h"
 #include <gtk/gtk.h>
 #include "transfer.h"
 #include "cli-language.h"
@@ -135,7 +136,7 @@ static void launch(Conf *original, GtkWindow *owner, char **paths, bool upload,
                 L("Bundled kscp is unavailable", "Встроенный kscp недоступен"));
         return;
     }
-    Conf *conf = conf_copy(original);
+    Conf *conf = kr_auth_duplicate(original, true);
     const char *alternate = conf_get_str(conf, CONF_sftpconnect);
     if (*alternate) {
         char *copy = g_strdup(alternate), *host = copy,

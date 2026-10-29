@@ -58,4 +58,17 @@ static inline Conf *kr_auth_duplicate(Conf *source, bool authenticated)
     }
     return copy;
 }
+/* Resolve a manually entered login for companion tools without changing the
+ * original, possibly unsaved profile. Only authenticated snapshots may reuse. */
+static inline Conf *kr_auth_connection(Conf *source, bool authenticated)
+{
+    Conf *copy = kr_auth_duplicate(source, authenticated);
+    if (!*conf_get_str_ambi(copy, CONF_username, NULL) &&
+        *conf_get_str(copy, CONF_kr_auth_user) && kr_auth_matches(copy)) {
+        conf_set_utf8(copy, CONF_username, conf_get_str(copy, CONF_kr_auth_user));
+        char *identity = kr_auth_identity(copy);
+        conf_set_str(copy, CONF_kr_auth_identity, identity);sfree(identity);
+    }
+    return copy;
+}
 #endif

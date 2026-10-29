@@ -15,6 +15,7 @@
 
 #include "putty.h"
 #include "kittyng-auth.h"
+#include "pageant.h"
 #include "ssh.h"
 #include "terminal.h"
 #include "storage.h"
@@ -704,6 +705,29 @@ static void close_session(void *vctx)
  * SetWindowText so that if we're not in Unicode mode we first convert
  * the wide string we're given.
  */
+/* Unlock the selected key in the existing Pageant-compatible agent. Secrets
+ * travel through the agent protocol, never through argv or a temporary file. */
+static bool prepare_companion_agent(Conf *conf)
+{
+    const char *pass = conf_get_str(conf, CONF_kr_auth_passphrase);
+    if (!kr_auth_matches(conf) || !*pass ||
+        filename_is_null(conf_get_filename(conf, CONF_keyfile))) return false;
+    if (!agent_exists()) {
+        DWORD status, error;
+        if (!kr_launch_companion("kageant", L"", false, &status, &error)) return false;
+        for (unsigned i=0;i<40 && !agent_exists();i++) Sleep(50);
+        if (!agent_exists()) return false;
+    }
+    char *error=NULL;
+    int result=pageant_add_keyfile(conf_get_filename(conf, CONF_keyfile), pass, &error, false);
+    sfree(error);pageant_forget_passphrases();
+    return result==PAGEANT_ACTION_OK;
+}
+static Conf *companion_conf(WinGuiSeat *wgs)
+{
+    return kr_auth_connection(wgs->conf, wgs->backend && backend_sendok(wgs->backend));
+}
+
 static bool unicode_window;
 static BOOL (WINAPI *sw_PeekMessage)(LPMSG, HWND, UINT, UINT, UINT);
 static LRESULT (WINAPI *sw_DispatchMessage)(const MSG *);
@@ -2681,7 +2705,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         return 0;
       case WM_DROPFILES:
         if (wgs->kr_input_locked) { DragFinish((HDROP)wParam); return 0; }
-        kr_transfer_drop(hwnd, wgs->conf, wgs->backend, (HDROP)wParam);
+        { Conf *snapshot=companion_conf(wgs);
+            kr_transfer_drop(hwnd, snapshot, wgs->backend, (HDROP)wParam);
+            conf_free(snapshot); }
         return 0;
       case WM_KR_TRANSFER_FINISHED:
         if (conf_get_bool(wgs->conf, CONF_kr_transfer_hide)) cleanup_exit(wParam);
@@ -2783,7 +2809,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           }
           case IDM_KR_WINSCP: {
             DWORD error;
-            if (!kr_launch_winscp(wgs->conf, &error)) {
+            Conf *snapshot=companion_conf(wgs);
+            prepare_companion_agent(snapshot);
+            bool launched=kr_launch_winscp(snapshot, &error);
+            conf_free(snapshot);
+            if (!launched) {
                 const char *reason = error == ERROR_NOT_SUPPORTED ?
                     "WinSCP requires an SSH session and an executable (.exe)." :
                     "Unable to start WinSCP. Check [KiTTY] WinSCPPath in kitty.ini.";
@@ -2794,6 +2824,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           case IDM_KR_AGENT:
           case IDM_KR_KEYGEN: {
             DWORD error, status;
+            if ((wParam & ~0xF) == IDM_KR_AGENT) {
+                Conf *snapshot=companion_conf(wgs);
+                bool ready=prepare_companion_agent(snapshot);conf_free(snapshot);
+                if (ready) break;
+            }
             if (!kr_launch_companion((wParam & ~0xF) == IDM_KR_AGENT ? "kageant" : "kittygen", L"", false, &status, &error))
                 MessageBox(hwnd, "Unable to launch the matching-architecture utility.", "KiTTY-ng", MB_OK | MB_ICONERROR);
             break;
@@ -2921,11 +2956,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             break;
           case IDM_KR_UPLOAD:
             if (wgs->kr_input_locked) break;
-            kr_transfer_choose_upload(hwnd, wgs->conf, wgs->backend);
+            { Conf *snapshot=companion_conf(wgs);
+            kr_transfer_choose_upload(hwnd, snapshot, wgs->backend);
+            conf_free(snapshot); }
             break;
           case IDM_KR_DOWNLOAD:
             if (wgs->kr_input_locked) break;
-            kr_transfer_choose_download(hwnd, wgs->conf);
+            { Conf *snapshot=companion_conf(wgs);
+            kr_transfer_choose_download(hwnd, snapshot);
+            conf_free(snapshot); }
             break;
           case IDM_RECONF: {
             Conf *prev_conf;
