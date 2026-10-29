@@ -38,39 +38,13 @@ archive = args.output / f"kitty-ng-{version}-{args.arch}.zip"
 with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as bundle:
     for name in names:
         bundle.write(args.build / name, name)
-    for name in ["README.md", "README.en.md", "LICENCE", "LICENCE-KiTTY.txt", "VERSION"]:
+    # Keep runtime packages minimal; guides, artwork and build reports live online.
+    for name in ("LICENCE", "LICENCE-KiTTY.txt"):
         bundle.write(root / name, name)
-    bundle.write(root / "docs/migration.md", "docs/migration.md")
-    bundle.write(root / "docs/kitty-feature-audit.json", "docs/kitty-feature-audit.json")
-    bundle.write(root / "docs/kitty-migration-decisions.json", "docs/kitty-migration-decisions.json")
-    bundle.write(root / "docs/putty-utilities-audit.json", "docs/putty-utilities-audit.json")
-    bundle.write(root / "docs/screenshots/session-ru.png", "docs/screenshots/session-ru.png")
-    bundle.write(root / "docs/screenshots/language-ru.png", "docs/screenshots/language-ru.png")
-    bundle.write(root / "docs/screenshots/transfer-ru.png", "docs/screenshots/transfer-ru.png")
-    for name in ("session-en.png", "language-en.png", "transfer-en.png", "about-ru.png", "about-en.png", "kittygen-ru.png", "kittygen-en.png",
-                 "automation-ru.png", "automation-en.png", "extensions-ru.png", "extensions-en.png", "proxies-ru.png", "proxies-en.png"):
-        bundle.write(root / "docs/screenshots" / name, "docs/screenshots/" + name)
-    if (args.build / "compiler.json").exists():
-        bundle.write(args.build / "compiler.json", "BUILD-INFO.json")
-    for name in ("macos.md", "macos.en.md", "macos-migration.json"):
-        bundle.write(root / "docs" / name, "docs/" + name)
-    for image in sorted((root / "docs/screenshots").glob("macos-*.png")):
-        bundle.write(image, "docs/screenshots/" + image.name)
-    # Include the complete guide tree referenced by the packaged README.
-    existing = set(bundle.namelist())
-    for guide in sorted((root / "docs").rglob("*.md")):
-        relative = guide.relative_to(root).as_posix()
-        if relative not in existing:
-            bundle.write(guide, relative)
-    for image in sorted((root / "docs/screenshots").glob("linux-*.png")):
-        bundle.write(image, "docs/screenshots/" + image.name)
-    bundle.write(root / "docs/screenshots/windows-tabs-en.png", "docs/screenshots/windows-tabs-en.png")
-    bundle.write(root / "icons/kitty-ng-forum.png", "icons/kitty-ng-forum.png")
-    bundle.write(root / "icons/kitty-ng.png", "icons/kitty-ng.png")
-    bundle.write(root / "icons/kitty-ng-prompt.txt", "icons/kitty-ng-prompt.txt")
     bundle.writestr("kitty-ng.portable", "")
-    # Preserve the user's existing cryptsalt and path settings on extraction.
-    bundle.writestr("kitty.ini.example", "[KiTTY]\nsavemode=dir\ncryptsalt=0\nSessionTabs=1\n")
+with zipfile.ZipFile(archive) as bundle:
+    assert set(bundle.namelist()) == set(names) | {"LICENCE", "LICENCE-KiTTY.txt", "kitty-ng.portable"}
+
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()
 (args.output / f"SHA256SUMS-{args.arch}.txt").write_text(f"{digest}  {archive.name}\n", encoding="ascii")
 print(f"PASS: {archive.name}; PE architecture and version checked for all six executables")
