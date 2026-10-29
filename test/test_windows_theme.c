@@ -6,13 +6,24 @@
 const char *const appname="theme-test";
 void modalfatalbox(const char *format, ...) { abort(); }
 static void pump(void) { MSG m;int n=0;while(PeekMessageW(&m,NULL,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);assert(++n<10000);} }
+static unsigned long region_hash(HWND hwnd, RECT r)
+{
+    int width=r.right-r.left,height=r.bottom-r.top;
+    HDC source=GetDC(hwnd),dc=CreateCompatibleDC(source);
+    BITMAPINFO info={0};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;
+    info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;info.bmiHeader.biCompression=BI_RGB;
+    DWORD *pixels=NULL;
+    HBITMAP bitmap=CreateDIBSection(source,&info,DIB_RGB_COLORS,(void **)&pixels,NULL,0);
+    HGDIOBJ old=SelectObject(dc,bitmap);
+    BitBlt(dc,0,0,width,height,source,r.left,r.top,SRCCOPY);GdiFlush();
+    unsigned long hash=2166136261UL;
+    for(int i=0;i<width*height;i++)hash=(hash^(pixels[i]&0xffffff))*16777619UL;
+    SelectObject(dc,old);DeleteObject(bitmap);DeleteDC(dc);ReleaseDC(hwnd,source);return hash;
+}
 static unsigned long paint_hash(HWND hwnd)
 {
-    RECT r; GetClientRect(hwnd, &r); HDC dc=GetDC(hwnd);
-    unsigned long hash=2166136261UL;
-    for(int y=0;y<r.bottom;y++) for(int x=0;x<r.right;x++)
-        hash=(hash^GetPixel(dc,x,y))*16777619UL;
-    ReleaseDC(hwnd,dc);return hash;
+    RECT r;GetClientRect(hwnd,&r);return region_hash(hwnd,r);
 }
 /* A focus indicator must never alter pixels in the label's text area. */
 static unsigned long caption_hash(HWND hwnd)
@@ -22,11 +33,9 @@ static unsigned long caption_hash(HWND hwnd)
     wchar_t text[128];GetWindowTextW(hwnd,text,lenof(text));
     SIZE size;GetTextExtentPoint32W(dc,text,wcslen(text),&size);
     int left=min(r.bottom,GetSystemMetrics(SM_CXMENUCHECK))+6;
-    unsigned long hash=2166136261UL;
-    for(int y=1;y<r.bottom-1;y++)
-        for(int x=left;x<min(r.right,left+size.cx);x++)
-            hash=(hash^GetPixel(dc,x,y))*16777619UL;
-    SelectObject(dc,old);ReleaseDC(hwnd,dc);return hash;
+    SelectObject(dc,old);ReleaseDC(hwnd,dc);
+    r.left=left;r.right=min(r.right,left+size.cx);r.top=1;r.bottom--;
+    return region_hash(hwnd,r);
 }
 static bool footer_ok;
 static VOID CALLBACK inspect_messagebox(HWND unused, UINT msg, UINT_PTR timer, DWORD time)
