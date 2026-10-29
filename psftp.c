@@ -246,7 +246,7 @@ static int bare_name_compare(const void *av, const void *bv)
 
 static void not_connected(void)
 {
-    printf("psftp: not connected to a host; use \"open host.name\"\n");
+    printf("ksftp: not connected to a host; use \"open host.name\"\n");
 }
 
 /* ----------------------------------------------------------------------
@@ -1019,7 +1019,7 @@ int sftp_cmd_null(struct sftp_command *cmd)
 
 int sftp_cmd_unknown(struct sftp_command *cmd)
 {
-    printf("psftp: unknown command \"%s\"\n", cmd->words[0]);
+    printf("ksftp: unknown command \"%s\"\n", cmd->words[0]);
     return 0;                          /* failure */
 }
 
@@ -1842,7 +1842,7 @@ static int sftp_cmd_open(struct sftp_command *cmd)
     int portnumber;
 
     if (backend) {
-        printf("psftp: already connected\n");
+        printf("ksftp: already connected\n");
         return 0;
     }
 
@@ -1945,7 +1945,7 @@ static struct sftp_cmd_lookup {
     {
         "bye", true, "finish your SFTP session",
             "\n"
-            "  Terminates your SFTP session and quits the PSFTP program.\n",
+            "  Terminates your SFTP session and quits the Ksftp program.\n",
             sftp_cmd_quit
     },
     {
@@ -1985,9 +1985,9 @@ static struct sftp_cmd_lookup {
             sftp_cmd_chmod
     },
     {
-        "close", true, "finish your SFTP session but do not quit PSFTP",
+        "close", true, "finish your SFTP session but do not quit Ksftp",
             "\n"
-            "  Terminates your SFTP session, but does not quit the PSFTP\n"
+            "  Terminates your SFTP session, but does not quit the Ksftp\n"
             "  program. You can then use \"open\" to start another SFTP\n"
             "  session, to the same server or to a different one.\n",
             sftp_cmd_close
@@ -2034,14 +2034,14 @@ static struct sftp_cmd_lookup {
     {
         "lcd", true, "change local working directory",
             " <local-directory-name>\n"
-            "  Change the local working directory of the PSFTP program (the\n"
+            "  Change the local working directory of the Ksftp program (the\n"
             "  default location where the \"get\" command will save files).\n",
             sftp_cmd_lcd
     },
     {
         "lpwd", true, "print local working directory",
             "\n"
-            "  Print the local working directory of the PSFTP program (the\n"
+            "  Print the local working directory of the Ksftp program (the\n"
             "  default location where the \"get\" command will save files).\n",
             sftp_cmd_lpwd
     },
@@ -2245,10 +2245,10 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 
     if (fp) {
         if (modeflags & 1)
-            printf("psftp> ");
+            printf("ksftp> ");
         line = fgetline(fp);
     } else {
-        line = ssh_sftp_get_cmdline("psftp> ", !backend);
+        line = ssh_sftp_get_cmdline("ksftp> ", !backend);
     }
 
     if (!line || !*line) {
@@ -2554,9 +2554,9 @@ size_t sftp_sendbuffer(void)
  */
 static void usage(void)
 {
-    printf("PuTTY Secure File Transfer (SFTP) client\n");
+    printf("KiTTY-ng SFTP client\n");
     printf("%s\n", ver);
-    printf("Usage: psftp [options] [user@]host\n");
+    printf("Usage: ksftp [options] [user@]host\n");
     printf("Options:\n");
 #ifdef _WIN32
     printf("  --language en|ru  select interface language\n");
@@ -2577,8 +2577,8 @@ static void usage(void)
     printf("  -4 -6     force use of IPv4 or IPv6\n");
     printf("  -C        enable compression\n");
     printf("  -i key    private key file for user authentication\n");
-    printf("  -noagent  disable use of Pageant\n");
-    printf("  -agent    enable use of Pageant\n");
+    printf("  -noagent  disable use of Kageant/Pageant\n");
+    printf("  -agent    enable use of Kageant/Pageant\n");
     printf("  -no-trivial-auth\n");
     printf("            disconnect if SSH authentication succeeds trivially\n");
     printf("  -hostkey keyid\n");
@@ -2601,7 +2601,7 @@ static void usage(void)
 static void version(void)
 {
     char *buildinfo_text = buildinfo("\n");
-    printf("psftp: %s\n%s\n", ver, buildinfo_text);
+    printf("ksftp: %s\n%s\n", ver, buildinfo_text);
     sfree(buildinfo_text);
     exit(0);
 }
@@ -2622,7 +2622,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     } else {
         *host++ = '\0';
         if (user) {
-            printf("psftp: multiple usernames specified; using \"%s\"\n",
+            printf("ksftp: multiple usernames specified; using \"%s\"\n",
                    user);
         } else
             user = userhost;
@@ -2804,11 +2804,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 void cmdline_error(const char *p, ...)
 {
     va_list ap;
-    fprintf(stderr, "psftp: ");
+    fprintf(stderr, "ksftp: ");
     va_start(ap, p);
     vfprintf(stderr, p, ap);
     va_end(ap);
-    fprintf(stderr, "\n       try typing \"psftp -h\" for help\n");
+    fprintf(stderr, "\n       try typing \"ksftp -h\" for help\n");
     exit(1);
 }
 
@@ -2933,7 +2933,7 @@ int psftp_main(CmdlineArgList *arglist)
         if (do_sftp_init())
             return 1;
     } else {
-        printf("psftp: no hostname specified; use \"open host.name\""
+        printf("ksftp: no hostname specified; use \"open host.name\""
                " to connect\n");
     }
 

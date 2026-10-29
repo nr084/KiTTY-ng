@@ -124,7 +124,7 @@ void help(void)
      * Help message is an extended version of the usage message. So
      * start with that, plus a version heading.
      */
-    printf("PuTTYgen: key generator and converter for the PuTTY tools\n"
+    printf("KiTTYgen: key generator and converter for the PuTTY tools\n"
            "%s\n", ver);
     usage(false);
     printf("  -t    specify key type when generating:\n"

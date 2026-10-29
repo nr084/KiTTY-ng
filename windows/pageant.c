@@ -38,7 +38,7 @@
 #define WM_SYSTRAY2  (WM_APP + 7)
 #define WM_KAGEANT_LANGUAGE (WM_APP + 111)
 
-#define APPNAME "Pageant"
+#define APPNAME "Kageant"
 
 /* Titles and class names for invisible windows. IPCWINTITLE and
  * IPCCLASSNAME are critical to backwards compatibility: WM_COPYDATA
@@ -95,7 +95,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     buf = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
-    MessageBox(traywindow, buf, "Pageant Fatal Error",
+    MessageBox(traywindow, buf, "Kageant Fatal Error",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(buf);
     exit(1);
@@ -146,7 +146,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
       case WM_INITDIALOG: {
         char *buildinfo_text = buildinfo("\r\n");
         char *text = dupprintf(
-            "Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+            "Kageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
             ver, buildinfo_text,
             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
         sfree(buildinfo_text);
@@ -320,7 +320,7 @@ void old_keyfile_warning(void)
         "format.\n"
         "\n"
         "You can perform this conversion by loading the key\n"
-        "into PuTTYgen and then saving it again.";
+        "into KiTTYgen and then saving it again.";
 
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
@@ -1642,7 +1642,7 @@ static NORETURN void opt_error(const char *fmt, ...)
     char *msg = dupvprintf(kr_translate(fmt), ap);
     va_end(ap);
 
-    MessageBox(NULL, msg, "Pageant command line error", MB_ICONERROR | MB_OK);
+    MessageBox(NULL, msg, "Kageant command line error", MB_ICONERROR | MB_OK);
 
     exit(1);
 }
@@ -1694,7 +1694,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             MessageBox(NULL,
                        "Unable to access security APIs. Pageant will\n"
                        "not run, in case it causes a security breach.",
-                       "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+                       "Kageant Fatal Error", MB_ICONERROR | MB_OK);
             return 1;
         }
     }
@@ -1811,7 +1811,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         mutex = lock_interprocess_mutex(mutexname, &err);
         sfree(mutexname);
         if (!mutex) {
-            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+            MessageBox(NULL, err, "Kageant Error", MB_ICONERROR | MB_OK);
             return 1;
         }
     }
@@ -1872,7 +1872,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 char *err = dupprintf("Unable to open named pipe at %s "
                                       "for SSH agent:\n%s", pipename,
                                       sk_socket_error(sock));
-                MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+                MessageBox(NULL, err, "Kageant Error", MB_ICONERROR | MB_OK);
                 return 1;
             }
             pageant_listener_got_socket(pl, sock);
@@ -1887,7 +1887,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                     char *err = dupprintf(
                         "Unable to write OpenSSH config file to %s",
                         filename_to_str(openssh_config_file));
-                    MessageBox(NULL, err, "Pageant Error",
+                    MessageBox(NULL, err, "Kageant Error",
                                MB_ICONERROR | MB_OK);
                     return 1;
                 }
@@ -1926,7 +1926,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 char *err = dupprintf("Unable to open AF_UNIX socket at %s "
                                       "for SSH agent:\n%s", unixsocket,
                                       sk_socket_error(sock));
-                MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+                MessageBox(NULL, err, "Kageant Error", MB_ICONERROR | MB_OK);
                 return 1;
             }
             pageant_listener_got_socket(pl, sock);
@@ -2007,7 +2007,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (already_running) {
         if (!command && !nclkeys) {
-            MessageBox(NULL, "Pageant is already running", "Pageant Error",
+            MessageBox(NULL, "Kageant is already running", "Kageant Error",
                        MB_ICONERROR | MB_OK);
         }
         return 0;
