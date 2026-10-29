@@ -25,6 +25,9 @@ def pid(h):
 def wait(fn,seconds=15):
  end=time.monotonic()+seconds
  while time.monotonic()<end:
+  message=w.MSG()
+  while u.PeekMessageW(ctypes.byref(message),None,0,0,1):
+   u.TranslateMessage(ctypes.byref(message));u.DispatchMessageW(ctypes.byref(message))
   result=fn()
   if result:return result
   time.sleep(.05)
@@ -190,6 +193,27 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
      event.type=1;event.data.key=KeyboardInput(0x41,0,2 if i else 0,0,0)
     assert u.SendInput(2,events,ctypes.sizeof(Input))==2
     wait(lambda:bytes(received[index])==before+expected.encode('utf-8'))
+  # Switch to a separate top-level application and return through real Alt+Tab.
+  u.CreateWindowExW.restype=w.HWND
+  u.CreateWindowExW.argtypes=[w.DWORD,w.LPCWSTR,w.LPCWSTR,w.DWORD,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,w.HWND,w.HMENU,w.HINSTANCE,ctypes.c_void_p]
+  external=u.CreateWindowExW(0,'STATIC','Synthetic focus test',0x10CF0000,80,80,240,100,None,None,None,None)
+  assert external
+  try:
+   u.PostMessageW(second,0x50,0,ru)
+   wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(second,None))==ru)
+   for repeat in range(2):
+    u.SetForegroundWindow(external);wait(lambda:u.GetForegroundWindow()==external)
+    for vk,flags in [(0x12,0),(0x09,0),(0x09,2),(0x12,2)]:
+     u.keybd_event(vk,0,flags,0);time.sleep(.15)
+    wait(lambda:u.GetForegroundWindow()==host)
+    wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(second,None))==ru)
+    before=bytes(received[2]);events=(Input*2)()
+    for i,event in enumerate(events):event.type=1;event.data.key=KeyboardInput(0x41,0,2 if i else 0,0,0)
+    assert u.SendInput(2,events,ctypes.sizeof(Input))==2
+    wait(lambda:bytes(received[2])==before+'\u0444'.encode())
+  finally:
+   u.DestroyWindow.argtypes=[w.HWND];u.DestroyWindow(external)
+  print('PASS: Russian virtual-key input survives external Alt+Tab',flush=True)
   u.PostMessageW(second,0x50,0,en)
   wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(second,None))==en)
   print('PASS: RU/EN virtual-key input survives repeated tab switches',flush=True)
@@ -309,7 +333,7 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   print('PASS: SessionTabs=0 retains independent top-level windows',flush=True)
   print('PASS: independent SSH tabs; bar hidden for one session; active-tab input; mouse drag and context-menu move preserve connections; tab close ignores WarnOnClose; window close still confirms',flush=True)
  finally:
-  if sys.exc_info()[0]:print("DEBUG windows:",[(cls(h),title(h),[title(child) for child in enum(h)] if cls(h)=="#32770" else []) for h in enum() if pid(h) in pids],"connections",len(channels),flush=True)
+  if sys.exc_info()[0]:print('FOREGROUND',cls(u.GetForegroundWindow()),pid(u.GetForegroundWindow()),"DEBUG windows:",[(cls(h),title(h),[title(child) for child in enum(h)] if cls(h)=="#32770" else []) for h in enum() if pid(h) in pids],"connections",len(channels),flush=True)
   if "host" in locals() and u.IsWindow(host):
    from PIL import ImageGrab
    u.SetForegroundWindow(host);time.sleep(.3);rect=w.RECT();u.GetWindowRect(host,ctypes.byref(rect));ImageGrab.grab(bbox=(rect.left,rect.top,rect.right,rect.bottom)).save(binary.parent/"tabs-debug.png")

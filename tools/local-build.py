@@ -396,6 +396,10 @@ def main():
                     check(arch + "/quick-commands-menu", files,
                           [([PYTHON, "test/windows_menu_runtime.py", directory / executable, "--quick-only"], ssh_environment(work))], compiler=compiler)
                     if arch == "x64":
+                        auth_files = source_dependencies(ninja, directory, [executable, utility_executable("pageant", arch)])
+                        auth_files.update({"test/windows_companion_auth.py", "test/duplicate_auth_fixture.py"})
+                        check(arch + "/companion-auth", auth_files,
+                              [([PYTHON, "test/windows_companion_auth.py", directory / executable, "--key", "--unsaved"], ssh_environment(work))], compiler=compiler)
                         files = source_dependencies(ninja, directory, [executable, "test_companion_probe.exe"])
                         files.add("test/windows_menu_runtime.py")
                         check(arch + "/winscp", files,
