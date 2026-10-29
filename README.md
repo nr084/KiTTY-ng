@@ -8,23 +8,25 @@ KiTTY-ng развивает возможности KiTTY на современн
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-[Скачать 0.85-10](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-10) · [Изменения выпуска](docs/releases/0.85-10.md) · [Руководства](docs/README.md) · [Плагин Total Commander](kitty-ng-fs/README.md)
+[Скачать 0.85-11](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-11) · [Изменения выпуска](docs/releases/0.85-11.md) · [Руководства](docs/README.md) · [Плагин Total Commander](kitty-ng-fs/README.md)
 
 **macOS Universal 2 и портативный режим.** Одно приложение для Apple Silicon и Intel. Профили совместимы с Windows: используйте общую папку `Sessions`, ключи и `kitty.ini`. Данные хранятся вне `.app`, а ссылки на файлы внутри портативной папки могут быть относительными.
 
 ## Скачать
 
-Выпуск 0.85-10 включает шесть проверенных пакетов для Windows, macOS и Linux.
+Выпуск **0.85-11** опубликован для Windows и Linux: пять проверенных пакетов. **macOS Universal 2 готовится отдельно** и будет добавлена в этот выпуск после нативной проверки.
 
-| Платформа | Сборка 0.85-10 | Запуск |
+| Платформа | Сборка 0.85-11 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86_64.tar.zst) | `chmod +x`, запуск |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-10/kitty-ng-0.85-10-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-10/kitty-ng-0.85-10-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-x86_64.tar.zst) | `chmod +x`, запуск |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | Universal DMG — готовится на Mac | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
+
+В 0.85-11 исправлен ввод русского после переключения вкладок Windows, добавлен явный перезапуск сеанса и повторный вход в несохранённое подключение с данными из памяти, исправлена отрисовка тёмной темы. В пакетах — программы, необходимые runtime-ресурсы и лицензии; руководства и скриншоты доступны в GitHub.
 
 ## Первый запуск
 
@@ -140,7 +142,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 - [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-10](docs/releases/0.85-10.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-11](docs/releases/0.85-11.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 
