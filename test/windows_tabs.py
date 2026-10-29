@@ -202,6 +202,8 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
    u.PostMessageW(second,0x50,0,ru)
    wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(second,None))==ru)
    for repeat in range(2):
+    if '--fullscreen' in sys.argv:
+     u.SetForegroundWindow(host);wait(lambda:u.GetForegroundWindow()==host)
     u.SetForegroundWindow(external);wait(lambda:u.GetForegroundWindow()==external)
     for vk,flags in [(0x12,0),(0x09,0),(0x09,2),(0x12,2)]:
      u.keybd_event(vk,0,flags,0);time.sleep(.15)
