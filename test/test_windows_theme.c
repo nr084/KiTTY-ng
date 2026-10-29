@@ -38,10 +38,18 @@ static unsigned long caption_hash(HWND hwnd)
     return region_hash(hwnd,r);
 }
 static bool footer_ok;
+static BOOL CALLBACK find_test_messagebox(HWND hwnd, LPARAM value)
+{
+    if (GetPropW(hwnd,L"KiTTY-ng MessageBox")) {
+        *(HWND *)value=hwnd;return FALSE;
+    }
+    return TRUE;
+}
 static VOID CALLBACK inspect_messagebox(HWND unused, UINT msg, UINT_PTR timer, DWORD time)
 {
-    HWND box = GetForegroundWindow();
-    if (!GetPropW(box, L"KiTTY-ng MessageBox")) return;
+    HWND box=NULL;
+    EnumThreadWindows(GetCurrentThreadId(),find_test_messagebox,(LPARAM)&box);
+    if (!box) return;
     RECT r; GetClientRect(box, &r);
     RedrawWindow(box, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
     HDC dc = GetDC(box);
@@ -98,6 +106,7 @@ int main(int argc,char **argv)
         }
     }
 
+    fprintf(stderr,"PASS: repeated focus leaves caption pixels unchanged\n");
     SendMessageW(hwnd,WM_INITMENUPOPUP,(WPARAM)popup,0);
     mi.fMask=MIIM_DATA|MIIM_FTYPE;GetMenuItemInfoW(popup,0,TRUE,&mi);
     CHECK(mi.dwItemData==1234 && (mi.fType&MFT_OWNERDRAW));

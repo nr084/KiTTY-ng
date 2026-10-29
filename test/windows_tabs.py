@@ -35,18 +35,19 @@ channels=[];transports=[];received={};done=threading.Event()
 from duplicate_auth_fixture import PPK,PASSPHRASE,PUBLIC
 client_key=paramiko.Ed25519Key(data=base64.b64decode(PUBLIC)) if '--key' in sys.argv else None
 class Server(paramiko.ServerInterface):
+ def __init__(self):self.shell_ready=threading.Event()
  def check_auth_none(self,user):return paramiko.AUTH_FAILED
  def check_auth_password(self,user,password):return paramiko.AUTH_SUCCESSFUL if (user,password)==('demo','synthetic') else paramiko.AUTH_FAILED
  def check_auth_publickey(self,user,key):return paramiko.AUTH_SUCCESSFUL if user=='demo' and client_key is not None and key==client_key else paramiko.AUTH_FAILED
  def get_allowed_auths(self,user):return 'publickey' if client_key is not None else 'password'
  def check_channel_request(self,*args):return paramiko.OPEN_SUCCEEDED
  def check_channel_pty_request(self,*args):return True
- def check_channel_shell_request(self,*args):return True
+ def check_channel_shell_request(self,*args):self.shell_ready.set();return True
  def check_channel_window_change_request(self,*args):return True
 def connection(sock):
  try:
-  t=paramiko.Transport(sock);transports.append(t);t.add_server_key(key);t.start_server(server=Server());c=t.accept(15)
-  if c is None:return
+  t=paramiko.Transport(sock);transports.append(t);t.add_server_key(key);server=Server();t.start_server(server=server);c=t.accept(15)
+  if c is None or not server.shell_ready.wait(15):return
   index=len(channels)+1;channels.append(c);received[index]=bytearray();c.send(f'\x1b]0;Demo session {index}\x07\r\nIndependent SSH session {index}\r\n$ '.encode())
   while not done.is_set():
    data=c.recv(4096)
@@ -78,7 +79,7 @@ def keyboard(page,index,letter):
  thread=u.GetWindowThreadProcessId(page,None)
  time.sleep(.2)
  assert u.GetGUIThreadInfo(thread,ctypes.byref(info))
- assert info.focus==page, f'Keyboard focus lost: expected {page:#x}, got {info.focus}; active={info.active}'
+ assert info.focus==page, f'Keyboard focus lost: expected {page:#x}, got {info.focus}; active={info.active}; foreground={u.GetForegroundWindow()} host={host}'
  before={i:bytes(data) for i,data in received.items()}
  events=(Input*2)()
  for i,event in enumerate(events):
