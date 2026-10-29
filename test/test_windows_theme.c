@@ -14,6 +14,20 @@ static unsigned long paint_hash(HWND hwnd)
         hash=(hash^GetPixel(dc,x,y))*16777619UL;
     ReleaseDC(hwnd,dc);return hash;
 }
+/* A focus indicator must never alter pixels in the label's text area. */
+static unsigned long caption_hash(HWND hwnd)
+{
+    RECT r; GetClientRect(hwnd, &r); HDC dc=GetDC(hwnd);
+    HFONT old=SelectObject(dc,(HFONT)SendMessageW(hwnd,WM_GETFONT,0,0));
+    wchar_t text[128];GetWindowTextW(hwnd,text,lenof(text));
+    SIZE size;GetTextExtentPoint32W(dc,text,wcslen(text),&size);
+    int left=min(r.bottom,GetSystemMetrics(SM_CXMENUCHECK))+6;
+    unsigned long hash=2166136261UL;
+    for(int y=1;y<r.bottom-1;y++)
+        for(int x=left;x<min(r.right,left+size.cx);x++)
+            hash=(hash^GetPixel(dc,x,y))*16777619UL;
+    SelectObject(dc,old);ReleaseDC(hwnd,dc);return hash;
+}
 static bool footer_ok;
 static VOID CALLBACK inspect_messagebox(HWND unused, UINT msg, UINT_PTR timer, DWORD time)
 {
@@ -50,9 +64,9 @@ int main(int argc,char **argv)
     CHECK(kr_theme_save(2));pump();CHECK(kr_theme_dark());
     CHECK(TreeView_GetBkColor(tree)==RGB(26,27,30));
     HWND radio=CreateWindowW(L"BUTTON",L"Long connection caption",WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
-        120,50,250,26,hwnd,(HMENU)3,NULL,NULL);
+        120,50,250,18,hwnd,(HMENU)3,NULL,NULL);
     HWND check=CreateWindowW(L"BUTTON",L"Include header",WS_CHILD|WS_VISIBLE|BS_AUTOCHECKBOX,
-        120,90,250,26,hwnd,(HMENU)4,NULL,NULL);
+        120,90,250,18,hwnd,(HMENU)4,NULL,NULL);
     ShowWindow(hwnd,SW_SHOWNORMAL);kr_theme_attach(hwnd);pump();
     for(int i=0;i<2;i++) {
         HWND button=i?check:radio;
@@ -63,6 +77,16 @@ int main(int argc,char **argv)
         RedrawWindow(button,NULL,NULL,RDW_INVALIDATE|RDW_UPDATENOW);
         CHECK(native==paint_hash(button));
         SendMessageW(button,BM_SETSTATE,FALSE,0);
+        SendMessageW(button,WM_UPDATEUISTATE,MAKEWPARAM(UIS_CLEAR,UISF_HIDEFOCUS),0);
+        for(int repeat=0;repeat<4;repeat++) {
+            SetFocus(hwnd);pump();
+            unsigned long caption=caption_hash(button);
+            SetFocus(button);pump();
+            CHECK(caption==caption_hash(button));
+            unsigned long focused=paint_hash(button);
+            RedrawWindow(button,NULL,NULL,RDW_INVALIDATE|RDW_UPDATENOW);
+            CHECK(focused==paint_hash(button));
+        }
     }
 
     SendMessageW(hwnd,WM_INITMENUPOPUP,(WPARAM)popup,0);

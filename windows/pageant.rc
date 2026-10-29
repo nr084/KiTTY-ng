@@ -4,8 +4,8 @@
 
 #include "rcstuff.h"
 
-#define APPNAME "Pageant"
-#define APPDESC "PuTTY SSH authentication agent"
+#define APPNAME "Kageant"
+#define APPDESC "KiTTY-ng SSH authentication agent"
 
 #include "pageant-rc.h"
 
@@ -32,7 +32,7 @@ STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Kageant: Decrypting Stored Key"
 FONT 8, "MS Shell Dlg"
 BEGIN
-    CTEXT "A client of Pageant wants to use the following encrypted key:",
+    CTEXT "A client of Kageant wants to use the following encrypted key:",
         IDC_PASSPHRASE_STATIC1, 10, 6, 230, 8
     CTEXT "", IDC_PASSPHRASE_FINGERPRINT, 10, 16, 230, 8
     CTEXT "If you intended this, click in this box to make sure it has",

@@ -47,6 +47,21 @@ static int test_duplicate_auth(void)
     CHECK(kr_auth_reuse(copy,p));
     CHECK(!strcmp(prompt_get_result_ref(p->prompts[0]),"runtime-only-passphrase-marker"));
     CHECK(!save_settings("runtime-auth-key-test",copy));
+    conf_free(copy);free_prompts(p);
+    /* An unsaved session may have acquired its login interactively. Companion
+     * tools need that login, but must not mutate or persist the source profile. */
+    conf_set_utf8(source,CONF_username,"");
+    p=new_prompts();p->from_server=false;p->to_server=true;
+    p->name=dupstr("SSH login name");add_prompt(p,dupstr("login as: "),true);
+    prompt_set_result(p->prompts[0],"interactive-user");
+    kr_auth_capture(source,p,SPR_OK);
+    copy=kr_auth_connection(source,false);
+    CHECK(!*conf_get_str_ambi(copy,CONF_username,NULL));conf_free(copy);
+    copy=kr_auth_connection(source,true);
+    CHECK(!strcmp(conf_get_str_ambi(copy,CONF_username,NULL),"interactive-user"));
+    CHECK(!*conf_get_str_ambi(source,CONF_username,NULL));
+    CHECK(kr_auth_matches(copy));
+    CHECK(kr_auth_reuse(copy,p));CHECK(!kr_auth_reuse(copy,p));
     conf_free(copy);conf_free(source);free_prompts(p);
     return 0;
 }

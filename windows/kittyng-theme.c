@@ -320,7 +320,26 @@ static bool paint_button(HWND hwnd)
         }
     }
     DrawTextW(dc, text, -1, &r, flags); sfree(text);
-    if (focus) { InflateRect(&r, -4, -4); DrawFocusRect(dc, &r); }
+    if (focus && !(SendMessageW(hwnd, WM_QUERYUISTATE, 0, 0) & UISF_HIDEFOCUS)) {
+        RECT outline = r;
+        if (type == BS_CHECKBOX || type == BS_AUTOCHECKBOX ||
+            type == BS_3STATE || type == BS_AUTO3STATE ||
+            type == BS_RADIOBUTTON || type == BS_AUTORADIOBUTTON) {
+            /* These controls can be only one text line high. Insetting the
+             * focus rectangle vertically cuts through the caption. Keep its
+             * full height and bound its width to the label instead. */
+            SIZE caption;
+            wchar_t *label = snewn(n+1, wchar_t);
+            GetWindowTextW(hwnd, label, n+1);
+            GetTextExtentPoint32W(dc, label, n, &caption);
+            sfree(label);
+            outline.left = max(0, r.left-2);
+            outline.right = min(r.right, r.left+caption.cx+2);
+        } else {
+            InflateRect(&outline, -4, -4);
+        }
+        DrawFocusRect(dc, &outline);
+    }
     SelectObject(dc, oldfont); EndPaint(hwnd, &ps); return true;
 }
 static void paint_combo(HWND hwnd)
