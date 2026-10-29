@@ -5,7 +5,7 @@ root=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('pipeline',root/'tools/local-build.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 path=root/'dist/local-tests.json';cache=json.loads(path.read_text())
 extra="   if '--fullscreen' in sys.argv:\n    # A normal remote exit displays this informational modal before close_session.\n    notice=wait(lambda:next((h for h in enum() if pid(h)==plain.pid and cls(h)=='#32770' and any(title(c)=='Connection closed by remote host' for c in enum(h))),None))\n    u.PostMessageW(notice,0x111,1,0)\n    wait(lambda:not u.IsWindow(notice))\n"
-current=(root/'test/windows_tabs.py').read_text()
+current=(root/'test/windows_tabs.py').read_text().replace("    ok=next(c for c in enum(notice) if cls(c)=='Button' and title(c)=='OK')\n    u.SendMessageW(ok,0x00F5,0,0)  # BM_CLICK uses native MessageBox routing.",'    u.PostMessageW(notice,0x111,1,0)')
 focus_extra="    if '--fullscreen' in sys.argv:\n     u.SetForegroundWindow(host);wait(lambda:u.GetForegroundWindow()==host)\n"
 for key,entry in list(cache.items()):
  if '/session-tabs' not in key:continue
