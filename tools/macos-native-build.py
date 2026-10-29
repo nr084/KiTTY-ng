@@ -145,8 +145,8 @@ def main():
                 cached = json.loads(manifest.read_text()) if manifest.exists() else {}
                 expected = set(TARGETS.values()) | set(UNIT_TESTS)
                 reused = set(cached) == expected and all((cache/n).exists() and hashlib.sha256((cache/n).read_bytes()).hexdigest()==v for n,v in cached.items())
+                directory = work/arch
                 if not reused:
-                    directory = work/arch
                     print(arch, 'configure and compile', flush=True)
                     run([cmake,'-S',ROOT,'-B',directory,'-G','Ninja',
                         '-DCMAKE_OSX_ARCHITECTURES='+arch,'-DCMAKE_OSX_DEPLOYMENT_TARGET='+args.deployment_target,
