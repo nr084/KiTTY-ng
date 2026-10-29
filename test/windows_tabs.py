@@ -89,15 +89,18 @@ def keyboard(page,index,letter):
 
 binary=Path(sys.argv[1]).resolve();pids=set();processes=[]
 with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent) as folder:
- root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('WarnOnClose\\1\\\n'+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
+ root=Path(folder);(root/'Sessions').mkdir();(root/'Sessions/Demo').write_text('CloseOnExit\\1\\\nWarnOnClose\\1\\\n'+('Fullscreen\\1\\\n' if '--fullscreen' in sys.argv else ''))
  key_args=[]
  if client_key is not None:
   ppk=root/'synthetic.ppk';ppk.write_bytes(PPK)
   key_args=['-i',str(ppk)]
  def launch():
-  p=subprocess.Popen([str(binary),'--portable-dir',str(root),'--language',('ru' if '--russian' in sys.argv else 'en'),'-load','Demo','-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),'-l','demo','-hostkey',fingerprint,*key_args]);processes.append(p);pids.add(p.pid)
+  p=subprocess.Popen([str(binary),'--portable-dir',str(root),'--language',('ru' if '--russian' in sys.argv else 'en'),* ([] if '--unsaved' in sys.argv else ['-load','Demo']),'-ssh','127.0.0.1','-P',str(listener.getsockname()[1]),* ([] if '--unsaved' in sys.argv else ['-l','demo']),'-hostkey',fingerprint,*key_args]);processes.append(p);pids.add(p.pid)
   page=wait(lambda:next((h for h in enum() if pid(h)==p.pid and cls(h).startswith('KiTTY-ng') and u.IsWindowVisible(h)),None))
   time.sleep(1.5)
+  if '--unsaved' in sys.argv:
+   for letter in 'demo\r':u.PostMessageW(page,0x102,ord(letter),0)
+   time.sleep(.5)
   for letter in (PASSPHRASE if client_key is not None else 'synthetic')+'\r':u.PostMessageW(page,0x102,ord(letter),0)
   return p
  try:
@@ -108,6 +111,7 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   u.PostMessageW(first,0x112,0x30,0)
   host=wait(lambda:next((h for h in enum() if cls(h)=='KiTTYng.SessionTabs' and u.GetParent(first)==h),None));pids.add(pid(host))
   strip=wait(lambda:next((h for h in enum(host) if cls(h)=='SysTabControl32'),None))
+  assert u.SendMessageW(host,0x7f,1,0), 'Tab host must expose a large Alt+Tab icon'
   wait(lambda:u.SendMessageW(strip,0x1304,0,0)==2)
   second=wait(lambda:next((h for h in enum(host) if title(h)=='Demo session 2'),None));pids.add(pid(second))
   assert u.IsWindowVisible(second) and not u.IsWindowVisible(first)
@@ -168,6 +172,26 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   for x,page,index,letter in [(35,first,1,'a'),(250,second,2,'b')]*2:
    mouse(0x201,x,buttons=1);mouse(0x202,x)
    keyboard(page,index,letter)
+  # Exercise actual virtual keys: KEYEVENTF_UNICODE bypasses layout handling.
+  u.LoadKeyboardLayoutW.argtypes=[w.LPCWSTR,w.UINT];u.LoadKeyboardLayoutW.restype=w.HANDLE
+  u.GetKeyboardLayout.argtypes=[w.DWORD];u.GetKeyboardLayout.restype=w.HANDLE
+  ru=u.LoadKeyboardLayoutW('00000419',0);en=u.LoadKeyboardLayoutW('00000409',0)
+  assert ru and en, 'RU/EN keyboard layouts must load for regression test'
+  for layout,expected in [(ru,'ф'),(en,'a'),(ru,'ф')]:
+   u.PostMessageW(second,0x50,0,layout)
+   wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(second,None))==layout)
+   for x,page,index in [(35,first,1),(250,second,2)]:
+    mouse(0x201,x,buttons=1);mouse(0x202,x)
+    wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(page,None))==layout)
+    before=bytes(received[index])
+    events=(Input*2)()
+    for i,event in enumerate(events):
+     event.type=1;event.data.key=KeyboardInput(0x41,0,2 if i else 0,0,0)
+    assert u.SendInput(2,events,ctypes.sizeof(Input))==2
+    wait(lambda:bytes(received[index])==before+expected.encode('utf-8'))
+  u.PostMessageW(second,0x50,0,en)
+  wait(lambda:u.GetKeyboardLayout(u.GetWindowThreadProcessId(second,None))==en)
+  print('PASS: RU/EN virtual-key input survives repeated tab switches',flush=True)
   if '--screenshot' in sys.argv:
    from PIL import ImageGrab
    target=Path(sys.argv[sys.argv.index('--screenshot')+1]);target.parent.mkdir(parents=True,exist_ok=True)
@@ -270,6 +294,17 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   separate=wait(lambda:next((h for h in enum() if title(h)=='Demo session 6'),None));pids.add(pid(separate))
   assert u.GetParent(plain_window) is None and u.GetParent(separate) is None
   assert not any(cls(h)=='KiTTYng.SessionTabs' and pid(h) in pids for h in enum())
+  if '--unsaved' not in sys.argv:
+   channels[4].send_exit_status(0);channels[4].close()
+   wait(lambda:'inactive' in title(plain_window) or 'неактивен' in title(plain_window))
+   count=len(channels)
+   for letter in 'test':u.PostMessageW(plain_window,0x102,ord(letter),0)
+   u.PostMessageW(plain_window,0x112,0x10,0)  # Event log, not reconnect.
+   time.sleep(.5)
+   assert len(channels)==count, 'Inactive-session typing/menu must not restart SSH'
+   u.PostMessageW(plain_window,0x112,0x40,0)
+   wait(lambda:len(channels)==count+1)
+   print('PASS: inactive connection restarts only through explicit Restart Session',flush=True)
   print('PASS: SessionTabs=0 retains independent top-level windows',flush=True)
   print('PASS: independent SSH tabs; bar hidden for one session; active-tab input; mouse drag and context-menu move preserve connections; tab close ignores WarnOnClose; window close still confirms',flush=True)
  finally:

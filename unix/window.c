@@ -6145,10 +6145,10 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
         if (new_session)
             MKMENUITEM("New Session...", new_session_menuitem);
+        MKMENUITEM("Duplicate Session", dup_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
         inst->restartitem = menuitem;
         gtk_widget_set_sensitive(inst->restartitem, false);
-        MKMENUITEM("Duplicate Session", dup_session_menuitem);
         if (saved_sessions) {
             inst->sessionsmenu = gtk_menu_new();
             /* sessionsmenu will be updated when it's invoked */

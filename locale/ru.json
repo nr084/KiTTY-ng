@@ -432,6 +432,7 @@
   "Signature types (RSA keys only):": "Типы подписей (только RSA):",
   "Specified forwarding already exists": "Такое перенаправление уже существует",
   "Specified host key is already listed": "Такой ключ сервера уже добавлен",
+  "Speed": "Скорость",
   "Speed (baud)": "Скорость (бод)",
   "Stop bits": "Стоповые биты",
   "Sunken-edge border (slightly thicker)": "Утопленная граница (чуть толще)",

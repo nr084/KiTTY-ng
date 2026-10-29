@@ -646,16 +646,9 @@ static void start_backend(WinGuiSeat *wgs)
      */
     wgs->ldisc = ldisc_create(wgs->conf, wgs->term, wgs->backend, &wgs->seat);
 
-    /*
-     * Destroy the Restart Session menu item. (This will return
-     * failure if it's already absent, as it will be the very first
-     * time we call this function. We ignore that, because as long
-     * as the menu item ends up not being there, we don't care
-     * whether it was us who removed it or not!)
-     */
-    for (i = 0; i < lenof(wgs->popup_menus); i++) {
-        DeleteMenu(wgs->popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
-    }
+    for (i = 0; i < lenof(wgs->popup_menus); i++)
+        EnableMenuItem(wgs->popup_menus[i].menu, IDM_RESTART,
+                       MF_BYCOMMAND | MF_GRAYED);
 
     wgs->session_closed = false;
     wgs->kr_saved_password_tried = false;
@@ -697,15 +690,9 @@ static void close_session(void *vctx)
         seat_update_specials_menu(&wgs->seat);
     }
 
-    /*
-     * Show the Restart Session menu item. Do a precautionary
-     * delete first to ensure we never end up with more than one.
-     */
-    for (i = 0; i < lenof(wgs->popup_menus); i++) {
-        DeleteMenu(wgs->popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
-        InsertMenu(wgs->popup_menus[i].menu, IDM_DUPSESS,
-                   MF_BYCOMMAND | MF_ENABLED, IDM_RESTART, "&Restart Session");
-    }
+    for (i = 0; i < lenof(wgs->popup_menus); i++)
+        EnableMenuItem(wgs->popup_menus[i].menu, IDM_RESTART,
+                       MF_BYCOMMAND | MF_ENABLED);
 }
 
 /*
@@ -1102,6 +1089,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             kr_append_menu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
             kr_append_menu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+            kr_append_menu(m, MF_GRAYED, IDM_RESTART, "Restart Session");
             kr_append_menu(m, MF_ENABLED, IDM_KR_TRAY, "Send to tray");
             kr_append_menu(m, MF_ENABLED, IDM_KR_UPLOAD, "Send files...");
             kr_append_menu(m, MF_ENABLED, IDM_KR_DOWNLOAD, "Receive file...");
@@ -2705,8 +2693,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case KR_WM_TAB_FOCUS:
         /* Ignore stale requests for hidden tabs or a background frame. */
         if (wParam && (HWND)wParam == kr_tabs_parent(hwnd) &&
-            IsWindowVisible(hwnd) && GetForegroundWindow() == (HWND)wParam)
+            IsWindowVisible(hwnd) && GetForegroundWindow() == (HWND)wParam) {
+            if (lParam && GetKeyboardLayout(0) != (HKL)lParam)
+                ActivateKeyboardLayout((HKL)lParam, 0);
+            set_input_locale(wgs, GetKeyboardLayout(0));
             SetFocus(hwnd);
+        }
         return 0;
       case KR_WM_TAB_CLOSE_WARNING:
         return !wgs->session_closed && conf_get_bool(wgs->conf, CONF_warn_on_close);
@@ -3513,6 +3505,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         winselgui_response(message, wParam, lParam);
         return 0;
       case WM_SETFOCUS:
+        set_input_locale(wgs, GetKeyboardLayout(0));
         term_set_focus(wgs->term, true);
         CreateCaret(hwnd, wgs->caretbm, wgs->font_width, wgs->font_height);
         ShowCaret(hwnd);
@@ -3910,6 +3903,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         /* wParam == Font number */
         /* lParam == Locale */
         set_input_locale(wgs, (HKL)lParam);
+        if (kr_tabs_parent(hwnd))
+            PostMessageW(kr_tabs_parent(hwnd), KR_WM_TAB_LAYOUT,
+                         (WPARAM)hwnd, lParam);
         sys_cursor_update(wgs);
         break;
       case WM_IME_STARTCOMPOSITION: {

@@ -377,6 +377,16 @@ static LRESULT CALLBACK themed_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
             if(msg==WM_SETFOCUS || msg==WM_KILLFOCUS || msg==CB_SETCURSEL || msg==WM_ENABLE)InvalidateRect(hwnd,NULL,FALSE);
         }
         if (!_wcsicmp(cls,L"Button")) {
+            /* Native buttons paint synchronously on state/text changes, outside
+             * WM_PAINT. Finish that operation, then replace the entire control
+             * with our themed painting, including shortened translated labels. */
+            if (msg == WM_SETTEXT || msg == BM_SETSTATE || msg == BM_SETCHECK ||
+                msg == WM_SETFOCUS || msg == WM_KILLFOCUS || msg == WM_ENABLE ||
+                msg == BM_SETSTYLE || msg == WM_UPDATEUISTATE) {
+                LRESULT result = DefSubclassProc(hwnd, msg, wp, lp);
+                RedrawWindow(hwnd, NULL, NULL, RDW_INVALIDATE | RDW_UPDATENOW);
+                return result;
+            }
             if (msg == WM_PAINT && paint_button(hwnd)) return 0;
             if (msg == WM_MOUSEMOVE) { TRACKMOUSEEVENT t = {sizeof(t),TME_LEAVE,hwnd,0}; TrackMouseEvent(&t); InvalidateRect(hwnd,NULL,FALSE); }
             if (msg == WM_MOUSELEAVE || msg == WM_SETFOCUS || msg == WM_KILLFOCUS || msg == BM_SETCHECK || msg == WM_ENABLE)

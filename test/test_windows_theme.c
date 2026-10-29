@@ -6,6 +6,14 @@
 const char *const appname="theme-test";
 void modalfatalbox(const char *format, ...) { abort(); }
 static void pump(void) { MSG m;int n=0;while(PeekMessageW(&m,NULL,0,0,PM_REMOVE)){TranslateMessage(&m);DispatchMessageW(&m);assert(++n<10000);} }
+static unsigned long paint_hash(HWND hwnd)
+{
+    RECT r; GetClientRect(hwnd, &r); HDC dc=GetDC(hwnd);
+    unsigned long hash=2166136261UL;
+    for(int y=0;y<r.bottom;y++) for(int x=0;x<r.right;x++)
+        hash=(hash^GetPixel(dc,x,y))*16777619UL;
+    ReleaseDC(hwnd,dc);return hash;
+}
 static bool footer_ok;
 static VOID CALLBACK inspect_messagebox(HWND unused, UINT msg, UINT_PTR timer, DWORD time)
 {
@@ -41,6 +49,22 @@ int main(int argc,char **argv)
     kr_theme_attach(hwnd);pump();
     CHECK(kr_theme_save(2));pump();CHECK(kr_theme_dark());
     CHECK(TreeView_GetBkColor(tree)==RGB(26,27,30));
+    HWND radio=CreateWindowW(L"BUTTON",L"Long connection caption",WS_CHILD|WS_VISIBLE|BS_AUTORADIOBUTTON,
+        120,50,250,26,hwnd,(HMENU)3,NULL,NULL);
+    HWND check=CreateWindowW(L"BUTTON",L"Include header",WS_CHILD|WS_VISIBLE|BS_AUTOCHECKBOX,
+        120,90,250,26,hwnd,(HMENU)4,NULL,NULL);
+    ShowWindow(hwnd,SW_SHOWNORMAL);kr_theme_attach(hwnd);pump();
+    for(int i=0;i<2;i++) {
+        HWND button=i?check:radio;
+        SetWindowTextW(button,i?L"Header":L"COM");
+        SendMessageW(button,BM_SETCHECK,BST_CHECKED,0);
+        SendMessageW(button,BM_SETSTATE,TRUE,0);
+        unsigned long native=paint_hash(button);
+        RedrawWindow(button,NULL,NULL,RDW_INVALIDATE|RDW_UPDATENOW);
+        CHECK(native==paint_hash(button));
+        SendMessageW(button,BM_SETSTATE,FALSE,0);
+    }
+
     SendMessageW(hwnd,WM_INITMENUPOPUP,(WPARAM)popup,0);
     mi.fMask=MIIM_DATA|MIIM_FTYPE;GetMenuItemInfoW(popup,0,TRUE,&mi);
     CHECK(mi.dwItemData==1234 && (mi.fType&MFT_OWNERDRAW));

@@ -43,14 +43,17 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-theme-gui-') as temp:
  for mode in (1,2):
   (root/'kitty.ini').write_text('[KiTTY]\nUITheme='+str(mode)+'\n',encoding='utf-8')
   for lang in ('ru','en'):
-   for tool in ('kitty-ng','kittygen','kageant','session','about'):
-    image=root/(tool+lang+str(mode)+'.png')
+   for tool in ('kitty-ng','kittygen','kageant','session','about',
+                'Session/Logging','Terminal/Bell','Window/Translation','Window/Colours',
+                'Connection/SSH/Kex','Connection/SSH/Tunnels','Connection/Automation','Connection/Proxy profiles'):
+    image=root/(tool.replace('/','-')+lang+str(mode)+'.png')
     args=['--language',lang]
     if tool=='about':args+=['--portable-dir',str(root),'-demo-about',str(image)]
+    elif '/' in tool:args+=['--portable-dir',str(root),'-demo-config-box',str(image),'-demo-panel',tool]
     elif tool=='session':args+=['--portable-dir',str(root),'-demo-config-box',str(image),'-demo-panel','Session']
     elif tool=='kitty-ng':args+=['--portable-dir',str(root),'-demo-config-box',str(image),'-demo-panel','Window/Appearance']
     else:args+=['-demo-screenshot',str(image)]
-    process=subprocess.Popen([str(build/(('kitty-ng' if tool in ('session','about') else tool)+'-'+arch+'.exe')),*args],env=env)
+    process=subprocess.Popen([str(build/(('kitty-ng' if tool in ('session','about') or '/' in tool else tool)+'-'+arch+'.exe')),*args],env=env)
     try:
      if tool=='kageant':check_agent(process.pid)
      code=process.wait(timeout=20)
@@ -60,4 +63,4 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-theme-gui-') as temp:
     with Image.open(image) as source:
      pixels=list(source.convert('RGB').getdata());ratio=sum(max(p)<85 for p in pixels)/len(pixels)
      assert (ratio>.5 if mode==2 else ratio<.4),(tool,lang,mode,ratio)
-print('PASS: 20 rendered Windows/client/utility dialogs, light/dark RU/EN, full Kageant labels')
+print('PASS: 52 rendered Windows/client/utility dialogs, light/dark RU/EN, full Kageant labels')

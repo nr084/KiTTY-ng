@@ -371,7 +371,7 @@ def main():
                     check(arch + "/session-tabs", files,
                           [([PYTHON, "test/windows_tabs.py", directory / executable], ssh_environment(work)),
                            ([PYTHON, "test/windows_tabs.py", directory / executable, "--russian", "--maximized"], ssh_environment(work)),
-                           ([PYTHON, "test/windows_tabs.py", directory / executable, "--key"], ssh_environment(work)),
+                           ([PYTHON, "test/windows_tabs.py", directory / executable, "--key", "--unsaved"], ssh_environment(work)),
                            ([PYTHON, "test/windows_tabs.py", directory / executable, "--fullscreen"], ssh_environment(work))],
                           compiler=compiler)
                     files = source_dependencies(ninja, directory, [executable])

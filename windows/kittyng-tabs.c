@@ -6,6 +6,7 @@
 #include "kittyng.h"
 #include "kittyng-theme.h"
 #include "kittyng-tray.h"
+#include "putty-rc.h"
 #include <shellapi.h>
 #include <commctrl.h>
 #include <wchar.h>
@@ -31,6 +32,7 @@ typedef struct {
     int dpi, hover;
     int count, selected;
     bool closing, tray, fullscreen;
+    HKL input_layout;
     WINDOWPLACEMENT placement;
     LONG_PTR frame_style;
     int system_menu_items;
@@ -169,7 +171,7 @@ static void frame_focus(TabFrame *f)
     HWND page = f->pages[f->selected];
     /* Let the terminal's own thread take focus after tab selection finishes.
      * Attaching/detaching queues here loses the foreground input target. */
-    PostMessageW(page, KR_WM_TAB_FOCUS, (WPARAM)f->frame, 0);
+    PostMessageW(page, KR_WM_TAB_FOCUS, (WPARAM)f->frame, (LPARAM)f->input_layout);
 }
 static int tab_px(TabFrame *f,int value) {return MulDiv(value,f->dpi,96);}
 static RECT tab_close_rect(TabFrame *f,int index)
@@ -416,6 +418,18 @@ static LRESULT CALLBACK frame_proc(HWND hwnd, UINT message, WPARAM wp, LPARAM lp
         return page==(HWND)wp && !f->closing && frame_add(f,page);
       }
       case WM_SIZE: frame_layout(f);return 0;
+      case KR_WM_TAB_LAYOUT:
+        if (f->selected >= 0 && f->selected < f->count &&
+            (HWND)wp == f->pages[f->selected]) {
+            f->input_layout = (HKL)lp;
+            if (GetKeyboardLayout(0) != (HKL)lp)
+                ActivateKeyboardLayout((HKL)lp, 0);
+        }
+        return 0;
+      case WM_INPUTLANGCHANGE:
+        f->input_layout = (HKL)lp;
+        frame_focus(f);
+        break;
       case WM_SETFOCUS: frame_focus(f);return 0;
       case WM_NOTIFY:
         if (((NMHDR*)lp)->hwndFrom==f->strip && ((NMHDR*)lp)->code==NM_RCLICK) {frame_tab_menu(f);return 0;}
@@ -457,13 +471,18 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
         (strcmp(language,"en") && strcmp(language,"ru")) || !same_executable(source)) return true;
     WNDCLASSEXW wc={ .cbSize=sizeof(wc), .lpfnWndProc=frame_proc, .hInstance=instance,
         .hCursor=LoadCursor(NULL,IDC_ARROW),.hbrBackground=(HBRUSH)(COLOR_BTNFACE+1),.lpszClassName=TAB_CLASS };
-    wc.hIcon=(HICON)GetClassLongPtrW(source,GCLP_HICON);wc.hIconSm=(HICON)GetClassLongPtrW(source,GCLP_HICONSM);
+    wc.hIcon=LoadIconW(instance, MAKEINTRESOURCEW(IDI_MAINICON));
+    wc.hIconSm=(HICON)LoadImageW(instance, MAKEINTRESOURCEW(IDI_MAINICON), IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED);
     RegisterClassExW(&wc);
-    TabFrame f={ .selected=-1, .hover=-1 };RECT r;GetWindowRect(source,&r);
+    TabFrame f={ .selected=-1, .hover=-1,
+        .input_layout=GetKeyboardLayout(GetWindowThreadProcessId(source,NULL)) };RECT r;GetWindowRect(source,&r);
     bool maximized=IsZoomed(source);
     bool fullscreen=!(GetWindowLongPtrW(source,GWL_STYLE)&WS_CAPTION);
     f.frame=CreateWindowExW(0,TAB_CLASS,L"KiTTY-ng",WS_OVERLAPPEDWINDOW|WS_CLIPCHILDREN,r.left,r.top,r.right-r.left,r.bottom-r.top,NULL,NULL,instance,NULL);
     if (!f.frame) return true;
+    SendMessageW(f.frame, WM_SETICON, ICON_BIG, (LPARAM)wc.hIcon);
+    SendMessageW(f.frame, WM_SETICON, ICON_SMALL, (LPARAM)wc.hIconSm);
     frame_initial_animation(f.frame, TRUE);
     SetWindowLongPtrW(f.frame,GWLP_USERDATA,(LONG_PTR)&f);
     kr_theme_attach(f.frame);
