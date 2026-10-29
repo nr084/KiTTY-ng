@@ -205,8 +205,21 @@ def main():
             print("REUSE:", key, flush=True)
         else:
             for index, (command, env) in enumerate(commands):
-                run(command, key.replace("/", "-") + f"-{index}", env)
-            entry = {"source_commit": report["source_commit"], "evidence": "local"}
+                scenario_key = key + "/scenario-" + str(index)
+                scenario = cache.get(scenario_key, {})
+                if (not args.force_tests and scenario.get("fingerprint") == fingerprint
+                        and scenario.get("compiler") == compiler):
+                    print("REUSE:", scenario_key, flush=True)
+                else:
+                    run(command, key.replace("/", "-") + f"-{index}", env)
+                    scenario = {"source_commit": report["source_commit"],
+                                "evidence": "local", "fingerprint": fingerprint,
+                                "compiler": compiler, "inputs": sorted(files)}
+                    cache[scenario_key] = scenario
+                    cache_path.write_text(json.dumps(cache, indent=2) + "\n")
+            entry = {"source_commit": report["source_commit"], "evidence": "local",
+                     "scenarios": [dict(cache[key + "/scenario-" + str(i)])
+                                   for i in range(len(commands))]}
         entry.update(fingerprint=fingerprint, compiler=compiler, inputs=sorted(files))
         cache[key] = entry
         cache_path.write_text(json.dumps(cache, indent=2) + "\n")

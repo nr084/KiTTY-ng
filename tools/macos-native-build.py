@@ -283,15 +283,7 @@ def main():
                 payload = work/'payload'
                 payload.mkdir()
                 shutil.copytree(app,payload/'KiTTY-ng.app')
-                shutil.copytree(ROOT/'docs',payload/'Instructions/docs')
-                for name in ('README.md','README.en.md','LICENCE','LICENCE-KiTTY.txt'):
-                    shutil.copy2(ROOT/name,payload/'Instructions'/name)
-                icons=payload/'Instructions/icons'
-                icons.mkdir()
-                for name in ('kitty-ng.png','kitty-ng-forum.png','kitty-ng-prompt.txt'):
-                    shutil.copy2(ROOT/'icons'/name,icons/name)
-                for name in ('Smoke-test KiTTY-ng.command','Diagnose KiTTY-ng.command'):
-                    shutil.copy2(work/name,payload/'Instructions'/name)
+                # Licences and application icons already reside inside the signed bundle.
                 dmg = dest/f'kitty-ng-{version}-macos-universal.dmg'
                 run(['hdiutil','create','-ov','-format','UDZO','-fs','HFS+','-volname','KiTTY-ng '+version+' Universal','-srcfolder',payload,dmg],logs/'dmg.log')
                 run(['hdiutil','verify',dmg],logs/'dmg-verify.log')
