@@ -31,7 +31,7 @@ typedef struct MacSession {
     __unsafe_unretained MacTerminal *view;
     Conf *conf; Terminal *term; Backend *backend; Ldisc *ldisc; LogContext *logctx;
     struct unicode_data ucs; rgb palette[OSC4_NCOLOURS];
-    bool painting, closed, password_tried, started, raw_mouse, input_locked, commands_started, manual_abort, specials_ready;
+    bool painting, closed, password_tried, started, authenticated, raw_mouse, input_locked, commands_started, manual_abort, specials_ready;
     char *commands;size_t command_index;uint64_t command_due,reconnect_due;
 } MacSession;
 static NSMutableArray<MacTerminal *> *windows;
@@ -202,7 +202,7 @@ static const TermWinVtable term_vt={.setup_draw_ctx=draw_setup,.draw_text=draw_t
 static size_t output(Seat *seat,SeatOutputType type,const void *data,size_t len){MacSession *s=SEAT(seat);if(s->term){[s->view observeOutput:[NSData dataWithBytes:data length:len]];term_data(s->term,data,len);[s->view setNeedsDisplay:YES];}return 0;}
 static size_t banner(Seat *seat,const void *data,size_t len){return output(seat,SEAT_OUTPUT_STDERR,data,len);}
 static bool eof(Seat *seat){return true;}
-static void started(Seat *seat){SEAT(seat)->started=true;}
+static void started(Seat *seat){SEAT(seat)->started=true;SEAT(seat)->authenticated=true;}
 static uint64_t now(void){return NSProcessInfo.processInfo.systemUptime*1000;}
 static void cancel_commands(MacSession *s){if(s->commands){smemclr(s->commands,strlen(s->commands));sfree(s->commands);s->commands=NULL;}s->command_index=0;}
 static void exited(Seat *seat){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);[s->view updateSessionTitle:[s->view.sessionTitle stringByAppendingString:T(@" — closed",@" — закрыто")]];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.host closePage:owner];});}}
@@ -370,13 +370,13 @@ static MacCommandSubmenu *commandSubmenu(MacTerminal *terminal,BOOL routed,BOOL 
 @end
 static NSArray *sessionCommands(void){
     return @[@[T(@"Duplicate session",@"Дублировать сеанс"),@"duplicate:"],
+        @[T(@"Restart session",@"Перезапустить сеанс"),@"restart:"],
         @[T(@"Session settings…",@"Настройки сеанса…"),@"settings:"],
         @[T(@"Event log…",@"Журнал событий…"),@"showLog:"],
         @[T(@"Always on top",@"Поверх окон"),@"toggleTop:"],
         @[T(@"Protect input",@"Защита ввода"),@"toggleLock:"],
         @[T(@"Hide window",@"Скрыть окно"),@"hideWindow:"],
         @[T(@"Fullscreen",@"Полный экран"),@"fullscreen:"],
-        @[T(@"Restart session",@"Перезапустить сеанс"),@"restart:"],
         @[kr_mac_localize_string(@"End session"),@"finishSession:"],
         @[kr_mac_localize_string(@"Special Commands"),@"specialCommands"],
         @[kr_mac_localize_string(@"Quick commands"),@"quickCommands"],
@@ -437,7 +437,7 @@ void kr_mac_add_session_menu(NSMenu *menu){
 int kr_mac_test_session_menu_ui(void){
     NSMenu *context=terminalMenu(nil,NO);
     if(context.numberOfItems!=17||context.allowsContextMenuPlugIns)return 1;
-    if(![context.itemArray[0].representedObject isEqualToString:@"duplicate:"])return 1;
+    if(![context.itemArray[0].representedObject isEqualToString:@"duplicate:"]||![context.itemArray[1].representedObject isEqualToString:@"restart:"])return 1;
     [context addItem:[[NSMenuItem alloc]initWithTitle:@"AutoFill" action:NULL keyEquivalent:@""]];
     [context insertItem:[[NSMenuItem alloc]initWithTitle:@"Injected item" action:NULL keyEquivalent:@""] atIndex:0];
     if(context.numberOfItems!=17)return 1;
@@ -555,12 +555,17 @@ int kr_mac_test_session_navigation_ui(void){
     
 }
 - (void)connect {
-    MacSession *s=self.session;if(!s)return;s->started=false;s->closed=false;s->specials_ready=false;s->manual_abort=false;s->password_tried=false;conf_set_int(s->conf,CONF_kr_auth_attempts,0);s->commands_started=false;s->reconnect_due=0;cancel_commands(s);
+    MacSession *s=self.session;if(!s)return;s->started=false;s->authenticated=false;s->closed=false;s->specials_ready=false;s->manual_abort=false;s->password_tried=false;conf_set_int(s->conf,CONF_kr_auth_attempts,0);s->commands_started=false;s->reconnect_due=0;cancel_commands(s);
     if(s->ldisc){ldisc_free(s->ldisc);s->ldisc=NULL;}if(s->backend){backend_free(s->backend);s->backend=NULL;}term_provide_backend(s->term,NULL);
     char *realhost=NULL;const struct BackendVtable *backend=backend_vt_from_proto(conf_get_int(s->conf,CONF_protocol));char *error=backend?backend_init(backend,&s->seat,&s->backend,s->logctx,s->conf,conf_get_str(s->conf,CONF_host),conf_get_int(s->conf,CONF_port),&realhost,conf_get_bool(s->conf,CONF_tcp_nodelay),conf_get_bool(s->conf,CONF_tcp_keepalives)):dupstr("This protocol is unavailable on macOS");
     if(error){fatal(&s->seat,error);sfree(error);}else{term_provide_backend(s->term,s->backend);s->ldisc=ldisc_create(s->conf,s->term,s->backend,&s->seat);term_setup_window_titles(s->term,realhost);backend_size(s->backend,s->term->cols,s->term->rows);}sfree(realhost);[self setNeedsDisplay:YES];
 }
-- (void)restart:(id)sender{[self connect];}
+- (void)restart:(id)sender{
+    MacSession *s=self.session;if(!s)return;
+    Conf *snapshot=kr_auth_connection(s->conf,s->authenticated);
+    conf_free(s->conf);s->conf=snapshot;
+    [self connect];
+}
 - (void)woke:(NSNotification *)note{if(self.session&&conf_get_bool(self.session->conf,CONF_wakeup_reconnect))self.session->reconnect_due=now()+500;}
 - (void)startup:(id)sender{if(self.session){cancel_commands(self.session);self.session->commands_started=false;}}
 - (void)script:(id)sender{
@@ -599,11 +604,12 @@ int kr_mac_test_session_navigation_ui(void){
 - (void)copyAll:(id)sender{if(self.session){int clip=CLIP_CLIPBOARD;term_copyall(self.session->term,&clip,1);}}
 - (void)clearHistory:(id)sender{if(self.session)term_clrsb(self.session->term);}
 - (void)resetTerminal:(id)sender{if(self.session)term_pwron(self.session->term,true);}
-- (void)duplicate:(id)sender{if(self.session){Conf *copy=kr_auth_duplicate(self.session->conf,self.session->backend && backend_sendok(self.session->backend));open_conf_in_host(copy,self.host.tabsEnabled?self.host:nil);conf_free(copy);}}
+- (void)duplicate:(id)sender{if(self.session){Conf *copy=kr_auth_connection(self.session->conf,self.session->authenticated);open_conf_in_host(copy,self.host.tabsEnabled?self.host:nil);conf_free(copy);}}
 - (void)updateSessionTitle:(NSString*)title{self.sessionTitle=title;[self.host refresh];}
 - (void)showBrowser:(id)sender{kr_mac_show_windows();}
 - (void)keyDown:(NSEvent *)event{MacSession *s=self.session;if(!s||!s->term)return;if([self shortcut:event])return;
     if((event.modifierFlags&NSEventModifierFlagCommand)&&(event.keyCode==37||[event.charactersIgnoringModifiers.lowercaseString isEqualToString:@"l"])){s->input_locked=!s->input_locked;return;}if(s->input_locked)return;
+    if(s->closed && !(event.modifierFlags&NSEventModifierFlagCommand))return;
     if(event.modifierFlags&NSEventModifierFlagCommand){NSString *key=event.charactersIgnoringModifiers.lowercaseString;if(event.keyCode==8||[key isEqualToString:@"c"])[self copy:nil];else if(event.keyCode==9||[key isEqualToString:@"v"])[self paste:nil];return;}
     if(self.hasMarkedText){[self interpretKeyEvents:@[event]];return;}
     NSString *characters=event.charactersIgnoringModifiers;if(!characters.length)return;unichar key=[characters characterAtIndex:0];char buffer[128];int n=0;bool consumed=false,shift=(event.modifierFlags&NSEventModifierFlagShift)!=0,control=(event.modifierFlags&NSEventModifierFlagControl)!=0,alt=(event.modifierFlags&NSEventModifierFlagOption)!=0;

