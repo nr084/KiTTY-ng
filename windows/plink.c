@@ -136,7 +136,7 @@ static void usage(void)
     printf("Klink: command-line connection utility\n");
     printf("%s\n", ver);
     printf("Usage: klink [options] [user@]host [command]\n");
-    printf("       (\"host\" can also be a PuTTY saved session name)\n");
+    printf("       (\"host\" can also be a KiTTY-ng saved session name)\n");
     printf("Options:\n");
 #ifdef _WIN32
     printf("  --language en|ru  select interface language\n");

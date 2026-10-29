@@ -2184,5 +2184,8 @@
   "kscp: ": "kscp: ",
   "ksftp: ": "ksftp: ",
   "ksftp> ": "ksftp> ",
-  "Kageant (SSH authentication agent)": "Kageant — агент аутентификации SSH"
+  "Kageant (SSH authentication agent)": "Kageant — агент аутентификации SSH",
+  "KiTTY-ng Key File Warning": "Предупреждение о файле ключа",
+  "Unable to execute KiTTY-ng!": "Не удалось запустить KiTTY-ng!",
+  "       (\"host\" can also be a KiTTY-ng saved session name)\n": "       («сервер» может быть именем сохранённого сеанса)\n"
 }

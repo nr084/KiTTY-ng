@@ -63,7 +63,7 @@ add_library(keygen STATIC
 add_subdirectory(keygen)
 
 add_library(agent STATIC
-  sshpubk.c pageant.c aqsync.c stubs/pageant-random.c)
+  sshpubk.c pageant.c aqsync.c stubs/pageant-random.c stubs/pageant-keylist.c)
 
 add_library(guiterminal STATIC
   terminal/terminal.c terminal/bidi.c

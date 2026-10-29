@@ -524,7 +524,7 @@ static void usage(void)
     printf("Klink: command-line connection utility\n");
     printf("%s\n", ver);
     printf("Usage: klink [options] [user@]host [command]\n");
-    printf("       (\"host\" can also be a PuTTY saved session name)\n");
+    printf("       (\"host\" can also be a KiTTY-ng saved session name)\n");
     printf("Options:\n");
     printf("  -V        print version information and exit\n");
     printf("  -pgpfp    print PGP key fingerprints and exit\n");

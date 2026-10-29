@@ -310,7 +310,7 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char mbtitle[] = "KiTTY-ng Key File Warning";
     static const char message[] =
         "You are loading an SSH-2 private key which has an\n"
         "old version of the file format. This means your key\n"
@@ -1372,7 +1372,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             bool launched = kr_launch_companion("kitty-ng", arguments, false, &status, &error);
             sfree(arguments);
             if (!launched) {
-                MessageBox(NULL, "Unable to execute PuTTY!",
+                MessageBox(NULL, "Unable to execute KiTTY-ng!",
                            "Error", MB_OK | MB_ICONERROR);
             }
             break;
@@ -1444,7 +1444,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                 bool launched = kr_launch_companion("kitty-ng", arguments, false, &status, &error);
                 sfree(arguments);
                 if (!launched) {
-                    MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+                    MessageBox(NULL, "Unable to execute KiTTY-ng!", "Error",
                                MB_OK | MB_ICONERROR);
                 }
             }
@@ -1485,7 +1485,7 @@ static int test_tray_language(void)
     AppendMenuW(session_menu, MF_STRING, IDM_SESSIONS_BASE, L"Language");
     AppendMenuW(session_menu, MF_STRING | MF_GRAYED, IDM_NO_SESSIONS, L"(No sessions)");
     HWND owner = CreateWindowW(L"STATIC", L"Test", WS_OVERLAPPED, 0, 0, 100, 100, NULL, NULL, hinst, NULL);
-    keylist = CreateWindowW(L"STATIC", L"Pageant Key List", WS_OVERLAPPED, 0, 0, 100, 100, NULL, NULL, hinst, NULL);
+    keylist = CreateWindowW(L"STATIC", L"Kageant Key List", WS_OVERLAPPED, 0, 0, 100, 100, NULL, NULL, hinst, NULL);
     LANGUAGE_CHECK(owner && keylist);
     SetWindowLongPtrW(keylist, GWLP_WNDPROC, (LONG_PTR)language_test_window);
     HWND combo = CreateWindowW(L"COMBOBOX", L"", WS_CHILD | CBS_DROPDOWNLIST, 0, 0, 80, 80,
@@ -1692,7 +1692,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
          */
         if (!got_advapi()) {
             MessageBox(NULL,
-                       "Unable to access security APIs. Pageant will\n"
+                       "Unable to access security APIs. Kageant will\n"
                        "not run, in case it causes a security breach.",
                        "Kageant Fatal Error", MB_ICONERROR | MB_OK);
             return 1;
