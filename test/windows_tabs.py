@@ -321,6 +321,11 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   assert not any(cls(h)=='KiTTYng.SessionTabs' and pid(h) in pids for h in enum())
   if '--unsaved' not in sys.argv:
    channels[4].send_exit_status(0);channels[4].close()
+   if '--fullscreen' in sys.argv:
+    # A normal remote exit displays this informational modal before close_session.
+    notice=wait(lambda:next((h for h in enum() if pid(h)==plain.pid and cls(h)=='#32770' and any(title(c)=='Connection closed by remote host' for c in enum(h))),None))
+    u.PostMessageW(notice,0x111,1,0)
+    wait(lambda:not u.IsWindow(notice))
    wait(lambda:'inactive' in title(plain_window) or 'неактивен' in title(plain_window))
    count=len(channels)
    for letter in 'test':u.PostMessageW(plain_window,0x102,ord(letter),0)
