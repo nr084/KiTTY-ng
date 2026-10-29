@@ -162,6 +162,8 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     cache_path = output / "local-tests.json"
     cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+    previous_run_path = output / "local-build.json"
+    previous_run = json.loads(previous_run_path.read_text()) if previous_run_path.exists() else {}
     report = {"started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "status": "running",
               "version": (ROOT / "VERSION").read_text().strip(), "tests": [], "archives": []}
     report["source_commit"] = subprocess.check_output(
@@ -207,6 +209,31 @@ def main():
             for index, (command, env) in enumerate(commands):
                 scenario_key = key + "/scenario-" + str(index)
                 scenario = cache.get(scenario_key, {})
+                # Recover individually successful tab scenarios from the pre-checkpoint
+                # runner. Keep the original report and log as evidence, never mark a
+                # failed scenario successful or reuse changed source inputs.
+                old_log = logs / (key.replace("/", "-") + f"-{index}.log")
+                if (not scenario and key.endswith("/session-tabs")
+                        and previous_run.get("error", "").startswith(key.replace("/", "-") + "-")
+                        and previous_run.get("source_commit")
+                        and not previous_run.get("working_tree_dirty")
+                        and any(a.get("compiler") == compiler for a in previous_run.get("archives", []))
+                        and digest_files(files, previous_run["source_commit"]) == fingerprint
+                        and old_log.exists()):
+                    old_text = old_log.read_text(encoding="utf8", errors="replace")
+                    if old_text.rstrip().endswith("window close still confirms") and "Traceback (most recent call last)" not in old_text:
+                        evidence_dir = output / "recovered-checkpoints"
+                        evidence_dir.mkdir(exist_ok=True)
+                        evidence_log = evidence_dir / old_log.name
+                        shutil.copy2(old_log, evidence_log)
+                        (evidence_dir / "original-build.json").write_text(json.dumps(previous_run, indent=2))
+                        scenario = {"source_commit": previous_run["source_commit"],
+                                    "evidence": str(evidence_log),
+                                    "log_sha256": hashlib.sha256(evidence_log.read_bytes()).hexdigest(),
+                                    "fingerprint": fingerprint, "compiler": compiler,
+                                    "inputs": sorted(files)}
+                        cache[scenario_key] = scenario
+                        cache_path.write_text(json.dumps(cache, indent=2) + "\n")
                 if (not args.force_tests and scenario.get("fingerprint") == fingerprint
                         and scenario.get("compiler") == compiler):
                     print("REUSE:", scenario_key, flush=True)
