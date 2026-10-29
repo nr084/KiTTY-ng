@@ -3,6 +3,8 @@
 The native diagnostic captures OSC52 through a mock front-end callback; it never
 reads or writes the user's desktop clipboard. Profiles and scripts are owned fixtures.
 """
+import atexit,ctypes
+from ctypes import wintypes
 import base64
 import hashlib
 import json
@@ -17,6 +19,16 @@ import tempfile
 import threading
 import paramiko
 
+# UI-state probes bring their window forward. Keep this deterministic fixture
+# on a private desktop so unrelated physical typing cannot enter the test shell.
+u=ctypes.WinDLL('user32',use_last_error=True)
+u.CreateDesktopW.argtypes=[wintypes.LPCWSTR,wintypes.LPCWSTR,ctypes.c_void_p,wintypes.DWORD,wintypes.DWORD,ctypes.c_void_p]
+u.CreateDesktopW.restype=wintypes.HANDLE
+u.CloseDesktop.argtypes=[wintypes.HANDLE]
+desktop_name='KiTTY-ng-extension-test-'+str(os.getpid())
+desktop=u.CreateDesktopW(desktop_name,None,None,0,0x10000000,None)
+assert desktop,ctypes.get_last_error()
+atexit.register(u.CloseDesktop,desktop)
 binary = Path(sys.argv[1]).resolve()
 encoded_password = json.loads(Path(__file__).with_name('kittyng-password-vector.json').read_text())['encoded']
 server_key = paramiko.RSAKey.generate(2048)
@@ -121,7 +133,7 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-extensions-runtime-') as tempo
     worker = threading.Thread(target=serve, daemon=True); worker.start()
     proxy_worker = threading.Thread(target=proxy_serve, daemon=True); proxy_worker.start()
     env = os.environ.copy(); env['KITTY_NG_PORTABLE_DIR'] = str(root)
-    startup = subprocess.STARTUPINFO(); startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW; startup.wShowWindow = 0
+    startup = subprocess.STARTUPINFO(); startup.dwFlags |= subprocess.STARTF_USESHOWWINDOW; startup.wShowWindow = 0; startup.lpDesktop = desktop_name
     process = subprocess.Popen([str(binary), '-load', 'Folder/Сеанс', '-hostkey', fingerprint, '-test-extensions'],
                                env=env, cwd=unrelated, startupinfo=startup, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
