@@ -3,7 +3,7 @@
 Windows/Linux provenance comes from the existing published release, not stale
 local build reports. Their asset IDs and content are never replaced.
 """
-import argparse,concurrent.futures,hashlib,json,re,subprocess,tempfile,urllib.request
+import argparse,concurrent.futures,hashlib,json,re,shutil,subprocess,tempfile,urllib.request
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];REPO='nr084/KiTTY-ng'
 def gh(*args):return subprocess.check_output(['gh',*map(str,args)],cwd=ROOT,text=True)
@@ -58,6 +58,7 @@ def main():
  plugins=[r for r in before['releases'] if r['tag_name'].startswith('kitty-ng-fs-')]
  for r in plugins:
   now=api('releases/'+str(r['id']));assert [identity(a) for a in now['assets']]==[identity(a) for a in r['assets']]
+ shutil.copy2(path,ROOT/'dist'/path.name)
  archives.append(dict(file=path.name,size=path.stat().st_size,sha256=sha(path),published_asset_id=uploaded['id']))
  sums=''.join(a['sha256']+'  '+a['file']+'\n' for a in archives)
  notes=(ROOT/f'docs/releases/{version}.md').read_text();assert 'macOS Universal 2 готова' in notes
