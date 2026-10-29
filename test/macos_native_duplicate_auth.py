@@ -30,11 +30,12 @@ def main():
     parser.add_argument('--arch',choices=['arm64','x86_64'],required=True)
     parser.add_argument('--mode',choices=['password','key','agent','otp'],required=True)
     parser.add_argument('--language',choices=['ru','en'],default='ru')
+    parser.add_argument('--unsaved',action='store_true',help='Prepare an empty login and use Quick connect without saving a profile')
     parser.add_argument('--fixture',type=Path,required=True)
     parser.add_argument('--report',type=Path,required=True)
     args=parser.parse_args();app=args.app.resolve();args.report.parent.mkdir(parents=True,exist_ok=True)
     digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
-    report=dict(status='running',architecture=args.arch,mode=args.mode,main_sha256=digest(app/'Contents/MacOS/kitty-ng'),auth_events=[],connections=[],commands=[],failures=[])
+    report=dict(status='running',architecture=args.arch,mode=args.mode,unsaved=args.unsaved,main_sha256=digest(app/'Contents/MacOS/kitty-ng'),auth_events=[],connections=[],commands=[],failures=[])
     lock=threading.RLock();stop=threading.Event();workers=[];transports=[];agent=None;process=None
     with tempfile.TemporaryDirectory(prefix='kitty-ng-duplicate8.',dir='/tmp') as temporary:
         root=Path(temporary);profiles=root/'profiles';(profiles/'Sessions').mkdir(parents=True);(profiles/'SSH-Keys').mkdir()
@@ -81,7 +82,10 @@ def main():
                                 command,buffer=buffer.split(b'\r',1);value=command.decode('utf8',errors='replace')
                                 if any(secret in value for secret in (INITIAL,ROTATED,PASSPHRASE)):
                                     report['failures'].append('secret reached terminal input');value='REDACTED'
-                                event('commands',dict(connection=self.connection,text=value));channel.sendall(b'\r\nOK\r\n$ ')
+                                event('commands',dict(connection=self.connection,text=value))
+                                if value=='fixture-disconnect':
+                                    channel.send_exit_status(1);channel.close();return
+                                channel.sendall(b'\r\nOK\r\n$ ')
                     except (EOFError,OSError,paramiko.SSHException):pass
                 spawn(shell);return True
         def serve(sock,number):
@@ -103,7 +107,9 @@ def main():
         spawn(accept)
         keyfile='SSH-Keys/protected.ppk' if args.mode=='key' else ''
         if keyfile:(profiles/keyfile).write_bytes(PPK)
-        defaults=f'HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nProtocol\\ssh\\\nUserName\\root\\\nPublicKeyFile\\{keyfile}\\\nPassword\\\\\nAuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\nTryAgent\\{int(args.mode=="agent")}\\\nSaveOnExit\\0\\\nSaveWindowPos\\0\\\nWarnOnClose\\1\\\nSSHManualHostKeys\\{fingerprint}\\\n'
+        login='' if args.unsaved else 'root'
+        defaults=f'HostName\\127.0.0.1\\\nPortNumber\\{port}\\\nProtocol\\ssh\\\nUserName\\{login}\\\nPublicKeyFile\\{keyfile}\\\nPassword\\\\\nAuthGSSAPI\\0\\\nAuthGSSAPIKEX\\0\\\nTryAgent\\{int(args.mode=="agent")}\\\nSaveOnExit\\0\\\nSaveWindowPos\\0\\\nWarnOnClose\\1\\\nSSHManualHostKeys\\{fingerprint}\\\n'
+        defaults+='CloseOnExit\\1\\\n'
         for name in ['Default%20Settings','Native-auth']:(profiles/'Sessions'/name).write_text(defaults)
         (profiles/'kitty.ini').write_text('[KiTTY]\nsavemode=dir\nSessionTabs=1\n')
         before={p.name:digest(p) for p in (profiles/'Sessions').iterdir()};report['profiles_before']=before

@@ -2,7 +2,13 @@
 
 [Documentation](README.en.md) | [Русский](macos.md)
 
-**Universal: Apple Silicon and Intel in one app.** The 0.85-10 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+**Universal: Apple Silicon and Intel in one app.** The 0.85-11 release is supplied as a DMG and targets macOS 13 or later. The user confirmed basic operation on a MacBook Air M3. The app uses native AppKit UI and the PuTTY 0.85 core.
+
+## Unsaved connections in 0.85-11
+
+Duplicate and **Session → Restart session** retain the manually entered login and password/key passphrase in memory only. Restart follows Duplicate and remains available after disconnect. Typing in a disconnected tab does not reconnect or close it. A rejected automatic password is attempted once, followed by the regular prompt. OTPs/server challenges are not cached; profile files stay unchanged.
+
+The DMG contains the app, its runtime resources and licences. Documentation stays on GitHub. Portable data remains outside `.app`, in a directory compatible with Windows profiles.
 
 ## Features in 0.85-8 and 0.85-9
 
@@ -28,7 +34,7 @@ Up to 20 shared commands: configure with **Window → Quick commands**, run from
 
 ## First launch
 
-1. Open `kitty-ng-0.85-10-macos-universal.dmg`.
+1. Open `kitty-ng-0.85-11-macos-universal.dmg`.
 2. Copy `KiTTY-ng.app` into a writable folder, beside Windows EXEs, `kitty.ini` and `Sessions` if sharing profiles.
 3. Eject the DMG and launch the copied app.
 4. If no sessions appear, click **Choose folder…** and select the portable root.

@@ -14,7 +14,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 
 ## Скачать
 
-Выпуск **0.85-11** опубликован для Windows и Linux: пять проверенных пакетов. **macOS Universal 2 готовится отдельно** и будет добавлена в этот выпуск после нативной проверки.
+Выпуск **0.85-11** содержит шесть проверенных пакетов для Windows, Linux и macOS. Mac Universal 2 нативно проверен на ARM64 и через Rosetta.
 
 | Платформа | Сборка 0.85-11 | Запуск |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-11/kitty-ng-0.85-11-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG — готовится на Mac | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-11/kitty-ng-0.85-11-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
