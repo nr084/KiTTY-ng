@@ -163,3 +163,10 @@ Makefile
 
 # Compact logo for forum topic headers
 !/icons/kitty-ng-forum.png
+
+# Local agent instructions and chat handoffs
+AGENTS.md
+**/AGENTS.md
+/docs/*handoff*.md
+/docs/releases/*handoff*.md
+/docs/releases/*windows-return*.md
