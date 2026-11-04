@@ -5430,6 +5430,13 @@ void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
 
+#ifdef KITTY_NG_LINUX
+    if (inst->reconnect_source) {
+        g_source_remove(inst->reconnect_source);inst->reconnect_source=0;
+    }
+#endif
+    if (inst->backend)
+        destroy_inst_connection(inst);
     if (!inst->backend) {
         logevent(inst->logctx, "----- Session restarted -----");
         term_pwron(inst->term, false);
@@ -5705,7 +5712,7 @@ static void start_backend(GtkFrontend *inst)
     inst->ldisc = ldisc_create(inst->conf, inst->term, inst->backend,
                                &inst->seat);
 
-    gtk_widget_set_sensitive(inst->restartitem, false);
+    gtk_widget_set_sensitive(inst->restartitem, true);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
@@ -6151,7 +6158,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
         MKMENUITEM("Duplicate Session", dup_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
         inst->restartitem = menuitem;
-        gtk_widget_set_sensitive(inst->restartitem, false);
+        gtk_widget_set_sensitive(inst->restartitem, true);
         if (saved_sessions) {
             inst->sessionsmenu = gtk_menu_new();
             /* sessionsmenu will be updated when it's invoked */

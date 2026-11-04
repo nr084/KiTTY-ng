@@ -337,6 +337,11 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
    assert len(channels)==count, 'Inactive-session typing/menu must not restart SSH'
    u.PostMessageW(plain_window,0x112,0x40,0)
    wait(lambda:len(channels)==count+1)
+   wait(lambda:title(plain_window)=='Demo session '+str(count+1))
+   u.PostMessageW(plain_window,0x112,0x40,0)
+   wait(lambda:len(channels)==count+2)
+   assert u.IsWindow(separate), 'Restart must preserve the other session'
+   print('PASS: active session restarts explicitly in its existing window',flush=True)
    print('PASS: inactive connection restarts only through explicit Restart Session',flush=True)
   print('PASS: SessionTabs=0 retains independent top-level windows',flush=True)
   print('PASS: independent SSH tabs; bar hidden for one session; active-tab input; mouse drag and context-menu move preserve connections; tab close ignores WarnOnClose; window close still confirms',flush=True)

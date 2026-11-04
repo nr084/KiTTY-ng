@@ -1301,11 +1301,11 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
         break;
 
       case WM_SYSTRAY:
-        if (lParam == WM_RBUTTONUP) {
+        if (LOWORD(lParam) == WM_RBUTTONUP || LOWORD(lParam) == WM_CONTEXTMENU) {
             POINT cursorpos;
             GetCursorPos(&cursorpos);
             PostMessage(hwnd, WM_SYSTRAY2, cursorpos.x, cursorpos.y);
-        } else if (lParam == WM_LBUTTONDBLCLK) {
+        } else if (LOWORD(lParam) == WM_LBUTTONDBLCLK) {
             /* Run the default menu item. */
             UINT menuitem = GetMenuDefaultItem(systray_menu, false, 0);
             if (menuitem != -1)
@@ -1321,6 +1321,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                            TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
                            TPM_RIGHTBUTTON,
                            wParam, lParam, 0, hwnd, NULL);
+            PostMessage(hwnd, WM_NULL, 0, 0);
             menuinprogress = false;
         }
         break;
@@ -1472,6 +1473,20 @@ static LRESULT CALLBACK language_test_window(HWND hwnd, UINT msg, WPARAM wp, LPA
     return msg == WM_KAGEANT_LANGUAGE ? KeyListProc(hwnd, msg, wp, lp) : DefWindowProcW(hwnd, msg, wp, lp);
 }
 
+static bool test_popup_seen;
+static BOOL CALLBACK test_popup_window(HWND hwnd, LPARAM owner)
+{
+    wchar_t name[32];GetClassNameW(hwnd,name,lenof(name));
+    if (!wcscmp(name,L"#32768") && IsWindowVisible(hwnd)) {
+        test_popup_seen=true;PostMessageW((HWND)owner,WM_CANCELMODE,0,0);
+    }
+    return TRUE;
+}
+static void CALLBACK test_popup_timer(HWND hwnd, UINT message, UINT_PTR timer, DWORD time)
+{
+    EnumThreadWindows(GetCurrentThreadId(),test_popup_window,(LPARAM)hwnd);
+}
+
 static int test_tray_language(void)
 {
 #define LANGUAGE_CHECK(condition) do { if (!(condition)) return 1; } while (0)
@@ -1535,6 +1550,20 @@ static int test_tray_language(void)
         found_unicode |= !wcscmp(text, L"Folder/\x0421\x0435\x0430\x043d\x0441");
     }
     LANGUAGE_CHECK(found_unicode && found_literal);
+    SetWindowLongPtrW(owner,GWLP_WNDPROC,(LONG_PTR)TrayWndProc);
+    const LPARAM events[]={WM_RBUTTONUP,MAKELPARAM(WM_CONTEXTMENU,1),WM_RBUTTONUP};
+    for (size_t i=0;i<lenof(events);i++) {
+        test_popup_seen=false;
+        LANGUAGE_CHECK(SetTimer(owner,1,50,test_popup_timer));
+        PostMessageW(owner,WM_SYSTRAY,1,events[i]);
+        DWORD deadline=GetTickCount()+3000;MSG msg;
+        while (!test_popup_seen && (LONG)(deadline-GetTickCount())>0) {
+            while (PeekMessageW(&msg,NULL,0,0,PM_REMOVE)) DispatchMessageW(&msg);
+            Sleep(10);
+        }
+        KillTimer(owner,1);
+        LANGUAGE_CHECK(test_popup_seen);
+    }
     strbuf_free(display.info); strbuf_free(display.comment);
     DestroyWindow(keylist); keylist = NULL; DestroyWindow(owner);
     kr_utility_free_menu(systray_menu); DestroyMenu(systray_menu);

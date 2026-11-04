@@ -167,7 +167,14 @@ static bool draw_menu(HWND hwnd, UINT msg, LPARAM lp)
         MENUITEMINFOW info={sizeof(info)};info.fMask=MIIM_STATE|MIIM_SUBMENU;
         GetMenuItemInfoW(e->menu,e->position,TRUE,&info);
         if(info.fState&MFS_CHECKED){RECT check=d->rcItem;check.right=check.left+22;DrawTextW(d->hDC,L"\x2713",1,&check,DT_CENTER|DT_SINGLELINE|DT_VCENTER);}
-        if(info.hSubMenu && e->menu!=GetMenu(hwnd)){RECT arrow=d->rcItem;arrow.left=arrow.right-20;DrawTextW(d->hDC,L"\x203a",1,&arrow,DT_CENTER|DT_SINGLELINE|DT_VCENTER);}
+        if(info.hSubMenu && e->menu!=GetMenu(hwnd)) {
+            int dpi=GetDeviceCaps(d->hDC,LOGPIXELSX), radius=max(3,MulDiv(3,dpi,96));
+            int x=d->rcItem.right-MulDiv(12,dpi,96), y=(d->rcItem.top+d->rcItem.bottom)/2;
+            HPEN pen=CreatePen(PS_SOLID,max(1,MulDiv(2,dpi,96)),GetTextColor(d->hDC));
+            HPEN previous=SelectObject(d->hDC,pen);
+            POINT points[3]={{x-radius/2,y-radius},{x+radius/2,y},{x-radius/2,y+radius}};
+            Polyline(d->hDC,points,3);SelectObject(d->hDC,previous);DeleteObject(pen);
+        }
         SelectObject(d->hDC,old);return true;
     }
     return false;

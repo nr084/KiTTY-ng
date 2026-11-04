@@ -85,8 +85,12 @@ with tempfile.TemporaryDirectory(prefix='kitty-tabs-') as folder:
   click(restart);wait(lambda:len(channels)==2)
   subprocess.run(['xdotool','windowfocus',wid,'type','A'],check=True)
   wait(lambda:received[2]==b'A')
+  subprocess.run(['xdotool','mousemove','--window',wid,'70','100','click','3'],check=True)
+  click(wait(lambda:find('Restart Session')));wait(lambda:len(channels)==3)
+  subprocess.run(['xdotool','windowfocus',wid,'type','B'],check=True)
+  wait(lambda:received[3]==b'B')
   import json
-  report={'status':'passed','binary_sha256':hashlib.sha256((binary.parent/'usr/bin/kitty-ng').read_bytes()).hexdigest(),'authentication':'protected-key' if client_key else 'password','checks':['unsaved-login','no-implicit-restart','restart-menu-order','restart-with-runtime-auth','restarted-input']}
+  report={'status':'passed','binary_sha256':hashlib.sha256((binary.parent/'usr/bin/kitty-ng').read_bytes()).hexdigest(),'authentication':'protected-key' if client_key else 'password','checks':['unsaved-login','no-implicit-restart','restart-menu-order','restart-with-runtime-auth','restarted-input','active-session-restart']}
   (output/'restart-auth.json').write_text(json.dumps(report,indent=2))
   print('PASS: unsaved session restarts explicitly without login/password/key prompt',flush=True)
  finally:

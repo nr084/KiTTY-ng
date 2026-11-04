@@ -401,8 +401,8 @@ static LRESULT CALLBACK frame_proc(HWND hwnd, UINT message, WPARAM wp, LPARAM lp
         else if(wp==TAB_TRAY && frame_tray(f,true))ShowWindow(hwnd,SW_HIDE);
         return 0;
       case TAB_TRAY_EVENT:
-        if(lp==WM_LBUTTONUP || lp==WM_LBUTTONDBLCLK){frame_tray(f,false);ShowWindow(hwnd,SW_RESTORE);SetForegroundWindow(hwnd);frame_focus(f);}
-        else if(lp==WM_RBUTTONUP || lp==WM_CONTEXTMENU){
+        if(LOWORD(lp)==WM_LBUTTONUP || LOWORD(lp)==WM_LBUTTONDBLCLK){frame_tray(f,false);ShowWindow(hwnd,SW_RESTORE);SetForegroundWindow(hwnd);frame_focus(f);}
+        else if(LOWORD(lp)==WM_RBUTTONUP || LOWORD(lp)==WM_CONTEXTMENU){
             HMENU menu=kr_tray_popup_menu();POINT point;GetCursorPos(&point);SetForegroundWindow(hwnd);
             UINT command=TrackPopupMenu(menu,TPM_RETURNCMD|TPM_RIGHTBUTTON,point.x,point.y,0,hwnd,NULL);
             DestroyMenu(menu);PostMessageW(hwnd,WM_NULL,0,0);

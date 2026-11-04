@@ -313,6 +313,10 @@ def main():
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
                 if arch != "arm64":
                     suites = [
+                        ("pending-ui", executable[:-4], ["test/windows_pending_ui.py"],
+                         [PYTHON, "test/windows_pending_ui.py", directory]),
+                        ("folder-name", executable[:-4], ["test/windows_folder_name.py"],
+                         [PYTHON, "test/windows_folder_name.py", directory / executable]),
                         ("windows-theme-gui", executable[:-4], ["test/windows_theme_gui.py", "windows/pageant.c", "windows/pageant.rc", "windows/puttygen.c", "windows/puttygen.rc"],
                          [PYTHON, "test/windows_theme_gui.py", directory, arch]),
                         ("windows-theme", "test_windows_theme", ["test/windows_theme.py", "test/test_windows_theme.c"],

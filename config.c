@@ -897,7 +897,8 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
 
     if (event == EVENT_REFRESH) {
         if (ctrl == ssd->editbox) {
-            session_editbox_set(ctrl, dlg, ssd->savedsession);
+            const char *visible = session_browser_relative(ssd->folder, ssd->savedsession);
+            session_editbox_set(ctrl, dlg, visible ? visible : ssd->savedsession);
         } else if (ctrl == ssd->filterbox) {
             session_editbox_set(ctrl, dlg, ssd->filter);
         } else if (ctrl == ssd->folderbox) {
@@ -986,6 +987,12 @@ static void sessionsaver_handler(dlgcontrol *ctrl, dlgparam *dlg,
         } else if (ctrl == ssd->editbox) {
             sfree(ssd->savedsession);
             ssd->savedsession = session_editbox_get(ctrl, dlg);
+            if (*ssd->folder && *ssd->savedsession &&
+                strcmp(ssd->savedsession, "Default Settings") &&
+                !session_browser_relative(ssd->folder, ssd->savedsession)) {
+                char *qualified = dupprintf("%s/%s", ssd->folder, ssd->savedsession);
+                sfree(ssd->savedsession);ssd->savedsession=qualified;
+            }
             top = ssd->sesslist.nsessions;
             bottom = -1;
             while (top-bottom > 1) {

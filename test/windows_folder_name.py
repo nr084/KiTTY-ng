@@ -1,0 +1,59 @@
+"""Isolated native Windows active restart, tab reconfiguration and tray callbacks."""
+import ctypes,os,socket,subprocess,sys,tempfile,threading,time
+from ctypes import wintypes as w
+from pathlib import Path
+u=ctypes.WinDLL('user32',use_last_error=True)
+for name,args,result in [('PostMessageW',[w.HWND,w.UINT,w.WPARAM,w.LPARAM],w.BOOL),('GetParent',[w.HWND],w.HWND),('GetWindowLongW',[w.HWND,ctypes.c_int],w.LONG)]:
+ f=getattr(u,name);f.argtypes=args;f.restype=result
+callback=ctypes.WINFUNCTYPE(w.BOOL,w.HWND,w.LPARAM)
+def windows():
+ out=[]
+ @callback
+ def visit(h,_):out.append(h);return True
+ u.EnumWindows(visit,0);return out
+def children(parent):
+ out=[]
+ @callback
+ def visit(h,_):out.append(h);return True
+ u.EnumChildWindows(parent,visit,0);return out
+def title(h):
+ b=ctypes.create_unicode_buffer(512);u.GetWindowTextW(h,b,512);return b.value
+def cls(h):
+ b=ctypes.create_unicode_buffer(256);u.GetClassNameW(h,b,256);return b.value
+def pid(h):
+ value=w.DWORD();u.GetWindowThreadProcessId(h,ctypes.byref(value));return value.value
+def wait(fn):
+ end=time.monotonic()+12
+ while time.monotonic()<end:
+  value=fn()
+  if value:return value
+  time.sleep(.05)
+ raise AssertionError('Native regression timed out: '+str(fn))
+
+u.SendMessageW=ctypes.WINFUNCTYPE(ctypes.c_ssize_t,w.HWND,w.UINT,w.WPARAM,w.LPARAM)(('SendMessageW',u))
+def edit_text(h):
+ buffer=ctypes.create_unicode_buffer(512);u.SendMessageW(h,0xD,512,ctypes.addressof(buffer));return buffer.value
+with tempfile.TemporaryDirectory(prefix='kitty-ng-folder-ui-') as directory:
+ root=Path(directory);folder=root/'Sessions/AUTOBUD';folder.mkdir(parents=True)
+ profile=folder/'BROOMER%20HOSTING';profile.write_text('HostName\\example.invalid\\\nProtocol\\ssh\\\n')
+ p=subprocess.Popen([str(Path(sys.argv[1]).resolve()),'--portable-dir',directory,'--language','en'],env=dict(os.environ,KITTY_NG_PORTABLE_DIR=directory))
+ try:
+  dialog=wait(lambda:next((h for h in windows() if pid(h)==p.pid and cls(h)=='PuTTYConfigBox'),None))
+  wait(lambda:u.IsWindowVisible(dialog))
+  query_buffer=ctypes.create_unicode_buffer('AUTOBUD');query=ctypes.addressof(query_buffer)
+  combo=wait(lambda:next((h for h in children(dialog) if cls(h).lower()=='combobox' and u.SendMessageW(h,0x14C,-1,query)>=0),None))
+  index=u.SendMessageW(combo,0x14C,-1,query);assert index>=0
+  u.SendMessageW(combo,0x14E,index,0);u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(combo)|(1<<16),combo)
+  listing=next(h for h in children(dialog) if cls(h).lower()=='listbox')
+  name_buffer=ctypes.create_unicode_buffer('BROOMER HOSTING')
+  index=u.SendMessageW(listing,0x1A2,-1,ctypes.addressof(name_buffer));assert index>=0
+  u.SendMessageW(listing,0x186,index,0);u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(listing)|(1<<16),listing)
+  load=next(h for h in children(dialog) if cls(h)=='Button' and title(h).replace('&','')=='Load')
+  u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(load),load)
+  assert any(edit_text(h)=='BROOMER HOSTING' for h in children(dialog) if cls(h).lower()=='edit'),[(cls(h),title(h)) for h in children(dialog)]
+  save=next(h for h in children(dialog) if cls(h)=='Button' and title(h).replace('&','')=='Save')
+  u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(save),save)
+  assert profile.exists() and not (folder/'AUTOBUD').exists()
+  print('PASS: selected folder omitted from editable session name; saving preserves canonical profile path')
+ finally:
+  p.kill();p.wait()

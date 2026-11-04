@@ -649,7 +649,7 @@ static void start_backend(WinGuiSeat *wgs)
 
     for (i = 0; i < lenof(wgs->popup_menus); i++)
         EnableMenuItem(wgs->popup_menus[i].menu, IDM_RESTART,
-                       MF_BYCOMMAND | MF_GRAYED);
+                       MF_BYCOMMAND | MF_ENABLED);
 
     wgs->session_closed = false;
     wgs->kr_saved_password_tried = false;
@@ -1113,7 +1113,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             AppendMenu(m, MF_SEPARATOR, 0, 0);
             kr_append_menu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
             kr_append_menu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
-            kr_append_menu(m, MF_GRAYED, IDM_RESTART, "Restart Session");
+            kr_append_menu(m, MF_ENABLED, IDM_RESTART, "Restart Session");
             kr_append_menu(m, MF_ENABLED, IDM_KR_TRAY, "Send to tray");
             kr_append_menu(m, MF_ENABLED, IDM_KR_UPLOAD, "Send files...");
             kr_append_menu(m, MF_ENABLED, IDM_KR_DOWNLOAD, "Receive file...");
@@ -2685,11 +2685,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         }
         break;
       case WM_KR_TRAY:
-        if (lParam == WM_LBUTTONUP || lParam == WM_LBUTTONDBLCLK) {
+        if (LOWORD(lParam) == WM_LBUTTONUP || LOWORD(lParam) == WM_LBUTTONDBLCLK) {
             kr_tray_icon(hwnd, false);
             ShowWindow(hwnd, SW_RESTORE);
             SetForegroundWindow(hwnd);
-        } else if (lParam == WM_RBUTTONUP || lParam == WM_CONTEXTMENU) {
+        } else if (LOWORD(lParam) == WM_RBUTTONUP || LOWORD(lParam) == WM_CONTEXTMENU) {
             HMENU menu = kr_tray_popup_menu();
             if (menu) {
                 POINT cursor; GetCursorPos(&cursor); SetForegroundWindow(hwnd);
@@ -2942,6 +2942,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
           }
           case IDM_RESTART:
             KillTimer(hwnd, KR_RECONNECT_TIMER);
+            if (wgs->backend) {
+                close_session(wgs);
+                KillTimer(hwnd, KR_RECONNECT_TIMER);
+            }
             if (!wgs->backend) {
                 lp_eventlog(&wgs->logpolicy, "----- Session restarted -----");
                 term_pwron(wgs->term, false);
@@ -3102,6 +3106,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 else
                     nflg |= WS_MAXIMIZEBOX;
 
+                if (GetParent(hwnd)) {
+                    nflg &= ~(WS_CAPTION | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_BORDER);
+                    nexflag &= ~(WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE);
+                }
                 if (nflg != flag || nexflag != exflag) {
                     if (nflg != flag)
                         SetWindowLongPtr(hwnd, GWL_STYLE, nflg);
