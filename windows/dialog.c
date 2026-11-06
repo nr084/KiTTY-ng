@@ -451,8 +451,8 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         char *buildinfo_text = buildinfo("\r\n");
         char *text = dupprintf(
             "%s\r\n\r\nPuTTY\r\n\302\251 " SHORT_COPYRIGHT_DETAILS
-            "\r\n\r\nKiTTY\r\n\302\251 2007-2013 Cyril Dupont\r\n%s",
-            buildinfo_text, kr_translate("KiTTY releases through 2023"));
+            "\r\n\r\nKiTTY\r\n\302\251 2007-2023 Cyril Dupont",
+            buildinfo_text);
         sfree(buildinfo_text);
         wchar_t *wide = dup_mb_to_wc(CP_UTF8, text);
         SetDlgItemTextW(hwnd, IDA_TEXT, wide);

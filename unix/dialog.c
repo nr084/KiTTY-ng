@@ -3962,10 +3962,9 @@ void about_box(void *window)
         char *buildinfo_text = buildinfo("\n");
         char *version_text = dupprintf(KR_UI("%s (built %s)"), ver, kr_build_date());
         char *label_text = dupprintf(
-            "%s\n\n%s\n\n%s\n\n%s\n\n\302\251 2007-2013 Cyril Dupont\n%s",
+            "%s\n\n%s\n\n%s\n\n%s\n\nKiTTY\n\302\251 2007-2023 Cyril Dupont",
             appname, version_text, buildinfo_text,
-            "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved",
-            KR_UI("KiTTY releases through 2023"));
+            "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
         sfree(version_text);
         w = gtk_label_new(label_text);
         gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);
