@@ -14,6 +14,7 @@
 #include "kittyng.h"
 #include "kittyng-logui.h"
 #include "kittyng-update.h"
+#include "kittyng-theme.h"
 #define dupprintf kr_printf
 #undef SetWindowText
 #define SetWindowText kr_set_text
@@ -809,11 +810,19 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
                                 117, 3, 13, pds->current_path);
 
             dlg_refresh(NULL, pds->dp);    /* set up control values */
+            kr_theme_sync_children(hwnd);
 
-            SendMessage (hwnd, WM_SETREDRAW, true, 0);
-            InvalidateRect (hwnd, NULL, true);
+            HWND tree = ((LPNMHDR) lParam)->hwndFrom;
+            RECT panel, tree_bounds;
+            GetClientRect(hwnd, &panel);
+            GetWindowRect(tree, &tree_bounds);
+            MapWindowPoints(NULL, hwnd, (POINT *)&tree_bounds, 2);
+            panel.left = tree_bounds.right;
 
-            SetFocus(((LPNMHDR) lParam)->hwndFrom);     /* ensure focus stays */
+            SendMessage(hwnd, WM_SETREDRAW, true, 0);
+            SetFocus(tree);
+            RedrawWindow(hwnd, &panel, NULL,
+                         RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
         }
         return 0;
 

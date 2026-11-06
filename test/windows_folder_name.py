@@ -40,9 +40,15 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-folder-ui-') as directory:
  try:
   dialog=wait(lambda:next((h for h in windows() if pid(h)==p.pid and cls(h)=='PuTTYConfigBox'),None))
   wait(lambda:u.IsWindowVisible(dialog))
-  query_buffer=ctypes.create_unicode_buffer('AUTOBUD');query=ctypes.addressof(query_buffer)
-  combo=wait(lambda:next((h for h in children(dialog) if cls(h).lower()=='combobox' and u.SendMessageW(h,0x14C,-1,query)>=0),None))
-  index=u.SendMessageW(combo,0x14C,-1,query);assert index>=0
+  def folder_entry():
+   for combo in children(dialog):
+    if cls(combo).lower()!='combobox':continue
+    count=ctypes.c_int32(u.SendMessageW(combo,0x146,0,0)).value
+    for index in range(count):
+     buffer=ctypes.create_unicode_buffer(512)
+     u.SendMessageW(combo,0x148,index,ctypes.addressof(buffer))
+     if buffer.value=='AUTOBUD':return combo,index
+  combo,index=wait(folder_entry)
   u.SendMessageW(combo,0x14E,index,0);u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(combo)|(1<<16),combo)
   def selected_profile_row():
    for listing in children(dialog):

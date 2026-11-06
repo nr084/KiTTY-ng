@@ -7,8 +7,11 @@
 #include <dwmapi.h>
 
 #define THEME_REFRESH (WM_APP + 162)
+#define THEME_CHILDREN (WM_APP + 163)
 #define THEME_SUBCLASS 0x4b475448
 static const wchar_t theme_attached[] = L"KiTTY-ng Theme Attached";
+static const wchar_t theme_control[] = L"KiTTY-ng Themed Control";
+static const wchar_t theme_children_pending[] = L"KiTTY-ng Theme Children Pending";
 static HBRUSH dark_surface, dark_field;
 static int preference = -1;
 static bool dark;
@@ -182,8 +185,10 @@ static bool draw_menu(HWND hwnd, UINT msg, LPARAM lp)
 }
 
 static LRESULT CALLBACK themed_proc(HWND, UINT, WPARAM, LPARAM, UINT_PTR, DWORD_PTR);
-static BOOL CALLBACK theme_child(HWND child, LPARAM unused)
+static BOOL CALLBACK theme_child(HWND child, LPARAM only_new)
 {
+    if (only_new && GetPropW(child, theme_control)) return TRUE;
+    SetPropW(child, theme_control, (HANDLE)1);
     wchar_t cls[64]; GetClassNameW(child, cls, lenof(cls));
     /* Native themed scrollbars/edit fields; buttons are drawn below in dark mode. */
     SetWindowTheme(child, dark ? L"DarkMode_Explorer" : NULL, NULL);
@@ -200,6 +205,12 @@ static BOOL CALLBACK theme_child(HWND child, LPARAM unused)
     InvalidateRect(child, NULL, TRUE);
     return TRUE;
 }
+void kr_theme_sync_children(HWND hwnd)
+{
+    if (GetPropW(hwnd, theme_attached))
+        EnumChildWindows(hwnd, theme_child, 1);
+}
+
 static void apply_theme(HWND hwnd)
 {
     resolve_theme();
@@ -376,13 +387,23 @@ static LRESULT CALLBACK themed_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
                                     UINT_PTR id, DWORD_PTR data)
 {
     if (theme_changed && msg == theme_changed) { preference = -1; apply_theme(hwnd); return 0; }
-    if (msg == WM_NCDESTROY) { RemovePropW(hwnd, theme_attached); restore_menu(hwnd,NULL); RemoveWindowSubclass(hwnd, themed_proc, id); return DefSubclassProc(hwnd,msg,wp,lp); }
+    if (msg == WM_NCDESTROY) { RemovePropW(hwnd, theme_attached); RemovePropW(hwnd, theme_control); RemovePropW(hwnd, theme_children_pending); restore_menu(hwnd,NULL); RemoveWindowSubclass(hwnd, themed_proc, id); return DefSubclassProc(hwnd,msg,wp,lp); }
     if (msg == THEME_REFRESH) { apply_theme(hwnd); return 0; }
     if (msg == WM_SETTINGCHANGE || msg == WM_THEMECHANGED) {
         /* Child SetWindowTheme emits WM_THEMECHANGED: only refresh top-levels. */
         if (!(GetWindowLongPtrW(hwnd,GWL_STYLE) & WS_CHILD)) PostMessageW(hwnd,THEME_REFRESH,0,0);
     }
-    if (msg == WM_PARENTNOTIFY && LOWORD(wp) == WM_CREATE) PostMessageW(hwnd,THEME_REFRESH,0,0);
+    if (msg == THEME_CHILDREN) {
+        RemovePropW(hwnd, theme_children_pending);
+        kr_theme_sync_children(hwnd);
+        return 0;
+    }
+    if (msg == WM_PARENTNOTIFY && LOWORD(wp) == WM_CREATE &&
+        GetPropW(hwnd, theme_attached) && !GetPropW(hwnd, theme_children_pending)) {
+        if (SetPropW(hwnd, theme_children_pending, (HANDLE)1) &&
+            !PostMessageW(hwnd, THEME_CHILDREN, 0, 0))
+            RemovePropW(hwnd, theme_children_pending);
+    }
     if (msg == WM_INITMENUPOPUP) {
         LRESULT result=DefSubclassProc(hwnd,msg,wp,lp);
         theme_menu(hwnd,(HMENU)wp);return result;
