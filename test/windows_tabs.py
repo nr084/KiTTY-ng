@@ -327,10 +327,10 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
     if 'inactive' in title(plain_window) or 'неактивен' in title(plain_window):
      return True
     return next((h for h in enum() if pid(h)==plain.pid and cls(h)=='#32770'
-                 and any(title(c)=='Connection closed by remote host' for c in enum(h))),None)
+                 and any(title(c)==('Соединение закрыто удалённым сервером' if '--russian' in sys.argv else 'Connection closed by remote host') for c in enum(h))),None)
    result=wait(inactive_or_notice)
    if result is not True:
-    ok=next(c for c in enum(result) if cls(c)=='Button' and title(c)=='OK')
+    ok=next(c for c in enum(result) if cls(c)=='Button' and title(c)==('ОК' if '--russian' in sys.argv else 'OK'))
     u.SendMessageW(ok,0x00F5,0,0)
    wait(lambda:'inactive' in title(plain_window) or 'неактивен' in title(plain_window))
    count=len(channels)
