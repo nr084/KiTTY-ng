@@ -1,6 +1,7 @@
 /* Native AppKit browser for shared original KiTTY portable profiles. */
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
+#import <objc/runtime.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/event.h>
@@ -21,6 +22,45 @@
 static BOOL Russian;
 static NSString *L(NSString *en, NSString *ru) { return kr_mac_localize_string(en); }
 static NSString *Decode(NSString *value) {char *decoded=kr_mac_decode_name(value.UTF8String);NSString *name=decoded?[NSString stringWithUTF8String:decoded]:value;free(decoded);return name?:value;}
+
+static NSURL *updatePage(void)
+{
+    return [NSURL URLWithString:@"https://github.com/nr084/KiTTY-ng/releases/latest"];
+}
+
+static NSString *stableVersion(NSString *tag)
+{
+    NSRegularExpression *pattern = [NSRegularExpression
+        regularExpressionWithPattern:@"^v[0-9]+[.][0-9]+-[1-9][0-9]*$"
+        options:0 error:nil];
+    if (!tag || ![pattern firstMatchInString:tag options:0 range:NSMakeRange(0, tag.length)])
+        return nil;
+    return [tag substringFromIndex:1];
+}
+
+/* Completion runs on the main queue. The caller owns the request lifetime. */
+static NSURLSessionDataTask *checkForUpdates(void (^completion)(NSString *, BOOL))
+{
+    NSURL *url = [NSURL URLWithString:@"https://api.github.com/repos/nr084/KiTTY-ng/releases/latest"];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url
+        cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:15];
+    [request setValue:@"application/vnd.github+json" forHTTPHeaderField:@"Accept"];
+    NSURLSessionDataTask *task = [NSURLSession.sharedSession dataTaskWithRequest:request
+        completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        NSString *version = nil;
+        if (!error && [(NSHTTPURLResponse *)response statusCode] == 200 && data) {
+            id json = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+            if ([json isKindOfClass:NSDictionary.class] &&
+                [json[@"tag_name"] isKindOfClass:NSString.class])
+                version = stableVersion(json[@"tag_name"]);
+        }
+        BOOL newer = version &&
+            [version compare:[@TEXTVER componentsSeparatedByString:@" "].lastObject options:NSNumericSearch] == NSOrderedDescending;
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(version, newer); });
+    }];
+    [task resume];
+    return task;
+}
 
 /* GUI-only preference: explicit CLI/environment roots still take precedence.
  * A portable installation is the folder containing the .app, never Contents/MacOS
@@ -172,6 +212,7 @@ int kr_mac_test_startup_ui(void) {
     self.folder = [self sessionsDirectory];
     [self.window center]; [self.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];
     if ([self.root.path containsString:@"/AppTranslocation/"] && !containsSessions(self.root)) [self chooseFolder:nil]; else [self reload];
+    [self checkAutomatically];
 }
 - (void)quickConnect:(id)sender{kr_mac_quick_connect();}
 - (NSURL *)sessionsDirectory {
@@ -257,7 +298,88 @@ int kr_mac_test_startup_ui(void) {
     NSOpenPanel *panel = [NSOpenPanel openPanel]; panel.canChooseFiles = NO; panel.canChooseDirectories = YES; panel.allowsMultipleSelection = NO; panel.message = L(@"Choose the shared KiTTY portable directory", @"Выберите общий портативный каталог KiTTY");
     if ([panel runModal] == NSModalResponseOK && kr_mac_select_root(panel.URL.path.UTF8String)) { self.root = [NSURL fileURLWithPath:[NSString stringWithUTF8String:kr_mac_root()]]; [NSUserDefaults.standardUserDefaults setObject:self.root.path forKey:rootPreference]; self.folder = [self sessionsDirectory]; kr_mac_initialize_quick_commands(); [NSNotificationCenter.defaultCenter postNotificationName:@"KiTTYNGPortableRootChanged" object:nil]; [self reload]; }
 }
-- (void)about:(id)sender { NSAlert *alert = [NSAlert new]; char *version=kr_message_printf("%s (built %s)",TEXTVER,kr_build_date()); alert.messageText = [NSString stringWithUTF8String:version]; sfree(version); char *info=kr_message_printf("Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — %s",__DATE__); char *credits=dupcat(info,"\n\nKiTTY\n© 2007-2023 Cyril Dupont"); alert.informativeText = [NSString stringWithUTF8String:credits]; sfree(credits); sfree(info); [alert runModal]; }
+- (void)checkAutomatically
+{
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    NSString *key = @"LastAutomaticUpdateCheck";
+    NSTimeInterval now = NSDate.date.timeIntervalSince1970;
+    if (now - [defaults doubleForKey:key] < 86400) return;
+    [defaults setDouble:now forKey:key];
+
+    __weak NSWindow *browserWindow = self.window;
+    checkForUpdates(^(NSString *version, BOOL newer) {
+        NSWindow *window = browserWindow;
+        if (!newer || !window.visible || window.attachedSheet) return;
+        NSAlert *alert = [NSAlert new];
+        alert.messageText = kr_mac_localize_string(@"A new version is available");
+        alert.informativeText = version;
+        [alert addButtonWithTitle:kr_mac_localize_string(@"Download from the home page")];
+        [alert addButtonWithTitle:kr_mac_localize_string(@"Cancel")];
+        [alert beginSheetModalForWindow:window completionHandler:^(NSModalResponse response) {
+            if (response == NSAlertFirstButtonReturn)
+                [NSWorkspace.sharedWorkspace openURL:updatePage()];
+        }];
+    });
+}
+
+- (void)about:(id)sender
+{
+    NSAlert *alert = [NSAlert new];
+    char *version = kr_message_printf("%s (built %s)", TEXTVER, kr_build_date());
+    alert.messageText = [NSString stringWithUTF8String:version];
+    sfree(version);
+    char *info = kr_message_printf(
+        "Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — %s", __DATE__);
+    alert.informativeText = [NSString stringWithFormat:@"%s\n\nKiTTY\n© 2007–2023 Cyril Dupont", info];
+    sfree(info);
+    [alert addButtonWithTitle:kr_mac_localize_string(@"Close")];
+
+    NSButton *check = [NSButton buttonWithTitle:kr_mac_localize_string(@"Check for updates")
+        target:nil action:nil];
+    check.frame = NSMakeRect(0, 24, 340, 28);
+    NSTextField *result = [NSTextField labelWithString:@""];
+    result.frame = NSMakeRect(0, 0, 340, 22);
+    result.allowsEditingTextAttributes = YES;
+    result.selectable = YES;
+    NSView *accessory = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 340, 54)];
+    [accessory addSubview:check];
+    [accessory addSubview:result];
+    alert.accessoryView = accessory;
+    __block NSURLSessionDataTask *request = nil;
+    __weak NSButton *weakCheck = check;
+    __weak NSTextField *weakResult = result;
+    check.target = self;
+    check.action = @selector(runManualUpdateCheck:);
+    objc_setAssociatedObject(check, @selector(runManualUpdateCheck:), ^{
+        NSButton *button = weakCheck;
+        if (!button.enabled) return;
+        button.enabled = NO;
+        weakResult.stringValue = kr_mac_localize_string(@"Checking for updates...");
+        request = checkForUpdates(^(NSString *latest, BOOL newer) {
+            weakCheck.enabled = YES;
+            NSTextField *label = weakResult;
+            if (!label.window.visible) return;
+            if (newer) {
+                label.attributedStringValue = [[NSAttributedString alloc]
+                    initWithString:kr_mac_localize_string(@"A new version is available")
+                    attributes:@{NSLinkAttributeName:updatePage(),
+                                 NSForegroundColorAttributeName:NSColor.linkColor,
+                                 NSUnderlineStyleAttributeName:@(NSUnderlineStyleSingle)}];
+            } else {
+                label.stringValue = kr_mac_localize_string(latest ?
+                    @"You have the latest version" : @"Update check unavailable");
+            }
+        });
+    }, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    [alert runModal];
+    [request cancel];
+}
+
+- (void)runManualUpdateCheck:(NSButton *)sender
+{
+    void (^action)(void) = objc_getAssociatedObject(sender, _cmd);
+    if (action) action();
+}
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender { return kr_mac_request_termination() ? NSTerminateNow : NSTerminateCancel; }
 - (BOOL)applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender { return NO; }
 @end

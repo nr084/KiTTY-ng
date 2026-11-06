@@ -686,7 +686,8 @@ static void open_conf_in_host(Conf *configuration,MacTabHost *host){
         if(conf_get_bool(conf,CONF_save_windowpos)){settings_r *reader=open_settings_r(name);int x=read_setting_i(reader,"MacWindowX",INT_MIN),y=read_setting_i(reader,"MacWindowY",INT_MIN),w=read_setting_i(reader,"MacWindowWidth",0),h=read_setting_i(reader,"MacWindowHeight",0);close_settings_r(reader);if(x!=INT_MIN&&y!=INT_MIN&&w>=240&&h>=160&&w<=10000&&h<=10000)[window setFrame:NSMakeRect(x,y,w,h) display:YES];}
         if(conf_get_bool(conf,CONF_maximize))[window zoom:nil];if(conf_get_bool(conf,CONF_fullscreen))[window toggleFullScreen:nil];
     }
-    [window makeKeyAndOrderFront:nil];[window makeFirstResponder:view];
+    if (newWindow || !window.keyWindow) [window makeKeyAndOrderFront:nil];
+    [window makeFirstResponder:view];
     if(newWindow&&conf_get_bool(conf,CONF_sendtotray))[window orderOut:nil];
 }
 

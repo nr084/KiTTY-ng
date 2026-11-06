@@ -115,7 +115,11 @@ static BOOL macTabsEnabled(void){
     self.strip.hidden=top==0;self.strip.frame=NSMakeRect(0,0,bounds.size.width,top);
     self.strip.documentView.frame=NSMakeRect(0,0,MAX(bounds.size.width,self.pages.count*macTabWidth),macTabHeight);
     [self.strip tile];[self.strip.documentView setNeedsDisplay:YES];for(NSView *button in self.strip.documentView.subviews)[button setNeedsDisplay:YES];
-    for(MacTerminal *page in self.pages){page.hidden=page!=self.selected;page.frame=NSInsetRect(NSMakeRect(0,top,bounds.size.width,MAX(1,bounds.size.height-top)),terminalPadding,terminalPadding);}
+    for (MacTerminal *page in self.pages) page.hidden = page != self.selected;
+    NSRect frame = NSInsetRect(NSMakeRect(0, top, bounds.size.width,
+        MAX(1, bounds.size.height-top)), terminalPadding, terminalPadding);
+    if (self.selected && !NSEqualRects(self.selected.frame, frame))
+        self.selected.frame = frame;
 }
 - (void)refresh{
     self.window.title=self.selected.sessionTitle?:@"KiTTY-ng";
