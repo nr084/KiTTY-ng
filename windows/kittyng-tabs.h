@@ -5,6 +5,7 @@
 #define KR_WM_TAB_FOCUS (WM_APP + 0x4B4)
 #define KR_WM_TAB_LAYOUT (WM_APP + 0x4B5)
 #define KR_WM_TAB_BACKGROUND (WM_APP + 0x4B6)
+#define KR_WM_TAB_MENU_REFRESH (WM_APP + 0x4B7)
 bool kr_tabs_enabled(void);
 bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result);
 bool kr_tabs_duplicate(HWND terminal);

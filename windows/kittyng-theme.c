@@ -112,7 +112,7 @@ static void theme_menu(HWND owner, HMENU menu)
 {
     if (!menu) return;
     restore_menu(owner, menu);
-    MENUINFO mi = {sizeof(mi)}; mi.fMask = MIM_BACKGROUND;
+    MENUINFO mi = {sizeof(mi)}; mi.fMask = MIM_BACKGROUND | MIM_APPLYTOSUBMENUS;
     mi.hbrBack = dark ? dark_surface : GetSysColorBrush(COLOR_MENU);
     SetMenuInfo(menu, &mi);
     if (!dark) return;
@@ -220,7 +220,9 @@ static LRESULT CALLBACK theme_activate(int code, WPARAM wp, LPARAM lp)
             SetPropW((HWND)wp, L"KiTTY-ng MessageBox", (HANDLE)1);
             awaiting_messagebox = false;
         }
-        kr_theme_attach((HWND)wp);
+        wchar_t name[32];
+        if (!GetClassNameW((HWND)wp, name, lenof(name)) || wcscmp(name, L"#32768"))
+            kr_theme_attach((HWND)wp);
     }
     return CallNextHookEx(NULL, code, wp, lp);
 }
@@ -268,6 +270,8 @@ static void paint_messagebox_footer(HWND hwnd)
 
 void kr_theme_attach(HWND hwnd)
 {
+    DWORD_PTR existing;
+    if (GetWindowSubclass(hwnd, themed_proc, THEME_SUBCLASS, &existing)) return;
     kr_theme_start();
     if (!theme_changed) theme_changed = RegisterWindowMessageW(L"KiTTY-ng.InterfaceThemeChanged");
     SetWindowSubclass(hwnd, themed_proc, THEME_SUBCLASS, 0);

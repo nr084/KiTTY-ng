@@ -2773,6 +2773,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         show_mouseptr(wgs, true);
         PostQuitMessage(0);
         return 0;
+      case KR_WM_TAB_MENU_REFRESH:
       case WM_INITMENUPOPUP:
         if ((HMENU)wParam == wgs->quick_menu) { update_quick_menu(wgs); return 0; }
         if ((HMENU)wParam == wgs->savedsess_menu) {

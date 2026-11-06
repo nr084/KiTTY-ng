@@ -142,7 +142,7 @@ static void frame_copy_menu(TabFrame *f,HMENU destination,HMENU source,bool syst
 {
     if(depth>8)return;
     DWORD_PTR result;
-    SendMessageTimeoutW(f->pages[f->selected],WM_INITMENUPOPUP,(WPARAM)source,0,SMTO_ABORTIFHUNG,1000,&result);
+    SendMessageTimeoutW(f->pages[f->selected],KR_WM_TAB_MENU_REFRESH,(WPARAM)source,0,SMTO_ABORTIFHUNG,1000,&result);
     bool added=!system;
     for(int i=0;i<GetMenuItemCount(source);i++){
         wchar_t text[1024];MENUITEMINFOW item={.cbSize=sizeof(item),

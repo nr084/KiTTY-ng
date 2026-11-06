@@ -44,9 +44,15 @@ with tempfile.TemporaryDirectory(prefix='kitty-ng-folder-ui-') as directory:
   combo=wait(lambda:next((h for h in children(dialog) if cls(h).lower()=='combobox' and u.SendMessageW(h,0x14C,-1,query)>=0),None))
   index=u.SendMessageW(combo,0x14C,-1,query);assert index>=0
   u.SendMessageW(combo,0x14E,index,0);u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(combo)|(1<<16),combo)
-  listing=next(h for h in children(dialog) if cls(h).lower()=='listbox')
-  name_buffer=ctypes.create_unicode_buffer('BROOMER HOSTING')
-  index=u.SendMessageW(listing,0x1A2,-1,ctypes.addressof(name_buffer));assert index>=0
+  def selected_profile_row():
+   for listing in children(dialog):
+    if cls(listing).lower()!='listbox':continue
+    count=u.SendMessageW(listing,0x18B,0,0)
+    for row in range(count):
+     buffer=ctypes.create_unicode_buffer(512)
+     u.SendMessageW(listing,0x189,row,ctypes.addressof(buffer))
+     if buffer.value=='BROOMER HOSTING':return listing,row
+  listing,index=wait(selected_profile_row)
   u.SendMessageW(listing,0x186,index,0);u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(listing)|(1<<16),listing)
   load=next(h for h in children(dialog) if cls(h)=='Button' and title(h).replace('&','')=='Load')
   u.SendMessageW(dialog,0x111,u.GetDlgCtrlID(load),load)
