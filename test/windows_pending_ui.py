@@ -39,11 +39,14 @@ def accept():
   except OSError:break
 threading.Thread(target=accept,daemon=True).start()
 base=Path(sys.argv[1]).resolve();processes=[]
+clients=list(base.glob('kitty-ng-*.exe'))
+assert len(clients)==1, clients
+client=clients[0]
 with tempfile.TemporaryDirectory(prefix='kitty-ng-ui-regression-') as directory:
  env=dict(os.environ,KITTY_NG_PORTABLE_DIR=directory)
  Path(directory,'kitty.ini').write_text('[KiTTY]\nUITheme=2\n',encoding='utf8')
  try:
-  process=subprocess.Popen([str(base/'kitty-ng-x64.exe'),'--portable-dir',directory,'--language','en','-raw','127.0.0.1','-P',str(listener.getsockname()[1])],env=env);processes.append(process)
+  process=subprocess.Popen([str(client),'--portable-dir',directory,'--language','en','-raw','127.0.0.1','-P',str(listener.getsockname()[1])],env=env);processes.append(process)
   page=wait(lambda:next((h for h in windows() if pid(h)==process.pid and cls(h)=='KiTTY-ng'),None));wait(lambda:len(connections)==1)
   menu=u.GetSystemMenu(page,False);assert not u.GetMenuState(menu,0x40,0)&3,'Active restart must be enabled'
   u.PostMessageW(page,0x112,0x40,0);wait(lambda:len(connections)==2)

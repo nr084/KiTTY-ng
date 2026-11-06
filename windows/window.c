@@ -2641,6 +2641,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     }
 
     switch (message) {
+      case KR_WM_TAB_BACKGROUND:
+        return wgs->colours[ATTR_DEFBG >> ATTR_BGSHIFT];
       case WM_CREATE:
         kr_theme_attach(hwnd);
         SetTimer(hwnd, KR_UPDATE_TIMER, 15000, NULL);

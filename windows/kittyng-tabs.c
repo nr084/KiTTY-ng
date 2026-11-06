@@ -26,6 +26,7 @@
 typedef struct {
     HWND frame, strip, pages[TAB_MAX], pressed_close;
     HFONT font;
+    COLORREF background;
     HWND dragged;
     POINT drag_start;
     bool dragging;
@@ -397,8 +398,17 @@ static bool frame_add(TabFrame *f, HWND page)
         ShowWindow(page,SW_SHOW);return false;
     }
     SetWindowPos(page,NULL,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED);
+    DWORD_PTR background;
+    if (SendMessageTimeoutW(page, KR_WM_TAB_BACKGROUND, 0, 0,
+                            SMTO_ABORTIFHUNG, 200, &background))
+        f->background = (COLORREF)background;
     f->pages[f->count++]=page;f->selected=f->count-1;
-    frame_refresh(f);frame_layout(f);SetForegroundWindow(f->frame);frame_focus(f);
+    frame_refresh(f);
+    frame_layout(f);
+    if (IsWindowVisible(f->frame)) {
+        SetForegroundWindow(f->frame);
+        frame_focus(f);
+    }
     return true;
 }
 static LRESULT CALLBACK frame_proc(HWND hwnd, UINT message, WPARAM wp, LPARAM lp)
@@ -406,6 +416,15 @@ static LRESULT CALLBACK frame_proc(HWND hwnd, UINT message, WPARAM wp, LPARAM lp
     TabFrame *f=(TabFrame*)GetWindowLongPtrW(hwnd,GWLP_USERDATA);
     if (!f) return DefWindowProcW(hwnd,message,wp,lp);
     switch(message) {
+      case WM_ERASEBKGND: {
+        RECT bounds;
+        GetClientRect(hwnd, &bounds);
+        HDC dc = (HDC)wp;
+        COLORREF old = SetDCBrushColor(dc, f->background);
+        FillRect(dc, &bounds, GetStockObject(DC_BRUSH));
+        SetDCBrushColor(dc, old);
+        return 1;
+      }
       case TAB_SHELL_COMMAND:
         if(wp==TAB_FULLSCREEN)frame_fullscreen(f);
         else if(wp==TAB_TRAY && frame_tray(f,true))ShowWindow(hwnd,SW_HIDE);
@@ -480,12 +499,12 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
     if (sscanf(command+sizeof(prefix)-1,"%p --language %2s%c",&source,language,&extra)!=2 ||
         (strcmp(language,"en") && strcmp(language,"ru")) || !same_executable(source)) return true;
     WNDCLASSEXW wc={ .cbSize=sizeof(wc), .lpfnWndProc=frame_proc, .hInstance=instance,
-        .hCursor=LoadCursor(NULL,IDC_ARROW),.hbrBackground=(HBRUSH)(COLOR_BTNFACE+1),.lpszClassName=TAB_CLASS };
+        .hCursor=LoadCursor(NULL,IDC_ARROW),.lpszClassName=TAB_CLASS };
     wc.hIcon=LoadIconW(instance, MAKEINTRESOURCEW(IDI_MAINICON));
     wc.hIconSm=(HICON)LoadImageW(instance, MAKEINTRESOURCEW(IDI_MAINICON), IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_SHARED);
     RegisterClassExW(&wc);
-    TabFrame f={ .selected=-1, .hover=-1,
+    TabFrame f={ .selected=-1, .hover=-1, .background=kr_theme_background(),
         .input_layout=GetKeyboardLayout(GetWindowThreadProcessId(source,NULL)) };RECT r;GetWindowRect(source,&r);
     bool maximized=IsZoomed(source);
     bool fullscreen=!(GetWindowLongPtrW(source,GWL_STYLE)&WS_CAPTION);
@@ -502,19 +521,15 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
         OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
     SendMessageW(f.strip,WM_SETFONT,(WPARAM)f.font,TRUE);
     SetWindowSubclass(f.strip,tab_strip_proc,1,(DWORD_PTR)&f);
+    /* Attach the terminal while the host is hidden. SetWindowPlacement with
+     * SW_SHOWMAXIMIZED can expose an empty host before its first paint. */
+    if (fullscreen) frame_fullscreen(&f);
     if (!frame_add(&f,source)) {DestroyWindow(f.frame);return true;}
     f.system_menu_items=GetMenuItemCount(GetSystemMenu(f.frame,FALSE));
     frame_update_menu(&f);
-    /* Set the final host geometry while hidden; child duplicates stay hidden
-     * until frame_add reparents them. No standalone maximize animation. */
-    if(fullscreen)frame_fullscreen(&f);
-    else if(maximized){
-        WINDOWPLACEMENT placement={.length=sizeof(placement)};
-        GetWindowPlacement(f.frame,&placement);
-        placement.showCmd=SW_SHOWMAXIMIZED;
-        SetWindowPlacement(f.frame,&placement);
-    }
-    ShowWindow(f.frame,SW_SHOW);SetTimer(f.frame,1,200,NULL);SetTimer(f.frame,2,500,NULL);
+    ShowWindow(f.frame, maximized && !fullscreen ? SW_SHOWMAXIMIZED : SW_SHOW);
+    frame_focus(&f);
+    SetTimer(f.frame,1,200,NULL);SetTimer(f.frame,2,500,NULL);
     PostMessageW(source,WM_SYSCOMMAND,TAB_DUPLICATE,0);
     MSG msg;while(GetMessageW(&msg,NULL,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}
     *result=0;return true;
