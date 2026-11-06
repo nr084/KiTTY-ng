@@ -81,6 +81,11 @@ def keyboard(page,index,letter):
  info=GuiThreadInfo();info.cbSize=ctypes.sizeof(info)
  thread=u.GetWindowThreadProcessId(page,None)
  time.sleep(.2)
+ if u.GetForegroundWindow()!=host:
+  # Restore only the top-level window after unrelated desktop activation.
+  # KiTTY-ng must still route focus to the selected terminal itself.
+  u.SetForegroundWindow(host)
+  wait(lambda:u.GetForegroundWindow()==host)
  assert u.GetGUIThreadInfo(thread,ctypes.byref(info))
  assert info.focus==page, f'Keyboard focus lost: expected {page:#x}, got {info.focus}; active={info.active}; foreground={u.GetForegroundWindow()} host={host}'
  before={i:bytes(data) for i,data in received.items()}
@@ -270,6 +275,8 @@ with tempfile.TemporaryDirectory(prefix='tabs-runtime-',dir=binary.parent.parent
   assert not any(cls(h)=='#32770' and pid(h) in pids for h in enum())
   u.SendMessageW(strip,0x201,1,(round(15*scale)<<16)|round(250*scale));u.SendMessageW(strip,0x202,0,(round(15*scale)<<16)|round(250*scale))
   def tab_menu(command_index):
+   u.SetForegroundWindow(host)
+   wait(lambda:u.GetForegroundWindow()==host)
    point=w.POINT(25,12);u.ClientToScreen(strip,ctypes.byref(point));u.SetCursorPos(point.x,point.y)
    u.PostMessageW(strip,0x204,2,(12<<16)|25);u.PostMessageW(strip,0x205,0,(12<<16)|25)
    popup=wait(lambda:next((h for h in enum() if cls(h)=='#32768' and pid(h)==pid(host) and u.IsWindowVisible(h)),None))

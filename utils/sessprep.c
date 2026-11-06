@@ -4,9 +4,47 @@
  */
 
 #include "putty.h"
+#include "sessprep.h"
+
+bool kr_prepare_http_host(Conf *conf)
+{
+    const char *input = conf_get_str(conf, CONF_host);
+    input += strspn(input, " \t\r\n");
+    if (!strnicmp(input, "https://", 8))
+        input += 8;
+    else if (!strnicmp(input, "http://", 7))
+        input += 7;
+    else
+        return false;
+
+    const char *end = input + strcspn(input, "/?# \t\r\n");
+    const char *host = input;
+    for (const char *p = input; p < end; p++)
+        if (*p == '@')
+            host = p + 1;
+
+    /* An IPv6 URL encloses its literal in brackets. The URL's port and
+     * user info do not override the terminal session settings. */
+    const char *port = host;
+    if (host < end && *host == '[') {
+        const char *close = memchr(host, ']', end - host);
+        port = close ? close + 1 : end;
+    }
+    const char *colon = memchr(port, ':', end - port);
+    if (colon)
+        end = colon;
+
+    char *name = dupprintf("%.*s", (int)(end - host), host);
+    conf_set_str(conf, CONF_host, name);
+    sfree(name);
+    return true;
+}
 
 void prepare_session(Conf *conf)
 {
+    if (kr_prepare_http_host(conf))
+        return;
+
     char *hostbuf = dupstr(conf_get_str(conf, CONF_host));
     char *host = hostbuf;
     char *p, *q;

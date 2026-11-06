@@ -2,6 +2,7 @@
 #import <AppKit/AppKit.h>
 #import <CoreText/CoreText.h>
 #include "putty.h"
+#include "utils/sessprep.h"
 #include "kittyng-auth.h"
 #include "ssh.h"
 #include "terminal.h"
@@ -675,7 +676,7 @@ void kr_mac_open_conf(Conf *configuration){open_conf_in_host(configuration,nil);
 static void open_conf_in_host(Conf *configuration,MacTabHost *host){
     if(!initialized){setlocale(LC_CTYPE,"");sk_init();uxsel_init();enable_dit();settings_set_default_protocol(PROT_SSH);settings_set_default_port(22);windows=[NSMutableArray new];initialized=true;}
     BOOL newWindow=host==nil;if(!host)host=[MacTabHost new];
-    Conf *conf=conf_copy(configuration);const char *name=conf_get_str(conf,CONF_kr_session_name);
+    Conf *conf=conf_copy(configuration);kr_prepare_http_host(conf);const char *name=conf_get_str(conf,CONF_kr_session_name);
     MacTerminal *view=[[MacTerminal alloc]initWithFrame:NSMakeRect(0,0,800,480)];view.clipsToBounds=YES;MacSession *s=snew(MacSession);memset(s,0,sizeof(*s));s->conf=conf;view.session=s;
     char *profile=kr_mac_profile_path(name);view.profileSource=profile?[NSData dataWithContentsOfFile:S(profile)]:nil;sfree(profile);
     view.sessionTitle=[@"KiTTY-ng — " stringByAppendingString:S(*name?name:conf_get_str(conf,CONF_host))];

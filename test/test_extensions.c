@@ -72,7 +72,26 @@ int main(void)
     CHECK(!test_duplicate_auth());
     Conf *wc = conf_new(); do_defaults(NULL, wc);
     conf_set_int(wc, CONF_protocol, PROT_SSH);
+    conf_set_str(wc, CONF_username, "configured");
+    conf_set_int(wc, CONF_port, 2222);
+    const char *const urls[][2] = {
+        {"https://127.0.0.1/", "127.0.0.1"},
+        {"http://127.0.0.1", "127.0.0.1"},
+        {" HTTPS://ignored@example.test:8443/path?q=a@b#c", "example.test"},
+        {"http://[2001:db8::1]:8080/", "[2001:db8::1]"},
+        {"https://example.test?query", "example.test"},
+    };
+    for (size_t i = 0; i < lenof(urls); i++) {
+        conf_set_str(wc, CONF_host, urls[i][0]);
+        prepare_session(wc);
+        CHECK(!strcmp(conf_get_str(wc, CONF_host), urls[i][1]));
+        CHECK(!strcmp(conf_get_str_ambi(wc, CONF_username, NULL), "configured"));
+        CHECK(conf_get_int(wc, CONF_port) == 2222);
+        CHECK(conf_get_int(wc, CONF_protocol) == PROT_SSH);
+    }
     conf_set_str(wc, CONF_host, "2001:db8::1");
+    prepare_session(wc);
+    CHECK(!strcmp(conf_get_str(wc, CONF_host), "2001:db8::1"));
     conf_set_utf8(wc, CONF_username, "user name");
     conf_set_int(wc, CONF_port, 2222);
     conf_set_str(wc, CONF_password, "must-not-export-password");
