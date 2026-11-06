@@ -14,7 +14,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 
 ## Скачать
 
-В выпуске **0.85-12** доступны пять проверенных пакетов Windows и Linux. DMG для macOS Universal 2 готовится отдельно.
+В выпуске **0.85-12** доступны шесть проверенных пакетов для Windows, Linux и macOS.
 
 | Платформа | Сборка 0.85-12 | Запуск |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG готовится | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-12/kitty-ng-0.85-12-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
@@ -123,7 +123,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 
 ### macOS Universal
 
-<img src="docs/screenshots/macos-tabs-ru.png" width="760" alt="KiTTY-ng — macOS">
+<img src="docs/screenshots/macos-session-ru.png" width="760" alt="KiTTY-ng — macOS">
 
 <details>
 <summary>KiTTYgen — macOS</summary>
