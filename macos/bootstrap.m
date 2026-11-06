@@ -329,8 +329,11 @@ int kr_mac_test_startup_ui(void) {
     alert.messageText = [NSString stringWithUTF8String:version];
     sfree(version);
     char *info = kr_message_printf(
-        "Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — %s", __DATE__);
-    alert.informativeText = [NSString stringWithFormat:@"%s\n\nKiTTY\n© 2007–2023 Cyril Dupont", info];
+        "Native macOS Universal 2. Based on PuTTY and KiTTY.\n© nr084 — %s", kr_build_date());
+    NSString *description = [NSString stringWithUTF8String:info];
+    alert.informativeText = [NSString stringWithFormat:
+        @"%@\n\nPuTTY\n© 1997–2026 Simon Tatham\n\nKiTTY\n© 2007–2023 Cyril Dupont",
+        description];
     sfree(info);
     [alert addButtonWithTitle:kr_mac_localize_string(@"Close")];
 
