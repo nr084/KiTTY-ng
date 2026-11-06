@@ -8,6 +8,7 @@
 
 #define THEME_REFRESH (WM_APP + 162)
 #define THEME_SUBCLASS 0x4b475448
+static const wchar_t theme_attached[] = L"KiTTY-ng Theme Attached";
 static HBRUSH dark_surface, dark_field;
 static int preference = -1;
 static bool dark;
@@ -270,11 +271,11 @@ static void paint_messagebox_footer(HWND hwnd)
 
 void kr_theme_attach(HWND hwnd)
 {
-    DWORD_PTR existing;
-    if (GetWindowSubclass(hwnd, themed_proc, THEME_SUBCLASS, &existing)) return;
+    if (GetPropW(hwnd, theme_attached)) return;
     kr_theme_start();
     if (!theme_changed) theme_changed = RegisterWindowMessageW(L"KiTTY-ng.InterfaceThemeChanged");
-    SetWindowSubclass(hwnd, themed_proc, THEME_SUBCLASS, 0);
+    if (!SetWindowSubclass(hwnd, themed_proc, THEME_SUBCLASS, 0)) return;
+    SetPropW(hwnd, theme_attached, (HANDLE)1);
     /* Dialog controls may still be constructed during WM_INITDIALOG. */
     PostMessageW(hwnd, THEME_REFRESH, 0, 0);
 }
@@ -375,7 +376,7 @@ static LRESULT CALLBACK themed_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
                                     UINT_PTR id, DWORD_PTR data)
 {
     if (theme_changed && msg == theme_changed) { preference = -1; apply_theme(hwnd); return 0; }
-    if (msg == WM_NCDESTROY) { restore_menu(hwnd,NULL); RemoveWindowSubclass(hwnd, themed_proc, id); return DefSubclassProc(hwnd,msg,wp,lp); }
+    if (msg == WM_NCDESTROY) { RemovePropW(hwnd, theme_attached); restore_menu(hwnd,NULL); RemoveWindowSubclass(hwnd, themed_proc, id); return DefSubclassProc(hwnd,msg,wp,lp); }
     if (msg == THEME_REFRESH) { apply_theme(hwnd); return 0; }
     if (msg == WM_SETTINGCHANGE || msg == WM_THEMECHANGED) {
         /* Child SetWindowTheme emits WM_THEMECHANGED: only refresh top-levels. */
