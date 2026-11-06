@@ -47,6 +47,21 @@ def verify(process, terminal, u, windows, title, until, english=False):
     checked=[]
     try:
         nodes=list(walk(u.SendMessageW(tree,0x110a,0,0)))
+        root=nodes[0][0]
+        ssh=next(item for item,name in nodes if name=='SSH')
+        u.SendMessageW(tree,0x1102,1,ssh)  # Collapse SSH before keyboard navigation.
+        assert u.SendMessageW(tree,0x110b,9,root)
+        for _ in nodes:
+            if u.SendMessageW(tree,0x110a,9,0)==ssh:
+                break
+            u.SendMessageW(tree,0x100,0x28,0x01500001)  # Down.
+        assert u.SendMessageW(tree,0x110a,9,0)==ssh
+        u.SendMessageW(tree,0x100,0x27,0x014d0001)  # Right expands the branch.
+        first_child=u.SendMessageW(tree,0x110a,4,ssh)
+        assert first_child and u.SendMessageW(tree,0x110a,6,ssh)==first_child
+        u.SendMessageW(tree,0x100,0x28,0x01500001)
+        assert u.SendMessageW(tree,0x110a,9,0)==first_child
+        print('PASS: repeated Down, Right to expand SSH, Down to select its first child',flush=True)
         for item,name in nodes:
             if name not in wanted:continue
             assert u.SendMessageW(tree,0x110b,9,item)

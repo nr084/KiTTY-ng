@@ -821,6 +821,10 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
 
             SendMessage(hwnd, WM_SETREDRAW, true, 0);
             SetFocus(tree);
+            /* The native tree can invalidate its selection and visible
+             * rows while the parent has drawing suspended. Refresh that
+             * surface as well, without erasing the whole dialog. */
+            InvalidateRect(tree, NULL, FALSE);
             RedrawWindow(hwnd, &panel, NULL,
                          RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
         }
