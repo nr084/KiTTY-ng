@@ -148,7 +148,9 @@ def main():
     parser.add_argument("--cmake", type=Path)
     parser.add_argument("--ninja", type=Path)
     parser.add_argument("--offline", action="store_true", help="Requires all three tool paths")
-    parser.add_argument("--force-tests", action="store_true", help="Explicitly rerun cached checks")
+    tests = parser.add_mutually_exclusive_group()
+    tests.add_argument("--force-tests", action="store_true", help="Explicitly rerun cached checks")
+    tests.add_argument("--skip-tests", action="store_true", help="Build and package only when explicitly authorized")
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     args = parser.parse_args()
     if os.name != "nt":
@@ -166,6 +168,8 @@ def main():
     previous_run = json.loads(previous_run_path.read_text()) if previous_run_path.exists() else {}
     report = {"started": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "status": "running",
               "version": (ROOT / "VERSION").read_text().strip(), "tests": [], "archives": []}
+    if args.skip_tests:
+        report["test_status"] = "skipped-by-request"
     report["source_commit"] = subprocess.check_output(
         ["git", "-c", "safe.directory=" + str(ROOT), "rev-parse", "HEAD"],
         text=True).strip()
@@ -187,6 +191,8 @@ def main():
             raise RuntimeError(f"{label}: exit {result.returncode}")
 
     def check(key, files, commands, compiler=None, baseline_allowed=False):
+        if args.skip_tests:
+            return
         fingerprint = digest_files(files)
         if fingerprint is None:
             raise RuntimeError("Missing test input: " + key)
@@ -301,7 +307,7 @@ def main():
                 cli_executable = utility_executable("plink", arch)
                 command = [PYTHON, "tools/build-llvm.py", arch, "--toolchain", toolchain,
                            "--build-dir", directory, "--cmake", cmake, "--ninja", ninja]
-                if arch != "arm64":
+                if arch != "arm64" and not args.skip_tests:
                     command.append("--tests")
                 try:
                     run(command, "build-" + arch)
@@ -311,7 +317,7 @@ def main():
                             if (directory / name).exists():
                                 shutil.copy2(directory / name, logs / (arch + "-" + name))
                 compiler = json.loads((directory / "compiler.json").read_text())["compiler"].splitlines()[0]
-                if arch != "arm64":
+                if arch != "arm64" and not args.skip_tests:
                     suites = [
                         ("pending-ui", executable[:-4], ["test/windows_pending_ui.py"],
                          [PYTHON, "test/windows_pending_ui.py", directory]),

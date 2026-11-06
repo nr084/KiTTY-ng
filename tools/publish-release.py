@@ -22,7 +22,7 @@ parser.add_argument("--pending-macos", action="store_true", help="Upload only a 
 parser.add_argument("--update-current", action="store_true", help="Explicitly replace changed assets in the existing stable release without moving its tag")
 parser.add_argument("--windows-linux", action="store_true", help="Publish the authorized Windows/Linux stage; clearly mark macOS pending")
 args = parser.parse_args()
-assert not args.windows_linux or not (args.pending_macos or args.update_current)
+assert not args.windows_linux or not args.pending_macos
 assert not args.update_current or not (args.draft_only or args.pending_macos)
 assert not args.pending_macos or args.draft_only, "A pending macOS release must remain a draft"
 version = (ROOT / "VERSION").read_text().strip()
@@ -61,6 +61,8 @@ assert release is None or release["draft"] or args.update_current, "Use explicit
 if args.update_current:
     assert release and not release["draft"] and not release["prerelease"]
     assert request(API + "/releases/latest")["id"] == release["id"]
+    assert {a["name"] for a in release["assets"] if ".replacement-" not in a["name"]} <= expected
+assert args.update_current or report.get("linux_validation", {}).get("status") != "skipped-by-request"
 body = (ROOT / "docs/releases" / (version + ".md")).read_text(encoding="utf8")
 if args.windows_linux:
     body = "**Windows/Linux опубликованы. macOS 0.85-9 готовится отдельно и будет добавлена после нативной проверки.**\n\n".replace("0.85-9", version) + body

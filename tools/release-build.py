@@ -6,8 +6,11 @@ def git(*args):return subprocess.check_output(['git','-c','safe.directory='+str(
 def run(*args):subprocess.run([sys.executable,*map(str,args)],cwd=ROOT,check=True)
 def read(path):return json.loads((ROOT/path).read_text(encoding='utf8'))
 def main():
- p=argparse.ArgumentParser();p.add_argument('--assemble-only',action='store_true');p.add_argument('--build-only',action='store_true');p.add_argument('--pending-macos',action='store_true',help='Assemble a five-package draft; never a publishable success manifest');p.add_argument('--windows-linux',action='store_true',help='Assemble the explicitly authorized Windows/Linux publication stage');p.add_argument('--macos-dir',type=Path,default=ROOT/'dist/macos-native');args=p.parse_args()
+ p=argparse.ArgumentParser();p.add_argument('--assemble-only',action='store_true');p.add_argument('--build-only',action='store_true');p.add_argument('--pending-macos',action='store_true',help='Assemble a five-package draft; never a publishable success manifest');p.add_argument('--windows-linux',action='store_true',help='Assemble the explicitly authorized Windows/Linux publication stage');p.add_argument('--macos-dir',type=Path,default=ROOT/'dist/macos-native')
+ p.add_argument('--skip-linux-acceptance',action='store_true',help='Record explicit authorization to omit new Linux tests for an in-place Windows/Linux update')
+ args=p.parse_args()
  assert not (args.windows_linux and args.pending_macos)
+ assert not args.skip_linux_acceptance or (args.windows_linux and args.assemble_only)
  omit_mac=args.pending_macos or args.windows_linux
  assert not git('status','--porcelain'),'Commit source and documentation before the release build'
  version=(ROOT/'VERSION').read_text().strip();commit=git('rev-parse','HEAD');out=ROOT/'dist'
@@ -43,10 +46,13 @@ def main():
    for name,digest in native['binaries_sha256'].items():
     assert hashlib.sha256((args.macos_dir/'KiTTY-ng.app/Contents/Helpers'/name).read_bytes()).hexdigest()==digest,'macOS runtime acceptance must cover shipped helpers'
   mac_validation={'bundle_seals':mac.get('tamper_checks'),'dmg_round_trip':dmg['bundle_hashes'],'native_runtime':'arm64 and x86_64 passed'}
- assert acceptance['status']=='passed' and acceptance['version']==version
- assert acceptance['source_commit']==linux['source_commit']
- assert acceptance['binaries']==package['binaries'],'Native acceptance must cover the shipped Linux binaries'
- package['acceptance_tests']='passed';(out/'linux/linux-package.json').write_text(json.dumps(package,indent=2)+'\n')
+ if args.skip_linux_acceptance:
+  acceptance={'status':'skipped-by-request','previous_acceptance':acceptance}
+ else:
+  assert acceptance['status']=='passed' and acceptance['version']==version
+  assert acceptance['source_commit']==linux['source_commit']
+  assert acceptance['binaries']==package['binaries'],'Native acceptance must cover the shipped Linux binaries'
+ package['acceptance_tests']=acceptance['status'];(out/'linux/linux-package.json').write_text(json.dumps(package,indent=2)+'\n')
  archives=[]
  for name in [*(f'kitty-ng-{version}-{arch}.zip' for arch in ('x64','x86','arm64')),*([] if omit_mac else [f'kitty-ng-{version}-macos-universal.dmg']),f'kitty-ng-{version}-x86_64.AppImage',f'kitty-ng-{version}-x86_64.tar.zst']:
   path=out/name
