@@ -94,6 +94,7 @@ bool kr_theme_save(int mode)
 typedef struct ThemeMenuItem {
     struct ThemeMenuItem *next;
     HWND owner; HMENU menu; UINT position, command, type;
+    ULONG_PTR item_data;
     wchar_t *text;
 } ThemeMenuItem;
 static ThemeMenuItem *menu_items;
@@ -106,6 +107,10 @@ static void restore_menu(HWND owner, HMENU menu)
             if (IsMenu(entry->menu)) {
                 MENUITEMINFOW info = {sizeof(info)}; info.fMask = MIIM_FTYPE;
                 info.fType = entry->type;
+                if (!entry->item_data) {
+                    info.fMask |= MIIM_DATA;
+                    info.dwItemData = 0;
+                }
                 SetMenuItemInfoW(entry->menu, entry->position, TRUE, &info);
             }
             *link = entry->next; sfree(entry->text); sfree(entry);
@@ -116,28 +121,38 @@ static void theme_menu(HWND owner, HMENU menu)
 {
     if (!menu) return;
     restore_menu(owner, menu);
-    MENUINFO mi = {sizeof(mi)}; mi.fMask = MIM_BACKGROUND | MIM_APPLYTOSUBMENUS;
+    MENUINFO mi = {sizeof(mi)}; mi.fMask = MIM_BACKGROUND;
     mi.hbrBack = dark ? dark_surface : GetSysColorBrush(COLOR_MENU);
     SetMenuInfo(menu, &mi);
     if (!dark) return;
     for (int i = 0; i < GetMenuItemCount(menu); i++) {
         MENUITEMINFOW info = {sizeof(info)};
-        info.fMask = MIIM_FTYPE | MIIM_STRING | MIIM_ID;
+        info.fMask = MIIM_FTYPE | MIIM_STRING | MIIM_ID | MIIM_DATA;
         if (!GetMenuItemInfoW(menu, i, TRUE, &info) || (info.fType & MFT_OWNERDRAW)) continue;
         ThemeMenuItem *entry = snew(ThemeMenuItem);
         entry->owner=owner; entry->menu=menu; entry->position=i;
         entry->command=info.wID; entry->type=info.fType;
+        entry->item_data=info.dwItemData;
         entry->text=snewn(info.cch+1,wchar_t); info.dwTypeData=entry->text; info.cch++;
         GetMenuItemInfoW(menu,i,TRUE,&info);
         entry->next=menu_items; menu_items=entry;
         info.fMask=MIIM_FTYPE; info.fType |= MFT_OWNERDRAW;
+        if (!entry->item_data) {
+            info.fMask |= MIIM_DATA;
+            info.dwItemData = (ULONG_PTR)entry;
+        }
         SetMenuItemInfoW(menu,i,TRUE,&info);
     }
 }
-static ThemeMenuItem *menu_entry(HWND owner, HMENU menu, UINT command)
+static ThemeMenuItem *menu_entry(HWND owner, HMENU menu, UINT command,
+                                 ULONG_PTR data)
 {
-    for (ThemeMenuItem *e=menu_items;e;e=e->next)
-        if(e->owner==owner && (!menu || e->menu==menu) && e->command==command)return e;
+    for (ThemeMenuItem *e=menu_items;e;e=e->next) {
+        if (e->owner == owner && (!menu || e->menu == menu) &&
+            e->command == command &&
+            data == (e->item_data ? e->item_data : (ULONG_PTR)e))
+            return e;
+    }
     return NULL;
 }
 static bool draw_menu(HWND hwnd, UINT msg, LPARAM lp)
@@ -145,7 +160,7 @@ static bool draw_menu(HWND hwnd, UINT msg, LPARAM lp)
     if(msg==WM_MEASUREITEM) {
         MEASUREITEMSTRUCT *m=(void *)lp;
         if(m->CtlType!=ODT_MENU)return false;
-        ThemeMenuItem *e=menu_entry(hwnd,NULL,m->itemID);if(!e)return false;
+        ThemeMenuItem *e=menu_entry(hwnd,NULL,m->itemID,m->itemData);if(!e)return false;
         HDC dc=GetDC(hwnd); HFONT old=SelectObject(dc,GetStockObject(DEFAULT_GUI_FONT));
         SIZE size; GetTextExtentPoint32W(dc,e->text,wcslen(e->text),&size);
         m->itemWidth=size.cx+(e->menu==GetMenu(hwnd)?20:48); m->itemHeight=(e->type&MFT_SEPARATOR)?8:max(size.cy+12,24);
@@ -154,7 +169,7 @@ static bool draw_menu(HWND hwnd, UINT msg, LPARAM lp)
     if(msg==WM_DRAWITEM) {
         DRAWITEMSTRUCT *d=(void *)lp;
         if(d->CtlType!=ODT_MENU)return false;
-        ThemeMenuItem *e=menu_entry(hwnd,(HMENU)d->hwndItem,d->itemID);if(!e)return false;
+        ThemeMenuItem *e=menu_entry(hwnd,(HMENU)d->hwndItem,d->itemID,d->itemData);if(!e)return false;
         HBRUSH brush=CreateSolidBrush((d->itemState&ODS_SELECTED)?RGB(58,78,105):RGB(32,33,36));
         FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
         RECT r=d->rcItem;r.left+=24;r.right-=24;
