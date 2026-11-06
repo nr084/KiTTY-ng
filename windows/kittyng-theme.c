@@ -226,6 +226,8 @@ static LRESULT CALLBACK theme_activate(int code, WPARAM wp, LPARAM lp)
 }
 void kr_theme_start(void)
 {
+    INITCOMMONCONTROLSEX controls = {sizeof(controls), ICC_LINK_CLASS};
+    InitCommonControlsEx(&controls);
     static HHOOK hook;
     if (!hook) hook = SetWindowsHookExW(WH_CBT, theme_activate, NULL, GetCurrentThreadId());
 }

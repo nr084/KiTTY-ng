@@ -1,7 +1,7 @@
 #include "rcstuff.h"
 
-#define APPNAME "PSFTP"
-#define APPDESC "Command-line interactive SFTP client"
+#define APPNAME "Ksftp"
+#define APPDESC "KiTTY-ng interactive SFTP client"
 
 200 ICON "ksftp.ico"
 

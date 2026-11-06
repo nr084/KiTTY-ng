@@ -5,7 +5,7 @@
 #include "rcstuff.h"
 
 #define APPNAME "KiTTYgen"
-#define APPDESC "KiTTY-ng SSH key generation utility"
+#define APPDESC "KiTTYgen SSH key generator"
 
 #include "help.rc2"
 #include "puttygen-rc.h"

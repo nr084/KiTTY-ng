@@ -13,6 +13,7 @@
 #include "kittyng-build-date.h"
 #include "kittyng.h"
 #include "kittyng-logui.h"
+#include "kittyng-update.h"
 #define dupprintf kr_printf
 #undef SetWindowText
 #define SetWindowText kr_set_text
@@ -462,7 +463,29 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
         SetFocus(GetDlgItem(hwnd, IDOK));
         return 0;
       }
+      case WM_NOTIFY:
+        if (((NMHDR *)lParam)->idFrom == IDA_UPDATE_STATUS &&
+            (((NMHDR *)lParam)->code == NM_CLICK || ((NMHDR *)lParam)->code == NM_RETURN) &&
+            kr_update_result() == 2) {
+            ShellExecuteW(hwnd, L"open", KR_RELEASES_URL, NULL, NULL, SW_SHOWNORMAL);
+            return TRUE;
+        }
+        break;
       case WM_TIMER:
+        if (wParam == 2) {
+            LONG result = kr_update_result();
+            if (!result) return TRUE;
+            KillTimer(hwnd, 2);
+            const char *label = result == 2 ? "A new version is available" :
+                result == 1 ? "You have the latest version" : "Update check unavailable";
+            char *caption = result == 2 ? dupcat("<a>", kr_translate(label), "</a>") :
+                dupstr(kr_translate(label));
+            wchar_t *wide = dup_mb_to_wc(CP_UTF8, caption);
+            SetDlgItemTextW(hwnd, IDA_UPDATE_STATUS, wide);
+            sfree(wide); sfree(caption);
+            EnableWindow(GetDlgItem(hwnd, IDA_CHECK_UPDATE), TRUE);
+            return TRUE;
+        }
         if (about_demo_filename && wParam == 1) {
             KillTimer(hwnd, 1);
             char *error = save_screenshot(hwnd, about_demo_filename);
@@ -490,6 +513,12 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             SetActiveWindow(hwnd);
             return 0;
 
+          case IDA_CHECK_UPDATE:
+            EnableWindow(GetDlgItem(hwnd, IDA_CHECK_UPDATE), FALSE);
+            kr_set_item_text(hwnd, IDA_UPDATE_STATUS, "Checking for updates...");
+            kr_update_check();
+            SetTimer(hwnd, 2, 150, NULL);
+            return TRUE;
           case IDA_WEB:
             /* Load web browser */
             ShellExecute(hwnd, "open",

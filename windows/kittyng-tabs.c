@@ -304,13 +304,20 @@ static void frame_layout(TabFrame *f)
     int top = f->count > 1 ? MulDiv(34, GetDeviceCaps(dc, LOGPIXELSY), 96) : 0;
     ReleaseDC(f->frame, dc);
     /* The frame is DPI aware in the same mode as the terminals. */
-    MoveWindow(f->strip, 0, 0, max(1,r.right), top, TRUE);
+    SetWindowPos(f->strip, NULL, 0, 0, max(1,r.right), top,
+                 SWP_NOACTIVATE | SWP_NOZORDER | SWP_NOREDRAW);
     TabCtrl_SetItemSize(f->strip,tab_px(f,184),tab_px(f,30));
     InvalidateRect(f->strip,NULL,FALSE);
     ShowWindow(f->strip, top ? SW_SHOW : SW_HIDE);
     for (int i=0;i<f->count;i++) {
-        MoveWindow(f->pages[i], 0, top, max(1,r.right), max(1,r.bottom-top), TRUE);
-        ShowWindow(f->pages[i], i==f->selected ? SW_SHOWNA : SW_HIDE);
+        if (i == f->selected) continue;
+        if (GetWindowLongPtrW(f->pages[i], GWL_STYLE) & WS_VISIBLE)
+            ShowWindow(f->pages[i], SW_HIDE);
+    }
+    if (f->selected >= 0) {
+        HWND page = f->pages[f->selected];
+        SetWindowPos(page, NULL, 0, top, max(1,r.right), max(1,r.bottom-top),
+                     SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
     }
     if (f->count && f->selected >= 0) {
         wchar_t title[512]; GetWindowTextW(f->pages[f->selected], title, lenof(title));
@@ -376,14 +383,17 @@ static bool frame_add(TabFrame *f, HWND page)
     if (f->count == TAB_MAX || !same_executable(page) || page == f->frame) return false;
     for (int i=0;i<f->count;i++) if (f->pages[i]==page) return true;
     LONG_PTR old = GetWindowLongPtrW(page,GWL_STYLE);
+    LONG_PTR old_exstyle = GetWindowLongPtrW(page, GWL_EXSTYLE);
     ShowWindow(page,SW_HIDE);
+    SetWindowLongPtrW(page, GWL_EXSTYLE, old_exstyle & ~(WS_EX_CLIENTEDGE | WS_EX_WINDOWEDGE));
     /* SetParent needs WS_CHILD in place to establish the cross-thread input
      * relationship. Setting it afterwards leaves separate keyboard queues. */
-    SetWindowLongPtrW(page,GWL_STYLE,(old & ~(WS_POPUP|WS_CAPTION|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SYSMENU|WS_MAXIMIZE|WS_MINIMIZE))|WS_CHILD);
+    SetWindowLongPtrW(page,GWL_STYLE,(old & ~(WS_POPUP|WS_BORDER|WS_CAPTION|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SYSMENU|WS_MAXIMIZE|WS_MINIMIZE))|WS_CHILD);
     SetLastError(0);
     HWND previous = SetParent(page,f->frame);
     if (!previous && GetLastError()) {
         SetWindowLongPtrW(page,GWL_STYLE,old);
+        SetWindowLongPtrW(page,GWL_EXSTYLE,old_exstyle);
         ShowWindow(page,SW_SHOW);return false;
     }
     SetWindowPos(page,NULL,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOZORDER|SWP_FRAMECHANGED);

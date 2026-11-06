@@ -26,6 +26,8 @@
 #define IDA_WEB         1004
 #define IDA_BRAND       1005
 #define IDA_VERSION     1006
+#define IDA_CHECK_UPDATE 1007
+#define IDA_UPDATE_STATUS 1008
 
 #define IDC_TAB         1001
 #define IDC_TABSTATIC1  1002

@@ -1,4 +1,10 @@
 {
+  "Update check unavailable": "Не удалось проверить обновления",
+  "You have the latest version": "Установлена последняя версия",
+  "Download from the home page": "Скачать с домашней страницы",
+  "A new version is available": "Найдена новая версия",
+  "Checking for updates...": "Проверяем обновления…",
+  "Check for updates": "Проверить обновления",
   "Session": "Сеанс",
   "Logging": "Журнал",
   "Terminal": "Терминал",

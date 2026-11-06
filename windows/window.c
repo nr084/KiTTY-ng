@@ -25,6 +25,8 @@
 #include "tree234.h"
 #include "kittyng.h"
 #include "kittyng-theme.h"
+#include "kittyng-update.h"
+#define KR_UPDATE_TIMER 0x4B554450
 #include "kittyng-session-menu.h"
 #include "kittyng-tray.h"
 #include "kittyng-tabs.h"
@@ -2641,6 +2643,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     switch (message) {
       case WM_CREATE:
         kr_theme_attach(hwnd);
+        SetTimer(hwnd, KR_UPDATE_TIMER, 15000, NULL);
         kr_taskbar_created = RegisterWindowMessageW(L"TaskbarCreated");
         break;
       case WM_POWERBROADCAST:
@@ -2649,6 +2652,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             PostMessage(hwnd, WM_SYSCOMMAND, IDM_RESTART, 0);
         return TRUE;
       case WM_TIMER:
+        if (wParam == KR_UPDATE_TIMER) {
+            SetTimer(hwnd, KR_UPDATE_TIMER, 3600000, NULL);
+            kr_update_automatic();
+            return 0;
+        }
         if (wParam == KR_EXTENSION_TEST_TIMER) { kr_extension_ui_test(wgs); return 0; }
         if (wParam == KR_COMMAND_TIMER) { kr_command_tick(wgs); return 0; }
         if (wParam == KR_TRANSFER_TEST_TIMER) {
