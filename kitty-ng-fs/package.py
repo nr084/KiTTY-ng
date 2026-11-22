@@ -11,9 +11,9 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parent
 DOCS = ("README.md", "README.en.md", "README.ru.md", "LICENSE", "THIRD_PARTY_NOTICES.md",
-        "PUTTY-LICENCE.txt", "KITTY-LICENCE.txt", "EMBEDDED-SSH.md", "RELEASE-1.1.1.md", "CHANGELOG.md", "VALIDATION.md", "PUBLICATION.md", "kittyngfs.example.ini")
+        "PUTTY-LICENCE.txt", "KITTY-LICENCE.txt", "EMBEDDED-SSH.md", "RELEASE-1.2.0.md", "CHANGELOG.md", "VALIDATION.md", "PUBLICATION.md", "kittyngfs.example.ini")
 SOURCE_FILES = (*DOCS, "pluginst.inf", "CMakeLists.txt", "build-cross.sh", "build-windows.cmd",
-                "build-local.py", "package.py", ".gitignore", "AGENTS.md", "PLAN.md", "REVIEW.md")
+                "build-local.py", "package.py", ".gitignore",  "REVIEW.md")
 
 def machine(data):
     if len(data) < 64 or data[:2] != b"MZ": raise ValueError("Missing MZ header")
@@ -47,7 +47,9 @@ def main():
     manifest=config["plugininstall"]; version=manifest["version"]
     if manifest["type"] != "wfx" or manifest["file"] != "kitty-ng-fs.wfx" or manifest["defaultdir"] != "kitty-ng-fs":
         raise ValueError("Invalid TC installer manifest")
-    runtime={name:(ROOT/name).read_bytes() for name in (*DOCS,"pluginst.inf")}
+    runtime={name:(ROOT/name).read_bytes() for name in
+             ("LICENSE", "PUTTY-LICENCE.txt", "KITTY-LICENCE.txt", "THIRD_PARTY_NOTICES.md", "pluginst.inf")}
+    runtime["LICENSE-PuTTY.txt"] = runtime.pop("PUTTY-LICENCE.txt")
     for name,expected in (("kitty-ng-fs.wfx",0x14c),("kitty-ng-fs.wfx64",0x8664)):
         data=(args.binaries_dir/name).read_bytes()
         if machine(data)!=expected: raise ValueError("Wrong architecture: "+name)
@@ -63,8 +65,7 @@ def main():
     if manifest_path.exists():
         inputs = json.loads(manifest_path.read_text(encoding="utf-8"))
     else:
-        listing = subprocess.check_output(["git", "--git-dir=" + str(engine / ".git"),
-            "--work-tree=" + str(engine), "ls-files", "-z"], cwd=engine)
+        listing = subprocess.check_output(["git", "ls-files", "-z"], cwd=engine)
         inputs = [s for s in listing.decode("utf-8").split("\0") if s and not s.startswith("kitty-ng-fs/")]
     included = []
     for name in sorted(inputs):

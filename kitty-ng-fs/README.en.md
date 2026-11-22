@@ -52,3 +52,5 @@ Saved passwords, interactive SSH prompts, PPK keys and Kageant/Pageant are suppo
 Build locally with `python build-local.py --toolchain C:/tools/llvm-mingw-20261020` (CMake and Ninja required). Output goes to `dist/development/`, preserving published packages. The engine is compiled from the parent repository, or from `engine/` in a standalone source package. `build-windows.cmd` uses the same workflow; `build-cross.sh` cross-compiles without claiming native tests. See [test recipes](tests/README.md).
 
 **Author: nr084.** Original code and artwork: [MIT](LICENSE). [Third-party notices](THIRD_PARTY_NOTICES.md). Not an official Total Commander product. KiTTY-ng retains its PuTTY and KiTTY acknowledgements.
+
+In the plugin settings, set the default permissions for new SFTP uploads. The default is 0600. For example, 0644 gives the owner read and write access and gives everyone else read access. Replacing an existing file preserves its permissions. The setting is stored as `UploadFileMode` in `kittyngfs.ini`.

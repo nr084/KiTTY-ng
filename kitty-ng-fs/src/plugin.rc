@@ -8,9 +8,9 @@ IDI_PLUGIN ICON "../assets/plugin.ico"
 IDI_SSH ICON "../assets/ssh.ico"
 IDI_SETTINGS ICON "../assets/settings.ico"
 
-IDD_SETTINGS DIALOGEX 0, 0, 348, 220
+IDD_SETTINGS DIALOGEX 0, 0, 348, 250
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "KiTTY-ng FS 1.1.1 — настройки"
+CAPTION "KiTTY-ng FS 1.2.0 — настройки"
 FONT 9, "Segoe UI"
 BEGIN
     LTEXT "Папка портативной KiTTY-ng:", -1, 10, 10, 315, 12
@@ -22,15 +22,18 @@ BEGIN
     LTEXT "«/» — корень сервера; «.» — домашний каталог SSH-пользователя.", -1, 10, 93, 325, 22
     LTEXT "Тайм-аут без ответа, секунд:", -1, 10, 119, 180, 12
     EDITTEXT IDC_TIMEOUT, 196, 116, 54, 16, ES_NUMBER
-    LTEXT KG_AUTHOR_LABEL, IDC_AUTHOR, 10, 143, 326, 12
-    PUSHBUTTON KG_HOMEPAGE_LABEL, IDC_HOMEPAGE, 10, 159, 328, 18
-    DEFPUSHBUTTON "Сохранить", IDOK, 214, 190, 62, 18
-    PUSHBUTTON "Отмена", IDCANCEL, 282, 190, 56, 18
+    LTEXT "Права новых файлов:", -1, 10, 141, 180, 12
+    EDITTEXT IDC_UPLOAD_MODE, 196, 138, 54, 16, ES_NUMBER
+    LTEXT "Владелец, группа, остальные: 4 — чтение, 2 — запись, 1 — выполнение. 0644: владелец читает и пишет, остальные читают.", -1, 10, 159, 326, 27
+    LTEXT KG_AUTHOR_LABEL, IDC_AUTHOR, 10, 194, 180, 12
+    PUSHBUTTON KG_HOMEPAGE_LABEL, IDC_HOMEPAGE, 10, 208, 328, 16
+    DEFPUSHBUTTON "Сохранить", IDOK, 214, 229, 62, 16
+    PUSHBUTTON "Отмена", IDCANCEL, 282, 229, 56, 16
 END
 
 1 VERSIONINFO
-FILEVERSION 1,1,1,0
-PRODUCTVERSION 1,1,1,0
+FILEVERSION 1,2,0,0
+PRODUCTVERSION 1,2,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0
 FILEOS VOS_NT_WINDOWS32
@@ -44,9 +47,9 @@ BEGIN
    VALUE "CompanyName", KG_AUTHOR
    VALUE "Author", KG_AUTHOR
    VALUE "Comments", KG_FILE_COMMENTS
-   VALUE "FileVersion", "1.1.1"
+   VALUE "FileVersion", "1.2.0"
    VALUE "ProductName", "KiTTY-ng FS"
-   VALUE "ProductVersion", "1.1.1"
+   VALUE "ProductVersion", "1.2.0"
    VALUE "LegalCopyright", KG_COPYRIGHT
    VALUE "URLInfoAbout", KG_HOMEPAGE_URL
   END

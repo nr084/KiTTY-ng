@@ -31,6 +31,7 @@ static const wchar_t settings_name[] = L"[Настройки KiTTY-ng]";
 typedef struct {
     wchar_t stored_root[KG_PATH], root[KG_PATH], remote_root[1024];
     DWORD timeout_ms;
+    unsigned upload_mode;
 } Config;
 typedef struct {
     wchar_t *session_root, *load_name;
@@ -176,12 +177,33 @@ static int resolve_config_root(Config *cfg)
     return 1;
 }
 
+#define DEFAULT_UPLOAD_MODE 0600u
+
+static int parse_upload_mode(const wchar_t *text, unsigned *mode)
+{
+    size_t length = wcslen(text);
+    if (length == 4 && text[0] == L'0') {
+        text++;
+        length--;
+    }
+    if (length != 3) return 0;
+    unsigned value = 0;
+    for (; *text; text++) {
+        if (*text < L'0' || *text > L'7') return 0;
+        value = value * 8 + (unsigned)(*text - L'0');
+    }
+    *mode = value;
+    return 1;
+}
+
 static void initialize(void)
 {
     wchar_t *slash;
     DWORD n;
+    wchar_t upload_mode[16];
     if (initialized) return;
     initialized = 1;
+    config.upload_mode = DEFAULT_UPLOAD_MODE;
     n = GetModuleFileNameW(module_instance, module_dir, KG_PATH);
     if (!n || n >= KG_PATH) { module_dir[0] = 0; return; }
     slash = wcsrchr(module_dir, L'\\');
@@ -194,6 +216,9 @@ static void initialize(void)
     n = GetPrivateProfileIntW(L"KiTTYngFS", L"TimeoutSeconds", 60, ini_path);
     if (n < 5 || n > 600) n = 60;
     config.timeout_ms = n * 1000;
+    GetPrivateProfileStringW(L"KiTTYngFS", L"UploadFileMode", L"0600",
+                            upload_mode, 16, ini_path);
+    parse_upload_mode(upload_mode, &config.upload_mode);
     if (!config.remote_root[0]) wcscpy(config.remote_root, L"/");
     resolve_config_root(&config);
 }
@@ -712,7 +737,7 @@ int WINAPI FsPutFileW(wchar_t *local_name, wchar_t *remote_name, int flags)
     temporary = remote_temporary(remote);
     if (!temporary) goto done;
     create_attrs.flags = SF_ATTR_PERMISSIONS;
-    create_attrs.permissions = 0600;
+    create_attrs.permissions = DEFAULT_UPLOAD_MODE;
     if (sf_open(&c->sf, temporary, SF_FXF_WRITE | SF_FXF_CREAT | SF_FXF_EXCL, &create_attrs, &handle) != SF_OK) goto remote_error;
     opened = temp_created = 1;
     for (;;) {
@@ -732,11 +757,14 @@ int WINAPI FsPutFileW(wchar_t *local_name, wchar_t *remote_name, int flags)
     }
     opened = 0;
     if (sf_close(&c->sf, &handle) != SF_OK) goto remote_error;
-    /* Preserve the old file's rwx bits. New files deliberately default to 0600;
-     * the temporary content is private until the transfer is complete. */
+    /* Keep the staging file private. Apply its final mode before renaming it. */
     times.flags = SF_ATTR_PERMISSIONS;
-    times.permissions = exists && (existing.flags & SF_ATTR_PERMISSIONS) &&
-                        (existing.permissions & KG_S_IFMT) != KG_S_IFLNK ? existing.permissions & 0777u : 0600u;
+    times.permissions = config.upload_mode;
+    if (exists) {
+        times.permissions = (existing.flags & SF_ATTR_PERMISSIONS) &&
+            (existing.permissions & KG_S_IFMT) != KG_S_IFLNK
+            ? existing.permissions & 0777u : DEFAULT_UPLOAD_MODE;
+    }
     if (kg_unix_time(&local_info.ftLastAccessTime, &times.atime) && kg_unix_time(&local_info.ftLastWriteTime, &times.mtime))
         times.flags |= SF_ATTR_ACMODTIME;
     if (sf_setstat(&c->sf, temporary, &times) != SF_OK) goto remote_error;
@@ -905,6 +933,10 @@ static INT_PTR CALLBACK settings_dialog(HWND dialog, UINT message, WPARAM wparam
         SetDlgItemTextW(dialog, IDC_ROOT, config.stored_root);
         SetDlgItemTextW(dialog, IDC_REMOTE_ROOT, config.remote_root);
         SetDlgItemInt(dialog, IDC_TIMEOUT, config.timeout_ms / 1000, FALSE);
+        wchar_t upload_mode[16];
+        swprintf(upload_mode, 16, L"%04o", config.upload_mode);
+        SetDlgItemTextW(dialog, IDC_UPLOAD_MODE, upload_mode);
+        SendDlgItemMessageW(dialog, IDC_UPLOAD_MODE, EM_SETLIMITTEXT, 15, 0);
         SendDlgItemMessageW(dialog, IDC_ROOT, EM_SETLIMITTEXT, KG_PATH - 1, 0);
         SendDlgItemMessageW(dialog, IDC_REMOTE_ROOT, EM_SETLIMITTEXT, 1023, 0);
         SendDlgItemMessageW(dialog, IDC_TIMEOUT, EM_SETLIMITTEXT, 3, 0);
@@ -917,7 +949,7 @@ static INT_PTR CALLBACK settings_dialog(HWND dialog, UINT message, WPARAM wparam
         if (LOWORD(wparam) == IDOK) {
             Config candidate = {0};
             KgProfiles test = {0};
-            wchar_t error[1024], timeout[16];
+            wchar_t error[1024], timeout[16], upload_mode[16];
             BOOL translated;
             UINT seconds;
             GetDlgItemTextW(dialog, IDC_ROOT, candidate.stored_root, KG_PATH);
@@ -927,6 +959,14 @@ static INT_PTR CALLBACK settings_dialog(HWND dialog, UINT message, WPARAM wparam
                 MessageBoxW(dialog, L"Укажите начальный каталог и тайм-аут от 5 до 600 секунд.", L"KiTTY-ng FS", MB_OK | MB_ICONWARNING); return TRUE;
             }
             candidate.timeout_ms = seconds * 1000;
+            GetDlgItemTextW(dialog, IDC_UPLOAD_MODE, upload_mode, 16);
+            if (!parse_upload_mode(upload_mode, &candidate.upload_mode)) {
+                MessageBoxW(dialog, L"Введите три цифры от 0 до 7, например 644 или 0644.",
+                            L"KiTTY-ng FS", MB_OK | MB_ICONWARNING);
+                SetFocus(GetDlgItem(dialog, IDC_UPLOAD_MODE));
+                return TRUE;
+            }
+            swprintf(upload_mode, 16, L"%04o", candidate.upload_mode);
             if (!resolve_config_root(&candidate)) {
                 MessageBoxW(dialog, L"Укажите существующий каталог портативных профилей KiTTY-ng.", L"KiTTY-ng FS", MB_OK | MB_ICONWARNING); return TRUE;
             }
@@ -942,7 +982,8 @@ static INT_PTR CALLBACK settings_dialog(HWND dialog, UINT message, WPARAM wparam
             }
             if (!WritePrivateProfileStringW(L"KiTTYngFS", L"PortableDir", candidate.stored_root, ini_path) ||
                 !WritePrivateProfileStringW(L"KiTTYngFS", L"RemoteRoot", candidate.remote_root, ini_path) ||
-                !WritePrivateProfileStringW(L"KiTTYngFS", L"TimeoutSeconds", timeout, ini_path)) {
+                !WritePrivateProfileStringW(L"KiTTYngFS", L"TimeoutSeconds", timeout, ini_path) ||
+                !WritePrivateProfileStringW(L"KiTTYngFS", L"UploadFileMode", upload_mode, ini_path)) {
                 MessageBoxW(dialog, L"Не удалось сохранить kittyngfs.ini рядом с плагином. Проверьте права записи в папку плагина.", L"KiTTY-ng FS", MB_OK | MB_ICONERROR); return TRUE;
             }
             disconnect_all(); clear_profile_cache(); config = candidate;

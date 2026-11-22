@@ -151,12 +151,12 @@ static void inspect_dialog(const wchar_t *path)
     (void)read_string(&reader); /* menu */
     (void)read_string(&reader); /* dialog class */
     dialog_title = read_string(&reader);
-    CHECK(!wcscmp(dialog_title.text, L"KiTTY-ng FS 1.1.1 — настройки"));
+    CHECK(!wcscmp(dialog_title.text, L"KiTTY-ng FS 1.2.0 — настройки"));
     if (style & DS_SETFONT) {
         skip(&reader, 6); /* pointsize, weight, italic, charset */
         (void)read_string(&reader); /* typeface */
     }
-    CHECK(item_count == 13);
+    CHECK(item_count == 16);
     if (!reader.ok || !item_count || item_count > 128) { FreeLibrary(module); return; }
     memset(controls, 0, sizeof(controls));
     for (i = 0; i < item_count && reader.ok; i++) {
@@ -180,6 +180,7 @@ static void inspect_dialog(const wchar_t *path)
         CHECK(browse && !wcscmp(browse->title.text, L"\x041E\x0431\x0437\x043E\x0440\x2026"));
         check_edit(controls, item_count, IDC_REMOTE_ROOT, ES_AUTOHSCROLL);
         check_edit(controls, item_count, IDC_TIMEOUT, ES_NUMBER);
+        check_edit(controls, item_count, IDC_UPLOAD_MODE, ES_NUMBER);
         author = find_control(controls, item_count, IDC_AUTHOR);
         CHECK(author != NULL);
         if (author) {
@@ -233,17 +234,17 @@ static void inspect_version(const wchar_t *path)
     if (found && fixed && length >= sizeof(VS_FIXEDFILEINFO)) {
         info = (const VS_FIXEDFILEINFO *)fixed;
         CHECK(info->dwSignature == VS_FFI_SIGNATURE);
-        CHECK(info->dwFileVersionMS == 0x00010001u && info->dwFileVersionLS == 0x00010000u);
-        CHECK(info->dwProductVersionMS == 0x00010001u && info->dwProductVersionLS == 0x00010000u);
+        CHECK(info->dwFileVersionMS == 0x00010002u && info->dwFileVersionLS == 0u);
+        CHECK(info->dwProductVersionMS == 0x00010002u && info->dwProductVersionLS == 0u);
     }
     check_version_string(block, L"CompanyName", L"nr084");
     check_version_string(block, L"Author", L"nr084");
     check_version_string(block, L"Comments", L"Author: nr084. Homepage: https://github.com/nr084/KiTTY-ng");
     check_version_string(block, L"LegalCopyright", L"Copyright (c) 2026 nr084. MIT License.");
     check_version_string(block, L"URLInfoAbout", L"https://github.com/nr084/KiTTY-ng");
-    check_version_string(block, L"FileVersion", L"1.1.1");
-    check_version_string(block, L"ProductVersion", L"1.1.1");
-    printf("Inspected VERSIONINFO: 1.1.1.0, author nr084, homepage https://github.com/nr084/KiTTY-ng.\n");
+    check_version_string(block, L"FileVersion", L"1.2.0");
+    check_version_string(block, L"ProductVersion", L"1.2.0");
+    printf("Inspected VERSIONINFO: 1.2.0.0, author nr084, homepage https://github.com/nr084/KiTTY-ng.\n");
     free(block);
 }
 

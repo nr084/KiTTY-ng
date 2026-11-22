@@ -168,7 +168,7 @@ def main():
             key=f'0x{hostkey.public_numbers.e:x},0x{hostkey.public_numbers.n:x}'
             (root/'SshHostKeys'/f'rsa2@{port}:127.0.0.1'.replace(':','%3A')).write_text(key,encoding='ascii')
             # The portable backend's host-key filename escaping is the same as PuTTY registry keys.
-            (root/'kittyngfs.ini').write_text('[KiTTYngFS]\nPortableDir='+str(root)+'\nRemoteRoot=/\nTimeoutSeconds=5\n',encoding='utf-16')
+            (root/'kittyngfs.ini').write_text('[KiTTYngFS]\nPortableDir='+str(root)+'\nRemoteRoot=/\nTimeoutSeconds=5\nUploadFileMode=0644\n',encoding='utf-16')
             result=SimpleNamespace(returncode=0)
             output='Additional cases; file-transfer tests are recorded separately.'
             if not args.extra_only:
