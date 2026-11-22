@@ -8,25 +8,25 @@ KiTTY-ng развивает возможности KiTTY на современн
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-[Скачать 0.85-12](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-12) · [Изменения выпуска](docs/releases/0.85-12.md) · [Руководства](docs/README.md) · [Плагин Total Commander](kitty-ng-fs/README.md)
+[Скачать 0.85-13](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-13) · [Изменения выпуска](docs/releases/0.85-13.md) · [Руководства](docs/README.md) · [Плагин Total Commander](kitty-ng-fs/README.md)
 
 **macOS Universal 2 и портативный режим.** Одно приложение для Apple Silicon и Intel. Профили совместимы с Windows: используйте общую папку `Sessions`, ключи и `kitty.ini`. Данные хранятся вне `.app`, а ссылки на файлы внутри портативной папки могут быть относительными.
 
 ## Скачать
 
-В выпуске **0.85-12** доступны шесть проверенных пакетов для Windows, Linux и macOS.
+В выпуске **0.85-13** доступны пакеты Windows и Linux. macOS Universal DMG готовится отдельно.
 
-| Платформа | Сборка 0.85-12 | Запуск |
+| Платформа | Сборка 0.85-13 | Запуск |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86_64.tar.zst) | `chmod +x`, запуск |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-12/kitty-ng-0.85-12-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86_64.tar.zst) | `chmod +x`, запуск |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | Universal DMG готовится | `KiTTY-ng.app` |
 
 [Все релизы и контрольные суммы](https://github.com/nr084/kitty-ng/releases). В комплекте клиент и пять утилит. Имена Windows EXE содержат архитектуру; версия указана внутри программ и в именах архивов.
 
-В 0.85-12 KiTTY-ng для Windows проверяет обновления через окно **«О программе»** и в фоне не чаще раза в сутки. В выпуске улучшена перерисовка при дублировании сеанса, навигации по настройкам и работе с меню. Из вставленной в поле сервера HTTP(S)-ссылки теперь берётся только хост. В пакетах — программы, необходимые ресурсы и лицензии.
+В 0.85-13 Windows переподключает отключённый сеанс по клавише и подсвечивает перетаскиваемую вкладку. Исправлены артефакты окон настроек и переведён заголовок доверенных УЦ серверов.
 
 ## Первый запуск
 
@@ -142,7 +142,7 @@ KiTTY-ng развивает возможности KiTTY на современн
 - [Windows](docs/windows.md) · [macOS](docs/macos.md) · [Linux](docs/linux.md).
 - [Портативные профили и переход с KiTTY](docs/portable.md).
 - [Локальная сборка](docs/build.md) · [Перенос расширений](docs/migration.md).
-- [Изменения 0.85-12](docs/releases/0.85-12.md) · [Следующие задачи](docs/planned.md).
+- [Изменения 0.85-13](docs/releases/0.85-13.md) · [Следующие задачи](docs/planned.md).
 
 ## Совместимость и проверка
 

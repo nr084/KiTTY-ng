@@ -8,25 +8,25 @@ KiTTY-ng develops KiTTY's features on the modern **PuTTY 0.85** codebase. Manage
 
 <img src="icons/kitty-ng-forum.png" width="160" alt="KiTTY-ng">
 
-[Download 0.85-12](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-12) · [Release notes](docs/releases/0.85-12.md) · [Guides](docs/README.md) · [Total Commander plugin](kitty-ng-fs/README.en.md)
+[Download 0.85-13](https://github.com/nr084/KiTTY-ng/releases/tag/v0.85-13) · [Release notes](docs/releases/0.85-13.md) · [Guides](docs/README.md) · [Total Commander plugin](kitty-ng-fs/README.en.md)
 
 **macOS Universal 2 and portable mode.** One app for Apple Silicon and Intel. Profiles are compatible with Windows: share a `Sessions` folder, keys and `kitty.ini`. Data stays outside the `.app` bundle, and files within the portable folder can use relative paths.
 
 ## Download
 
-Release **0.85-12** includes six verified packages for Windows, Linux and macOS.
+Release **0.85-13** includes Windows and Linux packages. The macOS Universal DMG is being prepared separately.
 
-| Platform | Release 0.85-12 | Launch |
+| Platform | Release 0.85-13 | Launch |
 | --- | --- | --- |
-| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86_64.tar.zst) | `chmod +x`, launch |
-| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x64.zip) | `kitty-ng-x64.exe` |
-| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-x86.zip) | `kitty-ng-x86.exe` |
-| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-12/kitty-ng-0.85-12-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-12/kitty-ng-0.85-12-macos-universal.dmg) | `KiTTY-ng.app` |
+| Linux x86_64 | [AppImage](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86_64.AppImage) · [AppDir](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86_64.tar.zst) | `chmod +x`, launch |
+| Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x64.zip) | `kitty-ng-x64.exe` |
+| Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86.zip) | `kitty-ng-x86.exe` |
+| Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-arm64.zip) | `kitty-ng-arm64.exe` |
+| macOS 13+ · Intel / Apple Silicon | Universal DMG pending | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
-In 0.85-12, Windows checks GitHub for updates from **About** and in the background at most once a day. The release also improves how Windows draws duplicated sessions, settings and menus, and extracts the host from HTTP(S) links pasted into the server field. Packages include executables, required runtime resources and licences.
+In 0.85-13, Windows reconnects a disconnected session on a key press and highlights the tab being dragged. The release also fixes settings rendering and localizes the trusted host certification authorities title.
 
 ## First launch
 
@@ -142,7 +142,7 @@ Windows utilities match the client's architecture; all five macOS helpers are Un
 - [Windows](docs/windows.en.md) · [macOS](docs/macos.en.md) · [Linux](docs/linux.en.md).
 - [Portable profiles and migration](docs/portable.en.md).
 - [Local builds](docs/build.en.md) · [Migration report](docs/migration.md) (Russian).
-- [0.85-12 release notes](docs/releases/0.85-12.md) · [Roadmap](docs/planned.md) (Russian).
+- [0.85-13 release notes](docs/releases/0.85-13.md) · [Roadmap](docs/planned.md) (Russian).
 
 ## Compatibility and validation
 
