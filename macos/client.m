@@ -15,6 +15,7 @@
 #include "box-drawing.h"
 #include "automation.h"
 #include "language.h"
+#include "kittyng-i18n.h"
 #include "utilities.h"
 #include "editor.h"
 #include "cli-language.h"
@@ -266,8 +267,24 @@ static void trust(Seat *seat,bool value){if(SEAT(seat)->term)term_set_trust_stat
 static bool pixel_size(Seat *seat,int *w,int *h){NSSize z=SEAT(seat)->view.bounds.size;*w=z.width;*h=z.height;return true;}
 static bool cursor(Seat *seat,int *x,int *y){if(!SEAT(seat)->term)return false;term_get_cursor_position(SEAT(seat)->term,x,y);return true;}
 /* Notification from Ldisc, not a request to update it. Match the GTK seat. */
-static const SeatDialogPromptDescriptions descriptions={"Accept and save","Connect once","Cancel","Cancelled","Continue","Cancel"};
-static const SeatDialogPromptDescriptions *prompt_descriptions(Seat *seat){return &descriptions;}
+static const char *translateHostKeyProse(const char *source)
+{
+    return kr_i18n_translate(kr_mac_language(), KR_TEXT_MAC_UI, source);
+}
+static const SeatDialogPromptDescriptions *prompt_descriptions(Seat *seat)
+{
+    static SeatDialogPromptDescriptions descriptions;
+    descriptions = (SeatDialogPromptDescriptions) {
+        .hk_accept_action = translateHostKeyProse("Accept and save"),
+        .hk_connect_once_action = translateHostKeyProse("Connect once"),
+        .hk_cancel_action = translateHostKeyProse("Cancel"),
+        .hk_cancel_action_Participle = translateHostKeyProse("Cancelled"),
+        .weak_accept_action = "Continue",
+        .weak_cancel_action = "Cancel",
+        .translate_host_key_prose = translateHostKeyProse,
+    };
+    return &descriptions;
+}
 static void specialCommandsChanged(Seat *seat){SEAT(seat)->specials_ready=true;}
 static const SeatVtable seat_vt={.output=output,.eof=eof,.sent=nullseat_sent,.banner=banner,.get_userpass_input=prompts,.notify_session_started=started,.notify_remote_exit=exited,.notify_remote_disconnect=nullseat_notify_remote_disconnect,.connection_fatal=fatal,.nonfatal=nonfatal_seat,.update_specials_menu=specialCommandsChanged,.get_ttymode=nullseat_get_ttymode,.set_busy_status=nullseat_set_busy_status,.confirm_ssh_host_key=host_key,.confirm_weak_crypto_primitive=weak_crypto,.confirm_weak_cached_hostkey=weak_crypto,.prompt_descriptions=prompt_descriptions,.is_utf8=nullseat_is_always_utf8,.echoedit_update=nullseat_echoedit_update,.get_display=nullseat_get_display,.get_windowid=nullseat_get_windowid,.get_window_pixel_size=pixel_size,.stripctrl_new=nullseat_stripctrl_new,.set_trust_status=trust,.can_set_trust_status=nullseat_can_set_trust_status_yes,.has_mixed_input_stream=nullseat_has_mixed_input_stream_no,.verbose=nullseat_verbose_yes,.interactive=nullseat_interactive_yes,.get_cursor_position=cursor};
 static void log_event(LogPolicy *lp,const char *text){MacSession *s=container_of(lp,MacSession,logpolicy);[s->view.events addObject:S(text)];if(s->view.events.count>2000)[s->view.events removeObjectAtIndex:0];}

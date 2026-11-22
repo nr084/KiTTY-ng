@@ -931,6 +931,7 @@ SeatPromptResult verify_ssh_host_key(
     SeatDialogText *text = seat_dialog_text_new();
     const SeatDialogPromptDescriptions *pds =
         seat_prompt_descriptions(iseat.seat);
+    text->translate_prose = pds->translate_host_key_prose;
 
     FingerprintType fptype_default =
         ssh2_pick_default_fingerprint(fingerprints);

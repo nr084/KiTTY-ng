@@ -1080,6 +1080,7 @@ struct SeatDialogTextItem {
 struct SeatDialogText {
     size_t nitems, itemsize;
     SeatDialogTextItem *items;
+    const char *(*translate_prose)(const char *);
 };
 SeatDialogText *seat_dialog_text_new(void);
 void seat_dialog_text_free(SeatDialogText *sdt);
@@ -1497,6 +1498,7 @@ struct SeatDialogPromptDescriptions {
     const char *hk_connect_once_action;
     const char *hk_cancel_action, *hk_cancel_action_Participle;
     const char *weak_accept_action, *weak_cancel_action;
+    const char *(*translate_host_key_prose)(const char *);
 };
 
 /* In the utils subdir: print a message to the Seat which can't be

@@ -14,6 +14,7 @@ SeatDialogText *seat_dialog_text_new(void)
     SeatDialogText *sdt = snew(SeatDialogText);
     sdt->nitems = sdt->itemsize = 0;
     sdt->items = NULL;
+    sdt->translate_prose = NULL;
     return sdt;
 }
 
@@ -31,12 +32,16 @@ static void seat_dialog_text_append_v(
     sgrowarray(sdt->items, sdt->itemsize, sdt->nitems);
     SeatDialogTextItem *item = &sdt->items[sdt->nitems++];
     item->type = type;
-#ifdef _WIN32
     /* Translate local prose before formatting; retain fingerprints and keys. */
     if (type != SDT_DISPLAY && type != SDT_MORE_INFO_VALUE_SHORT &&
-        type != SDT_MORE_INFO_VALUE_BLOB)
-        fmt = kr_translate(fmt);
+        type != SDT_MORE_INFO_VALUE_BLOB) {
+        if (sdt->translate_prose)
+            fmt = sdt->translate_prose(fmt);
+#ifdef _WIN32
+        else
+            fmt = kr_translate(fmt);
 #endif
+    }
     item->text = dupvprintf(fmt, ap);
 }
 
