@@ -33,6 +33,7 @@ typedef struct MacSession {
     Conf *conf; Terminal *term; Backend *backend; Ldisc *ldisc; LogContext *logctx;
     struct unicode_data ucs; rgb palette[OSC4_NCOLOURS];
     bool painting, closed, password_tried, started, authenticated, raw_mouse, input_locked, commands_started, manual_abort, specials_ready;
+    Conf *key_restart_previous_conf;
     char *commands;size_t command_index;uint64_t command_due,reconnect_due,key_restart_deadline;
 } MacSession;
 static NSMutableArray<MacTerminal *> *windows;
@@ -200,10 +201,10 @@ static void palette_set(TermWin *w,unsigned start,unsigned count,const rgb *colo
 static void palette_override(TermWin *w,Terminal *term){}
 static void unthrottle(TermWin *w,size_t backlog){MacSession *s=TW(w);if(s->backend)backend_unthrottle(s->backend,backlog);}
 static const TermWinVtable term_vt={.setup_draw_ctx=draw_setup,.draw_text=draw_text,.draw_cursor=draw_cursor,.draw_trust_sigil=draw_sigil,.char_width=char_width,.free_draw_ctx=draw_free,.set_cursor_pos=cursor_pos,.set_raw_mouse_mode=mouse_mode,.set_raw_mouse_mode_pointer=mouse_pointer,.set_scrollbar=scrollbar,.bell=bell,.clip_write=clip_write,.clip_request_paste=clip_paste,.remote_clipboard=remote_clipboard,.refresh=refresh,.request_resize=request_resize,.set_title=title,.set_icon_title=icon_title,.set_minimised=minimized,.set_maximised=maximized,.move=move_window,.set_zorder=zorder,.palette_set=palette_set,.palette_get_overrides=palette_override,.unthrottle=unthrottle};
-static size_t output(Seat *seat,SeatOutputType type,const void *data,size_t len){MacSession *s=SEAT(seat);if(len && conf_get_int(s->conf,CONF_protocol)!=PROT_SSH)s->key_restart_deadline=0;if(s->term){[s->view observeOutput:[NSData dataWithBytes:data length:len]];term_data(s->term,data,len);[s->view setNeedsDisplay:YES];}return 0;}
+static size_t output(Seat *seat,SeatOutputType type,const void *data,size_t len){MacSession *s=SEAT(seat);if(len && s->key_restart_deadline && conf_get_int(s->conf,CONF_protocol)!=PROT_SSH){s->key_restart_deadline=0;if(s->key_restart_previous_conf){conf_free(s->key_restart_previous_conf);s->key_restart_previous_conf=NULL;}}if(s->term){[s->view observeOutput:[NSData dataWithBytes:data length:len]];term_data(s->term,data,len);[s->view setNeedsDisplay:YES];}return 0;}
 static size_t banner(Seat *seat,const void *data,size_t len){return output(seat,SEAT_OUTPUT_STDERR,data,len);}
 static bool eof(Seat *seat){return true;}
-static void started(Seat *seat){SEAT(seat)->started=true;SEAT(seat)->authenticated=true;SEAT(seat)->key_restart_deadline=0;}
+static void started(Seat *seat){SEAT(seat)->started=true;SEAT(seat)->authenticated=true;SEAT(seat)->key_restart_deadline=0;if(SEAT(seat)->key_restart_previous_conf){conf_free(SEAT(seat)->key_restart_previous_conf);SEAT(seat)->key_restart_previous_conf=NULL;}}
 static uint64_t now(void){return NSProcessInfo.processInfo.systemUptime*1000;}
 static void cancel_commands(MacSession *s){if(s->commands){smemclr(s->commands,strlen(s->commands));sfree(s->commands);s->commands=NULL;}s->command_index=0;}
 static void exited(Seat *seat){MacSession *s=SEAT(seat);if(s->key_restart_deadline)return;s->started=false;s->closed=true;cancel_commands(s);[s->view updateSessionTitle:[s->view.sessionTitle stringByAppendingString:T(@" — closed",@" — закрыто")]];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.host closePage:owner];});}}
@@ -580,7 +581,7 @@ int kr_mac_test_session_navigation_ui(void){
 }
 - (void)restart:(id)sender{
     MacSession *s=self.session;if(!s)return;
-    if(sender) s->key_restart_deadline=0;
+    if (sender && s->key_restart_deadline) return;
     Conf *snapshot=kr_auth_connection(s->conf,s->authenticated);
     conf_free(s->conf);s->conf=snapshot;
     [self connect];
@@ -602,6 +603,12 @@ int kr_mac_test_session_navigation_ui(void){
         term_provide_backend(s->term, NULL);
         if (s->ldisc) { ldisc_free(s->ldisc); s->ldisc = NULL; }
         if (s->backend) { backend_free(s->backend); s->backend = NULL; }
+        if (s->key_restart_previous_conf) {
+            conf_free(s->conf);
+            s->conf = s->key_restart_previous_conf;
+            s->key_restart_previous_conf = NULL;
+            s->authenticated = true;
+        }
         NSString *suffix = kr_mac_localize_string(@" — closed");
         if (![self.sessionTitle hasSuffix:suffix])
             [self updateSessionTitle:[self.sessionTitle stringByAppendingString:suffix]];
@@ -645,6 +652,8 @@ int kr_mac_test_session_navigation_ui(void){
         if (s->key_restart_deadline) return;
         if (s->closed) {
             if (!event.isARepeat) {
+                if (s->authenticated)
+                    s->key_restart_previous_conf = conf_copy(s->conf);
                 s->key_restart_deadline = now() + 3000;
                 [self restart:nil];
             }
@@ -699,7 +708,7 @@ int kr_mac_test_session_navigation_ui(void){
 - (void)doCommandBySelector:(SEL)selector{if(selector==@selector(insertNewline:))[self sendText:@"\r"];else if(selector==@selector(insertTab:))[self sendText:@"\t"];else if(selector==@selector(deleteBackward:))[self sendText:@"\177"];}
 - (void)windowDidBecomeKey:(NSNotification *)note{if(self.session)term_set_focus(self.session->term,true);}
 - (void)windowDidResignKey:(NSNotification *)note{if(self.session)term_set_focus(self.session->term,false);}
-- (void)disposeSession{MacSession *s=self.session;if(s){s->closed=true;s->started=false;s->reconnect_due=0;cancel_commands(s);[self saveWindow];[NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];if(s->ldisc)ldisc_free(s->ldisc);if(s->backend)backend_free(s->backend);if(s->term)term_free(s->term);if(s->logctx)log_free(s->logctx);conf_free(s->conf);delete_callbacks_for_context(s);expire_timer_context(s);sfree(s);self.session=NULL;}self.terminalWindow=nil;self.host=nil;[windows removeObject:self];}
+- (void)disposeSession{MacSession *s=self.session;if(s){s->closed=true;s->started=false;s->reconnect_due=0;cancel_commands(s);[self saveWindow];[NSWorkspace.sharedWorkspace.notificationCenter removeObserver:self];if(s->ldisc)ldisc_free(s->ldisc);if(s->backend)backend_free(s->backend);if(s->term)term_free(s->term);if(s->logctx)log_free(s->logctx);conf_free(s->conf);if(s->key_restart_previous_conf)conf_free(s->key_restart_previous_conf);delete_callbacks_for_context(s);expire_timer_context(s);sfree(s);self.session=NULL;}self.terminalWindow=nil;self.host=nil;[windows removeObject:self];}
 @end
 void kr_mac_pump(void){if(pumping||!initialized)return;pumping=true;fd_set read,write,except;FD_ZERO(&read);FD_ZERO(&write);FD_ZERO(&except);int state,flags,fd,maxfd=-1;
     for(fd=first_fd(&state,&flags);fd>=0;fd=next_fd(&state,&flags)){if(fd>=FD_SETSIZE)continue;if(flags&1)FD_SET(fd,&read);if(flags&2)FD_SET(fd,&write);if(flags&4)FD_SET(fd,&except);maxfd=MAX(maxfd,fd);}
