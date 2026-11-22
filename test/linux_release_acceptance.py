@@ -24,7 +24,7 @@ SUITE_INPUTS = {
     'ssh-sftp-agent': ('linux_ssh.py',),
     'keygen-gui': ('linux_utilities_gui.py',),
     'agent-gui': ('linux_agent_gui.py',),
-    'regular-user-gui': ('linux_regular_user.py',),
+    'regular-user-gui': ('linux_regular_user.py', 'linux_ssh_gui.py'),
     'utility-themes': ('linux_utility_theme.py',),
 }
 

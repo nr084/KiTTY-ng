@@ -103,7 +103,12 @@ with tempfile.TemporaryDirectory(prefix='kitty-retry-') as folder:
    first=wait(lambda:next((h for h in windows() if pid(h)==process.pid and title(h)=='Retry session 1'),None))
    u.PostMessageW(first,0x112,0x30,0)
   else:
-   wid=wait(lambda:subprocess.check_output(['xdotool','search','--name','Retry session 1'],text=True).split()[-1])
+   def first_window():
+    result = subprocess.run(['xdotool', 'search', '--name', 'Retry session 1'],
+                            capture_output=True, text=True)
+    windows = result.stdout.split()
+    return windows[-1] if windows else None
+   wid=wait(first_window)
    subprocess.run(['xdotool','mousemove','--window',wid,'70','100','click','3'],check=True)
    click(wait(lambda:find('Duplicate Session') or find('Duplicate session')))
   wait(lambda:state['attempts'].get(2));time.sleep(1)
