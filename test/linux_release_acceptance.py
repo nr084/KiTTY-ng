@@ -13,6 +13,7 @@ same_package=all(previous.get(k)==report[k] for k in ('version','source_commit',
 report['inputs']={}
 def inputs(name):
  files=[p for p in root.glob('*.py') if p.name!='linux_release_acceptance.py' and (name=='utility-themes' or p.name!='linux_utility_theme.py')]
+ if name!='language':files=[p for p in files if p.name!='linux_language.py']
  if name=='duplicate-password-retry':files.append(root/'kittyng-password-vector.json')
  return files,{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 

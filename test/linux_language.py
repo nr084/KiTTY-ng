@@ -24,6 +24,8 @@ for language in ("ru","en"):
                 server=Server();server.ready=threading.Event();transport.start_server(server=server)
                 channel=transport.accept(15);assert channel and server.ready.wait(15)
                 channel.sendall(b"SERVER RAW: Access denied\n");channel.send_exit_status(0);channel.close()
+                # Let the client read the exit status before closing TCP.
+                transport.join(10)
             except Exception as error:failures.append(repr(error))
             finally:
                 if transport:transport.close()
