@@ -174,7 +174,7 @@ The option is <a name="i14"></a><code>--openssh-config</code>, and you follow it
 <p>
 To refer to this file from your main OpenSSH configuration, you can use the &#8216;<code>Include</code>&#8217; directive. For example, you might run Pageant like this (with your own username substituted, of course):
 </p>
-<pre><code>pageant --openssh-config C:\Users\Simon\.ssh\pageant.conf
+<pre><code>pageant --openssh-config "%USERPROFILE%\.ssh\pageant.conf"
 </code></pre>
 <p>
 and then add a directive like this to your main &#8216;<code>.ssh\config</code>&#8217; file (assuming that lives in the same directory that you just put <code>pageant.conf</code>):
@@ -200,17 +200,17 @@ To configure this, run Pageant with the option <a name="i15"></a><code>--unix</c
 <p>
 For example, you might run
 </p>
-<pre><code>pageant --unix C:\Users\Simon\.ssh\agent.sock
+<pre><code>pageant --unix "%USERPROFILE%\.ssh\agent.sock"
 </code></pre>
 <p>
 and in WSL 1, set the environment variable
 </p>
-<pre><code>SSH_AUTH_SOCK=/mnt/c/Users/Simon/.ssh/agent.sock
+<pre><code>SSH_AUTH_SOCK=/mnt/c/path/to/profile/.ssh/agent.sock
 </code></pre>
 <p>
 Alternatively, you can add a line to your <code>.ssh/config</code> file inside WSL that says
 </p>
-<pre><code>IdentityAgent /mnt/c/Users/Simon/.ssh/agent.sock
+<pre><code>IdentityAgent /mnt/c/path/to/profile/.ssh/agent.sock
 </code></pre>
 <p>
 although doing it like that may mean that <code>ssh-add</code> commands won't find the agent, even though <code>ssh</code> itself will.
