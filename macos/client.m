@@ -64,6 +64,7 @@ uxsel_id *uxsel_input_add(int fd,int rwx){return NULL;}
 void uxsel_input_remove(uxsel_id *id){}
 
 @interface MacTerminal : NSView <NSTextInputClient,NSWindowDelegate,NSMenuItemValidation>
+@property(nonatomic,strong) NSTrackingArea *linkTrackingArea;
 @property(assign) MacSession *session;
 @property(nonatomic,strong) NSWindow *terminalWindow;
 @property(nonatomic,weak) MacTabHost *host;
@@ -229,7 +230,21 @@ static NSModalResponse runConnectionAlert(MacSession *s, NSAlert *alert)
     return response;
 }
 static SeatPromptResult host_key(Seat *seat,const char *host,int port,const char *type,char *key,SeatDialogText *text,HelpCtx help,void(*callback)(void*,SeatPromptResult),void *context){
-    NSAlert *alert=[NSAlert new];alert.messageText=T(@"SSH server identity",@"Подлинность SSH-сервера");alert.informativeText=dialog_text(text);
+    NSAlert *alert = [NSAlert new];
+    alert.messageText = T(@"SSH server identity", @"Подлинность SSH-сервера");
+    NSMutableArray<NSString *> *paragraphs = [NSMutableArray new];
+    for (size_t i = 0; i < text->nitems; i++) {
+        switch (text->items[i].type) {
+          case SDT_PARA:
+          case SDT_DISPLAY:
+          case SDT_SCARY_HEADING:
+            [paragraphs addObject:S(text->items[i].text)];
+            break;
+          default:
+            break;
+        }
+    }
+    alert.informativeText = [paragraphs componentsJoinedByString:@"\n"];
     [alert addButtonWithTitle:T(@"Cancel",@"Отмена")];[alert addButtonWithTitle:T(@"Accept and save",@"Принять и сохранить")];[alert addButtonWithTitle:T(@"Connect once",@"Подключиться один раз")];NSInteger choice=runConnectionAlert(SEAT(seat),alert);
     if(choice==NSModalResponseAbort)return SPR_USER_ABORT;
     if(choice==NSAlertFirstButtonReturn)SEAT(seat)->manual_abort=true;
@@ -699,16 +714,45 @@ int kr_mac_test_session_navigation_ui(void){
         term_do_paste(session->term, data.bytes, data.length / sizeof(wchar_t));
     }
 }
-- (BOOL)openLink:(NSEvent *)event {
-    MacSession *s=self.session;if(!s||!conf_get_bool(s->conf,CONF_kr_hyperlinks)||!(event.modifierFlags&NSEventModifierFlagControl))return NO;
-    NSPoint point=[self convertPoint:event.locationInWindow fromView:nil];int row=point.y/self.cellHeight,col=point.x/self.cellWidth;if(row<0||row>=s->term->rows||col<0||col>=s->term->cols)return NO;
+- (NSURL *)linkAtPoint:(NSPoint)point {
+    MacSession *s=self.session;if(!s||!s->term||!s->term->disptext||!conf_get_bool(s->conf,CONF_kr_hyperlinks)||!NSPointInRect(point,self.bounds))return nil;
+    int row=point.y/self.cellHeight,col=point.x/self.cellWidth;if(row<0||row>=s->term->rows||col<0||col>=s->term->cols)return nil;
     termline *line=s->term->disptext[row];NSMutableString *text=[NSMutableString new];NSUInteger target=0,last=0;
     for(int i=0;i<s->term->cols;i++){unsigned c=line->chars[i].chr;if(i==col)target=c==UCSWIDE?last:text.length;if(c==UCSWIDE)continue;last=text.length;wchar_t value=c;[text appendString:run_string(s,&value,1)];}
     NSRegularExpression *regex=[NSRegularExpression regularExpressionWithPattern:@"https?://[^\\s<>\"']+" options:NSRegularExpressionCaseInsensitive error:nil];
     for(NSTextCheckingResult *match in [regex matchesInString:text options:0 range:NSMakeRange(0,text.length)]){
         NSRange range=match.range;while(range.length&&[[NSCharacterSet characterSetWithCharactersInString:@".,;:!?)]}"]characterIsMember:[text characterAtIndex:NSMaxRange(range)-1]])range.length--;
-        if(target<range.location||target>=NSMaxRange(range))continue;NSURL *url=[NSURL URLWithString:[text substringWithRange:range]];if(url.host.length&&([url.scheme.lowercaseString isEqualToString:@"http"]||[url.scheme.lowercaseString isEqualToString:@"https"])){[NSWorkspace.sharedWorkspace openURL:url];return YES;}
-    }return NO;
+        if(target<range.location||target>=NSMaxRange(range))continue;NSURL *url=[NSURL URLWithString:[text substringWithRange:range]];if(url.host.length&&([url.scheme.lowercaseString isEqualToString:@"http"]||[url.scheme.lowercaseString isEqualToString:@"https"]))return url;
+    }return nil;
+}
+- (void)updateTrackingAreas
+{
+    [super updateTrackingAreas];
+    if (self.linkTrackingArea)
+        [self removeTrackingArea:self.linkTrackingArea];
+    self.linkTrackingArea = [[NSTrackingArea alloc] initWithRect:NSZeroRect
+        options:NSTrackingInVisibleRect | NSTrackingActiveInKeyWindow |
+            NSTrackingMouseMoved | NSTrackingMouseEnteredAndExited | NSTrackingCursorUpdate
+        owner:self userInfo:nil];
+    [self addTrackingArea:self.linkTrackingArea];
+}
+- (void)cursorUpdate:(NSEvent *)event
+{
+    NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+    NSCursor *cursor = [self linkAtPoint:point] ? NSCursor.pointingHandCursor : NSCursor.IBeamCursor;
+    [cursor set];
+}
+- (void)mouseMoved:(NSEvent *)event { [self cursorUpdate:event]; }
+- (void)mouseEntered:(NSEvent *)event { [self cursorUpdate:event]; }
+- (BOOL)openLink:(NSEvent *)event
+{
+    if (!(event.modifierFlags & NSEventModifierFlagControl))
+        return NO;
+    NSURL *url = [self linkAtPoint:[self convertPoint:event.locationInWindow fromView:nil]];
+    if (!url)
+        return NO;
+    [NSWorkspace.sharedWorkspace openURL:url];
+    return YES;
 }
 - (void)mouseDown:(NSEvent *)event{if([self openLink:event])return;[self.window makeFirstResponder:self];[self mouse:event action:MA_CLICK];if(event.clickCount>=2)[self mouse:event action:event.clickCount==2?MA_2CLK:MA_3CLK];}
 - (void)rightMouseDown:(NSEvent *)event{if(self.session&&self.session->raw_mouse&&!(event.modifierFlags&NSEventModifierFlagShift))[self mouse:event action:MA_CLICK];else [NSMenu popUpContextMenu:[self menuForEvent:event] withEvent:event forView:self];}
