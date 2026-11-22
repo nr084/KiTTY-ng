@@ -134,7 +134,7 @@ struct sftp_packet *sftp_wait_for_reply(struct sftp_request *req)
 /*
  * Attempt to canonify a pathname starting from the pwd. If
  * canonification fails, at least fall back to returning a _valid_
- * pathname (though it may be ugly, eg /home/simon/../foobar).
+ * pathname (which may contain a parent-directory component).
  */
 char *canonify(const char *name)
 {

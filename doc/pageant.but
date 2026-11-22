@@ -203,7 +203,7 @@ To refer to this file from your main OpenSSH configuration, you can
 use the \cq{Include} directive. For example, you might run Pageant
 like this (with your own username substituted, of course):
 
-\c pageant --openssh-config C:\Users\Simon\.ssh\pageant.conf
+\c pageant --openssh-config "%USERPROFILE%\.ssh\pageant.conf"
 
 and then add a directive like this to your main \cq{.ssh\\config} file
 (assuming that lives in the same directory that you just put
@@ -244,16 +244,16 @@ with a pathname. Then, in WSL 1, set the environment variable
 
 For example, you might run
 
-\c pageant --unix C:\Users\Simon\.ssh\agent.sock
+\c pageant --unix "%USERPROFILE%\.ssh\agent.sock"
 
 and in WSL 1, set the environment variable
 
-\c SSH_AUTH_SOCK=/mnt/c/Users/Simon/.ssh/agent.sock
+\c SSH_AUTH_SOCK=/mnt/c/path/to/profile/.ssh/agent.sock
 
 Alternatively, you can add a line to your \cw{.ssh/config} file inside
 WSL that says
 
-\c IdentityAgent /mnt/c/Users/Simon/.ssh/agent.sock
+\c IdentityAgent /mnt/c/path/to/profile/.ssh/agent.sock
 
 although doing it like that may mean that \cw{ssh-add} commands won't
 find the agent, even though \cw{ssh} itself will.
