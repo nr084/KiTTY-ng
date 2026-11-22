@@ -772,7 +772,7 @@ int kr_mac_test_session_navigation_ui(void){
     return YES;
 }
 - (void)mouseDown:(NSEvent *)event{if([self openLink:event])return;[self.window makeFirstResponder:self];[self mouse:event action:MA_CLICK];if(event.clickCount>=2)[self mouse:event action:event.clickCount==2?MA_2CLK:MA_3CLK];}
-- (void)rightMouseDown:(NSEvent *)event{if(self.session&&self.session->raw_mouse&&!(event.modifierFlags&NSEventModifierFlagShift))[self mouse:event action:MA_CLICK];else [NSMenu popUpContextMenu:[self menuForEvent:event] withEvent:event forView:self];}
+- (void)rightMouseDown:(NSEvent *)event{if([self openLink:event])return;if(self.session&&self.session->raw_mouse&&!(event.modifierFlags&NSEventModifierFlagShift))[self mouse:event action:MA_CLICK];else [NSMenu popUpContextMenu:[self menuForEvent:event] withEvent:event forView:self];}
 - (void)rightMouseUp:(NSEvent *)event{if(self.session&&self.session->raw_mouse)[self mouse:event action:MA_RELEASE];}
 - (void)rightMouseDragged:(NSEvent *)event{if(self.session&&self.session->raw_mouse)[self mouse:event action:MA_DRAG];}
 - (void)otherMouseDown:(NSEvent *)event{[self mouse:event action:MA_CLICK];}
