@@ -137,8 +137,8 @@ def main():
         (app / 'AppRun').write_bytes((ROOT / 'linux/AppRun').read_bytes().replace(b'\r\n', b'\n'))
         docs = app / 'usr/share/doc/kitty-ng'
         docs.mkdir(parents=True)
-        for name in ('LICENCE', 'LICENCE-KiTTY.txt'):
-            shutil.copy2(ROOT / name, docs / name)
+        shutil.copy2(ROOT / 'LICENCE', docs / 'LICENSE-PuTTY.txt')
+        shutil.copy2(ROOT / 'LICENCE-KiTTY.txt', docs / 'LICENCE-KiTTY.txt')
         # Library licensing from the exact Ubuntu dependency root is included.
         for folder in (args.sysroot / 'usr/share/doc').glob('*') if (args.sysroot / 'usr/share/doc').exists() else []:
             if (folder / 'copyright').is_file():

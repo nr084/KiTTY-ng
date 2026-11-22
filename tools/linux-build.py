@@ -33,7 +33,8 @@ def main():
   for name in names:command+=['--executable',binary/name]
   run(command,cwd=work)
   shutil.copytree(ROOT/'docs',share/'doc/kitty-ng/docs');shutil.copytree(ROOT/'icons',share/'doc/kitty-ng/icons',ignore=shutil.ignore_patterns('*.ico','*.icns','*.pam','*.c'))
-  for name in ['README.md','README.en.md','LICENCE','LICENCE-KiTTY.txt']:shutil.copy2(ROOT/name,share/'doc/kitty-ng'/name)
+  for name in ['README.md','README.en.md','LICENCE-KiTTY.txt']:shutil.copy2(ROOT/name,share/'doc/kitty-ng'/name)
+  shutil.copy2(ROOT/'LICENCE',share/'doc/kitty-ng/LICENSE-PuTTY.txt')
   schemas=Path('/usr/share/glib-2.0/schemas/gschemas.compiled')
   if schemas.exists():(share/'glib-2.0/schemas').mkdir(parents=True);shutil.copy2(schemas,share/'glib-2.0/schemas/gschemas.compiled')
   launcher=app/'AppRun';launcher.write_text("""#!/bin/sh

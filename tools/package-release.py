@@ -39,11 +39,11 @@ with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslev
     for name in names:
         bundle.write(args.build / name, name)
     # Keep runtime packages minimal; guides, artwork and build reports live online.
-    for name in ("LICENCE", "LICENCE-KiTTY.txt"):
-        bundle.write(root / name, name)
+    bundle.write(root / "LICENCE", "LICENSE-PuTTY.txt")
+    bundle.write(root / "LICENCE-KiTTY.txt", "LICENCE-KiTTY.txt")
     bundle.writestr("kitty-ng.portable", "")
 with zipfile.ZipFile(archive) as bundle:
-    assert set(bundle.namelist()) == set(names) | {"LICENCE", "LICENCE-KiTTY.txt", "kitty-ng.portable"}
+    assert set(bundle.namelist()) == set(names) | {"LICENSE-PuTTY.txt", "LICENCE-KiTTY.txt", "kitty-ng.portable"}
 
 digest = hashlib.sha256(archive.read_bytes()).hexdigest()
 (args.output / f"SHA256SUMS-{args.arch}.txt").write_text(f"{digest}  {archive.name}\n", encoding="ascii")

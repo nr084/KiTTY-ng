@@ -223,8 +223,8 @@ def main():
             sys.path.insert(0,str(STORE/'pillow'))
             from PIL import Image
             Image.open(ROOT/'icons/kitty-ng.png').save(app/'Contents/Resources/kitty-ng.icns',format='ICNS')
-            for name in ('LICENCE','LICENCE-KiTTY.txt'):
-                shutil.copy2(ROOT/name,app/'Contents/Resources'/name)
+            shutil.copy2(ROOT/'LICENCE',app/'Contents/Resources/LICENSE-PuTTY.txt')
+            shutil.copy2(ROOT/'LICENCE-KiTTY.txt',app/'Contents/Resources/LICENCE-KiTTY.txt')
             provenance={key:report[key] for key in ('version','architectures','deployment_target','compiler','llvm','cmake','ninja','build_packages','command_line_tools','sdk','os','source_sha256','source_commit')}
             (app/'Contents/Resources/BUILD-INFO.json').write_text(json.dumps(provenance,indent=2)+'\n')
             run(['codesign','--force','--sign','-','--timestamp=none',app])
@@ -305,7 +305,7 @@ def main():
                 run(['hdiutil','attach','-readonly','-nobrowse','-mountpoint',mount,dmg],logs/'dmg-mount.log')
                 try:
                     assert {p.name for p in mount.iterdir()}=={'KiTTY-ng.app'},'DMG must contain only the application'
-                    assert all((mount/'KiTTY-ng.app/Contents/Resources'/n).is_file() for n in ('LICENCE','LICENCE-KiTTY.txt'))
+                    assert all((mount/'KiTTY-ng.app/Contents/Resources'/n).is_file() for n in ('LICENSE-PuTTY.txt','LICENCE-KiTTY.txt'))
                     run(['codesign','--verify','--deep','--strict',mount/'KiTTY-ng.app'],logs/'dmg-signature.log')
                     for source in app.rglob('*'):
                         if source.is_file():
