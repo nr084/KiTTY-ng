@@ -1208,45 +1208,62 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
                                         EM_GETLINECOUNT, 0, 0);
         height *= 8; /* height of a text line, by definition of dialog units */
 
-        height = min(max(height, 80), 160);
-        int edittop = ctx->has_title ? 34 : 14;
+        height = min(max(height, 64), 128);
+        int edittop = ctx->has_title ? 32 : 12;
 
-        RECT r;
-        r.left = 42;
-        r.top = edittop;
-        r.right = 336;
-        r.bottom = height;
+        RECT r = { 40, edittop, 294, height };
         MapDialogRect(hwnd, &r);
         SetWindowPos(GetDlgItem(hwnd, IDC_HK_TEXT), NULL,
                      r.left, r.top, r.right, r.bottom,
                      SWP_NOREDRAW | SWP_NOZORDER);
 
-        static const struct {
-            int id, x;
-        } buttons[] = {
-            { IDCANCEL, 318 },
-            { IDC_HK_ACCEPT, 142 },
-            { IDC_HK_ONCE, 202 },
-            { IDC_HK_MOREINFO, 12 },
-            { IDHELP, 96 },
-        };
+        if (!has_help())
+            DestroyWindow(GetDlgItem(hwnd, IDHELP));
+
+        RECT row = { 11, edittop + height + 7, 334, 15 };
+        MapDialogRect(hwnd, &row);
+        RECT spacing = { 0, 0, 6, 0 };
+        MapDialogRect(hwnd, &spacing);
+        int right = row.right;
+        const int buttons[] = { IDCANCEL, IDC_HK_ONCE, IDC_HK_ACCEPT,
+                                IDC_HK_MOREINFO, IDHELP };
+        int left = row.left;
         for (size_t i = 0; i < lenof(buttons); i++) {
-            HWND ctl = GetDlgItem(hwnd, buttons[i].id);
-            r.left = buttons[i].x;
-            r.top = edittop + height + 10;
-            r.right = r.bottom = 0;
-            MapDialogRect(hwnd, &r);
-            SetWindowPos(ctl, NULL, r.left, r.top, 0, 0,
-                         SWP_NOSIZE | SWP_NOREDRAW | SWP_NOZORDER);
+            HWND ctl = GetDlgItem(hwnd, buttons[i]);
+            if (!ctl)
+                continue;
+
+            wchar_t caption[256];
+            GetWindowTextW(ctl, caption, lenof(caption));
+            HDC dc = GetDC(ctl);
+            HFONT font = (HFONT)SendMessage(ctl, WM_GETFONT, 0, 0);
+            HGDIOBJ previous_font = font ? SelectObject(dc, font) : NULL;
+            RECT label = {0};
+            DrawTextW(dc, caption, -1, &label, DT_SINGLELINE | DT_CALCRECT);
+            if (previous_font)
+                SelectObject(dc, previous_font);
+            ReleaseDC(ctl, dc);
+
+            RECT minimum = { 0, 0, 42, 0 };
+            MapDialogRect(hwnd, &minimum);
+            int width = max(minimum.right, label.right + 2 * spacing.right);
+            int x;
+            if (i < 3) {
+                right -= width;
+                x = right;
+                right -= spacing.right;
+            } else {
+                x = left;
+                left += width + spacing.right;
+            }
+            SetWindowPos(ctl, NULL, x, row.top, width, row.bottom,
+                         SWP_NOREDRAW | SWP_NOZORDER);
         }
 
-        r.left = r.top = r.right = 0;
-        r.bottom = 240;
-        MapDialogRect(hwnd, &r);
-        int oldheight = r.bottom;
-
-        r.left = r.top = r.right = 0;
-        r.bottom = edittop + height + 38;
+        RECT client;
+        GetClientRect(hwnd, &client);
+        int oldheight = client.bottom;
+        r = (RECT){ 0, 0, 0, edittop + height + 30 };
         MapDialogRect(hwnd, &r);
         int newheight = r.bottom;
 
@@ -1261,12 +1278,6 @@ static INT_PTR HostKeyDialogProc(HWND hwnd, UINT msg,
             GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON),
             LR_SHARED);
         SendDlgItemMessage(hwnd, IDC_HK_ICON, STM_SETICON, (WPARAM)icon, 0);
-
-        if (!has_help()) {
-            HWND item = GetDlgItem(hwnd, IDHELP);
-            if (item)
-                DestroyWindow(item);
-        }
 
         ShowWindow(hwnd, SW_SHOWNORMAL);
 
