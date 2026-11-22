@@ -66,6 +66,7 @@ void uxsel_input_remove(uxsel_id *id){}
 
 @interface MacTerminal : NSView <NSTextInputClient,NSWindowDelegate,NSMenuItemValidation>
 @property(nonatomic,strong) NSTrackingArea *linkTrackingArea;
+@property(nonatomic) NSTimeInterval lastOpenedLinkClick;
 @property(assign) MacSession *session;
 @property(nonatomic,strong) NSWindow *terminalWindow;
 @property(nonatomic,weak) MacTabHost *host;
@@ -771,7 +772,11 @@ int kr_mac_test_session_navigation_ui(void){
     NSURL *url = [self linkAtPoint:[self convertPoint:event.locationInWindow fromView:nil]];
     if (!url)
         return NO;
-    [NSWorkspace.sharedWorkspace openURL:url];
+    // The same Control-click can arrive via both menu and mouse dispatch.
+    if (event.timestamp != self.lastOpenedLinkClick) {
+        self.lastOpenedLinkClick = event.timestamp;
+        [NSWorkspace.sharedWorkspace openURL:url];
+    }
     return YES;
 }
 - (void)mouseDown:(NSEvent *)event{if([self openLink:event])return;[self.window makeFirstResponder:self];[self mouse:event action:MA_CLICK];if(event.clickCount>=2)[self mouse:event action:event.clickCount==2?MA_2CLK:MA_3CLK];}
