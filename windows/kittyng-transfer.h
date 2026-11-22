@@ -15,6 +15,7 @@ bool kr_transfer_run(Conf *conf, bool upload, const wchar_t *const *paths,
                      DWORD *status, DWORD *error);
 void kr_transfer_choose_upload(HWND owner, Conf *conf, Backend *backend);
 void kr_transfer_choose_download(HWND owner, Conf *conf);
+bool kr_transfer_clipboard(HWND owner, Conf *conf, Backend *backend);
 void kr_transfer_drop(HWND owner, Conf *conf, Backend *backend, HDROP drop);
 bool kr_transfer_title(HWND owner, const char *title, int codepage);
 void kr_transfer_cancel_query(HWND owner, bool notify);

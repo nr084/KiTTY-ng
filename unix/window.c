@@ -1332,6 +1332,10 @@ static int return_key(GtkFrontend *inst, char *output, bool *special)
 #include "linux/quick-commands.h"
 #endif
 
+#ifdef KITTY_NG_LINUX
+static bool transfer_uris(GtkFrontend *inst, char **uris);
+#endif
+
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
@@ -1348,6 +1352,20 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     noise_ultralight(NOISE_SOURCE_KEY, event->keyval);
 #ifdef KITTY_NG_LINUX
     if (kr_linux_shortcut(inst, event) || inst->input_locked) return true;
+    if (event->type == GDK_KEY_PRESS && event->keyval == GDK_KEY_v &&
+        (event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK | GDK_MOD1_MASK)) ==
+            GDK_CONTROL_MASK &&
+        conf_get_int(inst->conf, CONF_protocol) == PROT_SSH &&
+        inst->backend && backend_sendok(inst->backend)) {
+        GtkClipboard *clipboard =
+            gtk_widget_get_clipboard(widget, GDK_SELECTION_CLIPBOARD);
+        char **uris = gtk_clipboard_wait_for_uris(clipboard);
+        bool sent = transfer_uris(inst, uris);
+        g_strfreev(uris);
+        if (sent)
+            return true;
+    }
+
 #endif
 
 #ifdef OSX_META_KEY_CONFIG
@@ -2869,7 +2887,39 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 #ifdef KITTY_NG_LINUX
 static gboolean send_startup(gpointer data){GtkFrontend *inst=data;if(!inst->backend||!backend_sendok(inst->backend)){inst->startup_source=0;return FALSE;}if(inst->startup_text&&inst->startup_text[inst->startup_offset]){size_t n=1;const unsigned char *s=(const unsigned char*)inst->startup_text+inst->startup_offset;while((s[n]&192)==128)n++;backend_send(inst->backend,(const char*)s,n);inst->startup_offset+=n;int delay=s[n-1]=='\r'?conf_get_int(inst->conf,CONF_kr_command_delay):conf_get_int(inst->conf,CONF_bcdelay);inst->startup_source=g_timeout_add(MAX(1,MIN(60000,delay)),send_startup,inst);return FALSE;}inst->startup_source=0;return FALSE;}
 static void gtk_seat_session_started(Seat *seat){GtkFrontend *inst=container_of(seat,GtkFrontend,seat);inst->connection_started=true;if(inst->startup_source)g_source_remove(inst->startup_source);if(inst->startup_text){smemclr(inst->startup_text,strlen(inst->startup_text));sfree(inst->startup_text);}char *error=NULL;inst->startup_text=kr_mac_startup_commands(inst->conf,&error);inst->startup_offset=0;if(error){seat_nonfatal(seat,"%s",error);sfree(error);}else if(inst->startup_text&&*inst->startup_text)inst->startup_source=g_timeout_add(MAX(1,MIN(60000,conf_get_int(inst->conf,CONF_initdelay))),send_startup,inst);}
-static void transfer_drop(GtkWidget *widget,GdkDragContext *context,gint x,gint y,GtkSelectionData *selection,guint info,guint time,gpointer data){GtkFrontend *inst=data;char **uris=gtk_selection_data_get_uris(selection);GPtrArray *paths=g_ptr_array_new_with_free_func(g_free);for(int i=0;uris&&uris[i];i++){char *path=g_filename_from_uri(uris[i],NULL,NULL);if(path)g_ptr_array_add(paths,path);}bool valid=!inst->input_locked&&paths->len>0;g_ptr_array_add(paths,NULL);if(valid&&!inst->input_locked){Conf *snapshot=kr_auth_connection(inst->conf,inst->backend && backend_sendok(inst->backend));kr_linux_upload(snapshot,GTK_WINDOW(inst->window),(char**)paths->pdata,inst->remote_directory);conf_free(snapshot);}gtk_drag_finish(context,valid,FALSE,time);g_strfreev(uris);g_ptr_array_free(paths,TRUE);}
+static bool transfer_uris(GtkFrontend *inst, char **uris)
+{
+    if (inst->input_locked || !uris)
+        return false;
+
+    GPtrArray *paths = g_ptr_array_new_with_free_func(g_free);
+    for (int i = 0; uris[i]; i++) {
+        char *path = g_filename_from_uri(uris[i], NULL, NULL);
+        if (path)
+            g_ptr_array_add(paths, path);
+    }
+    bool valid = paths->len > 0;
+    if (valid) {
+        g_ptr_array_add(paths, NULL);
+        Conf *snapshot = kr_auth_connection(
+            inst->conf, inst->backend && backend_sendok(inst->backend));
+        kr_linux_upload(snapshot, GTK_WINDOW(inst->window),
+                        (char **)paths->pdata, inst->remote_directory);
+        conf_free(snapshot);
+    }
+    g_ptr_array_free(paths, TRUE);
+    return valid;
+}
+
+static void transfer_drop(GtkWidget *widget, GdkDragContext *context,
+                          gint x, gint y, GtkSelectionData *selection,
+                          guint info, guint time, gpointer data)
+{
+    char **uris = gtk_selection_data_get_uris(selection);
+    bool valid = transfer_uris(data, uris);
+    g_strfreev(uris);
+    gtk_drag_finish(context, valid, FALSE, time);
+}
 /* Let the menu finish handling its activation event before running a modal
  * chooser. Keep an independent Conf in case the terminal closes meanwhile. */
 typedef struct TransferMenuAction {

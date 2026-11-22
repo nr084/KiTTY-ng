@@ -213,7 +213,7 @@ static TransferJob *new_job(HWND owner, Conf *conf, bool upload)
     return job;
 }
 
-void kr_transfer_drop(HWND owner, Conf *conf, Backend *backend, HDROP drop)
+static TransferJob *read_drop(HWND owner, Conf *conf, HDROP drop)
 {
     TransferJob *job = new_job(owner, conf, true);
     job->count = DragQueryFileW(drop, 0xFFFFFFFF, NULL, 0);
@@ -223,8 +223,31 @@ void kr_transfer_drop(HWND owner, Conf *conf, Backend *backend, HDROP drop)
         job->paths[i] = snewn(length + 1, wchar_t);
         DragQueryFileW(drop, i, job->paths[i], length + 1);
     }
+    return job;
+}
+
+void kr_transfer_drop(HWND owner, Conf *conf, Backend *backend, HDROP drop)
+{
+    TransferJob *job = read_drop(owner, conf, drop);
     DragFinish(drop);
     if (job->count) submit_upload(job, backend); else free_job(job);
+}
+
+bool kr_transfer_clipboard(HWND owner, Conf *conf, Backend *backend)
+{
+    if (!IsClipboardFormatAvailable(CF_HDROP) || !OpenClipboard(owner))
+        return false;
+    HDROP drop = (HDROP)GetClipboardData(CF_HDROP);
+    TransferJob *job = drop ? read_drop(owner, conf, drop) : NULL;
+    CloseClipboard();
+    if (!job)
+        return false;
+    if (!job->count) {
+        free_job(job);
+        return false;
+    }
+    submit_upload(job, backend);
+    return true;
 }
 
 void kr_transfer_choose_upload(HWND owner, Conf *conf, Backend *backend)

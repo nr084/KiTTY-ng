@@ -11,11 +11,27 @@ previous=json.loads(path.read_text()) if '--resume' in sys.argv and path.exists(
 checkpoint_time=path.stat().st_mtime if path.exists() else 0
 same_package=all(previous.get(k)==report[k] for k in ('version','source_commit','binaries'))
 report['inputs']={}
+SUITE_INPUTS = {
+    'appimage-version': (),
+    'native-gui': ('linux_native.py',),
+    'quick-commands': ('linux_quick_commands.py',),
+    'tabs': ('linux_tabs.py', 'duplicate_auth_fixture.py'),
+    'tabs-key': ('linux_tabs.py', 'duplicate_auth_fixture.py'),
+    'duplicate-password-retry': ('duplicate_password_retry.py', 'kittyng-password-vector.json'),
+    'restart-password': ('linux_restart_auth.py', 'duplicate_auth_fixture.py'),
+    'restart-key': ('linux_restart_auth.py', 'duplicate_auth_fixture.py'),
+    'language': ('linux_language.py',),
+    'ssh-sftp-agent': ('linux_ssh.py',),
+    'keygen-gui': ('linux_utilities_gui.py',),
+    'agent-gui': ('linux_agent_gui.py',),
+    'regular-user-gui': ('linux_regular_user.py',),
+    'utility-themes': ('linux_utility_theme.py',),
+}
+
+
 def inputs(name):
- files=[p for p in root.glob('*.py') if p.name!='linux_release_acceptance.py' and (name=='utility-themes' or p.name!='linux_utility_theme.py')]
- if name!='language':files=[p for p in files if p.name!='linux_language.py']
- if name=='duplicate-password-retry':files.append(root/'kittyng-password-vector.json')
- return files,{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+    files = [root / filename for filename in SUITE_INPUTS[name]]
+    return files, {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
 
 reuse=json.loads((root/'linux-reuse.json').read_text()) if (root/'linux-reuse.json').exists() else {'suites':{}}
 if reuse['suites']:assert reuse['source_commit']==report['source_commit'] and reuse['binaries']==binaries

@@ -1,19 +1,58 @@
-"""Capture native owned Windows demo dialogs with synthetic data only."""
-import argparse,subprocess,tempfile,os
+"""Refresh selected Windows screenshots using synthetic data."""
+import argparse
+import os
+import subprocess
+import tempfile
 from pathlib import Path
+
 from PIL import Image
-ROOT=Path(__file__).resolve().parents[1]
-p=argparse.ArgumentParser();p.add_argument('--build',type=Path,required=True);args=p.parse_args()
-out=ROOT/'docs/screenshots';exe=args.build.resolve()/'kitty-ng-x64.exe';keygen=args.build.resolve()/'kittygen-x64.exe'
-with tempfile.TemporaryDirectory(prefix='release-screenshots-',dir=ROOT/'build') as temp:
- env=dict(os.environ,KITTY_NG_PORTABLE_DIR=temp)
- for lang in ('ru','en'):
-  for name,panel in [('session','Session'),('language','Window/Translation'),('transfer','Connection/File transfer'),('automation','Connection/Automation'),('extensions','Window/Extensions'),('proxies','Connection/Proxy profiles')]:
-   subprocess.run([str(exe),'--portable-dir',temp,'--language',lang,'-demo-config-box',str(out/f'{name}-{lang}.png'),'-demo-panel',panel],env=env,check=True,timeout=30)
-  subprocess.run([str(exe),'--portable-dir',temp,'--language',lang,'-demo-about',str(out/f'about-{lang}.png')],env=env,check=True,timeout=30)
-  subprocess.run([str(keygen),'--language',lang,'-demo-screenshot',str(out/f'kittygen-{lang}.png')],env=env,check=True,timeout=30)
-  for image in out.glob('*-'+lang+'.png'):
-   if image.name.startswith(('macos-','linux-')):continue
-   with Image.open(image) as source:pixels=source.convert('RGB')
-   pixels.save(image,format='PNG',optimize=True)
-print('Captured Windows dialogs; lossless PNG encoding, original pixels preserved.')
+
+ROOT = Path(__file__).resolve().parents[1]
+PANELS = {
+    "session": "Session",
+    "language": "Window/Translation",
+    "transfer": "Connection/File transfer",
+    "automation": "Connection/Automation",
+    "extensions": "Window/Extensions",
+    "proxies": "Connection/Proxy profiles",
+}
+SCREENS = (*PANELS, "about", "kittygen")
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--build", type=Path, required=True)
+selection = parser.add_mutually_exclusive_group(required=True)
+selection.add_argument("--only", nargs="+", choices=SCREENS)
+selection.add_argument("--all", action="store_true")
+parser.add_argument("--language", choices=("ru", "en"))
+args = parser.parse_args()
+
+out = ROOT / "docs/screenshots"
+build = args.build.resolve()
+with tempfile.TemporaryDirectory(prefix=".capture-", dir=out) as temporary:
+    temp = Path(temporary)
+    env = dict(os.environ, KITTY_NG_PORTABLE_DIR=temporary)
+    for lang in (args.language,) if args.language else ("ru", "en"):
+        for name in SCREENS if args.all else dict.fromkeys(args.only):
+            filename = f"{name}-{lang}.png"
+            capture = temp / filename
+            exe = build / ("kittygen-x64.exe" if name == "kittygen" else "kitty-ng-x64.exe")
+            command = [str(exe), "--language", lang]
+            if name == "kittygen":
+                command += ["-demo-screenshot", str(capture)]
+            else:
+                command += ["--portable-dir", temporary]
+                if name == "about":
+                    command += ["-demo-about", str(capture)]
+                else:
+                    command += ["-demo-config-box", str(capture), "-demo-panel", PANELS[name]]
+            subprocess.run(command, env=env, check=True, timeout=30)
+
+            destination = out / filename
+            with Image.open(capture) as source:
+                pixels = source.convert("RGB")
+            if destination.exists():
+                with Image.open(destination) as existing:
+                    if pixels.size == existing.size and pixels.tobytes() == existing.convert("RGB").tobytes():
+                        continue
+            pixels.save(capture, format="PNG", optimize=True)
+            capture.replace(destination)

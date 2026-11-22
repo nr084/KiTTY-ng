@@ -2647,6 +2647,36 @@ static void wm_size_resize_term(WinGuiSeat *wgs, LPARAM lParam)
     conf_set_int(wgs->conf, CONF_width, w);
 }
 
+static char *terminal_url_at(WinGuiSeat *wgs, POINT point)
+{
+    if (!wgs->term || !wgs->font_width || !wgs->font_height ||
+        !conf_get_bool(wgs->conf, CONF_kr_hyperlinks) ||
+        point.x < wgs->offset_width || point.y < wgs->offset_height)
+        return NULL;
+
+    int x = (point.x - wgs->offset_width) / wgs->font_width;
+    int y = (point.y - wgs->offset_height) / wgs->font_height;
+    if (x >= wgs->term->cols || y >= wgs->term->rows)
+        return NULL;
+
+    termline *line = term_get_line(wgs->term, wgs->term->disptop + y);
+    if (!line)
+        return NULL;
+
+    char *text = snewn(line->cols + 1, char);
+    for (int i = 0; i < line->cols; i++) {
+        unsigned long c = line->chars[i].chr;
+        if ((c & CSET_MASK) == CSET_ASCII)
+            c &= 0xFF;
+        text[i] = c >= 32 && c < 127 ? c : ' ';
+    }
+    text[line->cols] = 0;
+    char *url = kr_url_at(text, x);
+    sfree(text);
+    term_release_line(line);
+    return url;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                                 WPARAM wParam, LPARAM lParam)
 {
@@ -3392,25 +3422,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             }
 
             if (press && button == MBT_LEFT && (wParam & MK_CONTROL) &&
-                conf_get_bool(wgs->conf, CONF_kr_hyperlinks)) {
-                int x = TO_CHR_X(X_POS(lParam)), y = TO_CHR_Y(Y_POS(lParam));
-                if (x >= 0 && y >= 0 && x < wgs->term->cols && y < wgs->term->rows) {
-                    termline *line = term_get_line(wgs->term, wgs->term->disptop + y);
-                    if (line) {
-                        char *text = snewn(line->cols+1, char);
-                        for (int i = 0; i < line->cols; i++) {
-                            unsigned long c = line->chars[i].chr;
-                            if ((c & CSET_MASK) == CSET_ASCII) c &= 0xFF;
-                            text[i] = c >= 32 && c < 127 ? c : ' ';
-                        }
-                        text[line->cols] = 0;
-                        char *url = kr_url_at(text, x); sfree(text); term_release_line(line);
-                        if (url) {
-                            wchar_t *wide = dup_mb_to_wc(CP_UTF8, url);
-                            ShellExecuteW(hwnd, L"open", wide, NULL, NULL, SW_SHOWNORMAL);
-                            sfree(wide); sfree(url); return 0;
-                        }
-                    }
+                !wgs->send_raw_mouse) {
+                POINT point = { X_POS(lParam), Y_POS(lParam) };
+                char *url = terminal_url_at(wgs, point);
+                if (url) {
+                    wchar_t *wide = dup_mb_to_wc(CP_UTF8, url);
+                    ShellExecuteW(hwnd, L"open", wide, NULL, NULL, SW_SHOWNORMAL);
+                    sfree(wide);
+                    sfree(url);
+                    return 0;
                 }
             }
             if (wgs->kr_input_locked && wgs->send_raw_mouse) return 0;
@@ -3430,6 +3450,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             }
         }
         return 0;
+      case WM_SETCURSOR:
+        if (LOWORD(lParam) == HTCLIENT && wgs->busy_status == BUSY_NOT &&
+            !wgs->send_raw_mouse && GetCapture() != hwnd) {
+            POINT point;
+            if (GetCursorPos(&point) && ScreenToClient(hwnd, &point)) {
+                char *url = terminal_url_at(wgs, point);
+                if (url) {
+                    sfree(url);
+                    SetCursor(LoadCursor(NULL, IDC_HAND));
+                    return TRUE;
+                }
+            }
+        }
+        break;
       case WM_MOUSEMOVE:
         if (wgs->kr_input_locked && wgs->send_raw_mouse) return 0;
         /*
@@ -3957,6 +3991,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         if ((message == WM_KEYDOWN || message == WM_SYSKEYDOWN) &&
             (wgs->kr_input_locked || conf_get_bool(wgs->conf, CONF_kr_shortcuts)) && kr_shortcut(wgs, wParam, !(lParam & (1UL << 30)))) return 0;
         if (wgs->kr_input_locked) return 0;
+        if (message == WM_KEYDOWN && wParam == 'V' &&
+            GetKeyState(VK_CONTROL) < 0 && GetKeyState(VK_SHIFT) >= 0 &&
+            GetKeyState(VK_MENU) >= 0 &&
+            conf_get_int(wgs->conf, CONF_protocol) == PROT_SSH &&
+            wgs->backend && backend_sendok(wgs->backend) &&
+            IsClipboardFormatAvailable(CF_HDROP)) {
+            if (lParam & (1UL << 30))
+                return 0;
+            Conf *snapshot = companion_conf(wgs);
+            bool sent = kr_transfer_clipboard(hwnd, snapshot, wgs->backend);
+            conf_free(snapshot);
+            if (sent)
+                return 0;
+        }
+
         /*
          * Add the scan code and keypress timing to the random
          * number noise.
