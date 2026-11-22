@@ -432,7 +432,13 @@ int wmain(int argc, wchar_t **argv)
     check(api.get(remote_file, dst, 0, &info) == FS_FILE_OK && matches_data(dst, DATA_A_SIZE, DATA_A_SEED),
           "refused upload preserved original remote content");
     delete_local(dst);
+    check(find_entry(remote_dir, remote_filename, &data) == 1 && (data.dwReserved0 & 0777u) == 0644u,
+          "new file uses the configured upload permissions");
+    check(api.execute(NULL, remote_file, L"chmod 640") == FS_EXEC_OK,
+          "change existing file permissions before overwrite");
     check(api.put(src_b, remote_file, FS_COPYFLAGS_OVERWRITE) == FS_FILE_OK, "atomic overwrite upload");
+    check(find_entry(remote_dir, remote_filename, &data) == 1 && (data.dwReserved0 & 0777u) == 0640u,
+          "overwriting preserves existing permissions");
     check(api.get(remote_file, dst, 0, &info) == FS_FILE_OK && matches_data(dst, DATA_B_SIZE, DATA_B_SEED),
           "download exact replacement bytes");
     check(create_data(sentinel, 123, 55), "create existing local destination fixture");

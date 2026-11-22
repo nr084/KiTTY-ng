@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parent
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--toolchain", type=Path, required=True)
-    parser.add_argument("--tests", nargs="+", choices=("sftp", "pathutil", "profiles", "session_tree", "icons"),
-                        default=["sftp", "pathutil", "profiles", "session_tree", "icons"])
+    parser.add_argument("--tests", nargs="*", choices=("agent", "sftp", "pathutil", "profiles", "session_tree", "icons"),
+                        default=["agent", "sftp", "pathutil", "profiles", "session_tree", "icons"])
     parser.add_argument("--cmake", type=Path)
     parser.add_argument("--ninja", type=Path)
     parser.add_argument("--output", type=Path, default=ROOT / "dist/development")
@@ -52,7 +52,8 @@ def main():
                  "-DCMAKE_BUILD_TYPE=Release"])
             run([cmake, "--build", embedded, "--target", "kittyngfs", "kg_test_agent", "--parallel", "8"])
             shutil.copy2(embedded / dll.name, dll)
-            run([embedded / "kg_test_agent.exe"])
+            if "agent" in args.tests:
+                run([embedded / "kg_test_agent.exe"])
             suites = [
                 ("sftp", ["src/sftp.c"], [], []),
                 ("pathutil", ["src/pathutil.c"], ["-lbcrypt", "-lshell32"], []),
