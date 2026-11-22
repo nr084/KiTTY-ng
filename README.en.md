@@ -14,7 +14,7 @@ KiTTY-ng develops KiTTY's features on the modern **PuTTY 0.85** codebase. Manage
 
 ## Download
 
-Release **0.85-13** includes Windows and Linux packages. The macOS Universal DMG is being prepared separately.
+Release **0.85-13** includes Windows, Linux, and macOS Universal 2 packages.
 
 | Platform | Release 0.85-13 | Launch |
 | --- | --- | --- |
@@ -22,7 +22,7 @@ Release **0.85-13** includes Windows and Linux packages. The macOS Universal DMG
 | Windows x64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x64.zip) | `kitty-ng-x64.exe` |
 | Windows x86 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-x86.zip) | `kitty-ng-x86.exe` |
 | Windows arm64 | [ZIP](https://github.com/nr084/kitty-ng/releases/download/v0.85-13/kitty-ng-0.85-13-arm64.zip) | `kitty-ng-arm64.exe` |
-| macOS 13+ · Intel / Apple Silicon | Universal DMG pending | `KiTTY-ng.app` |
+| macOS 13+ · Intel / Apple Silicon | [Universal DMG](https://github.com/nr084/KiTTY-ng/releases/download/v0.85-13/kitty-ng-0.85-13-macos-universal.dmg) | `KiTTY-ng.app` |
 
 [All releases and checksums](https://github.com/nr084/kitty-ng/releases). Each package includes the client and five utilities. Windows EXE names include their architecture; versions are embedded in the programs and included in archive names.
 
