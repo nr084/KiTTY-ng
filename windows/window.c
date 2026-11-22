@@ -87,6 +87,7 @@ static HWND kr_initial_tab_parent;
 extern bool kr_test_extensions;
 #define WM_KR_TRAY    (WM_APP + 101)
 #define KR_RECONNECT_TIMER 0x4B525553
+#define KR_KEY_RECONNECT_TIMER 0x4B525554
 static UINT kr_taskbar_created;
 static void update_quick_menu(WinGuiSeat *wgs);
 
@@ -603,6 +604,8 @@ static void kr_extension_ui_test(WinGuiSeat *wgs)
 #undef EXTENSION_CHECK
 }
 
+static void close_session(void *vctx);
+
 static void start_backend(WinGuiSeat *wgs)
 {
     const struct BackendVtable *vt;
@@ -621,6 +624,12 @@ static void start_backend(WinGuiSeat *wgs)
                          conf_get_bool(wgs->conf, CONF_tcp_nodelay),
                          conf_get_bool(wgs->conf, CONF_tcp_keepalives));
     if (error) {
+        if (wgs->kr_key_reconnecting) {
+            logevent(wgs->logctx, error);
+            sfree(error);
+            close_session(wgs);
+            return;
+        }
         char *str = dupprintf("%s Error", appname);
         char *msg;
         if (cmdline_tooltype & TOOLTYPE_NONNETWORK) {
@@ -671,6 +680,8 @@ static void close_session(void *vctx)
     char *newtitle;
     int i;
 
+    KillTimer(wgs->term_hwnd, KR_KEY_RECONNECT_TIMER);
+    wgs->kr_key_reconnecting = false;
     wgs->session_closed = true;
     kr_cancel_commands(wgs);
     int delay = conf_get_int(wgs->conf, CONF_kr_reconnect_delay);
@@ -1599,6 +1610,13 @@ static void wintw_set_raw_mouse_mode_pointer(TermWin *tw, bool activate)
 static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
+    if (wgs->kr_key_reconnecting) {
+        wgs->session_closed = true;
+        KillTimer(wgs->term_hwnd, KR_KEY_RECONNECT_TIMER);
+        logevent(wgs->logctx, msg);
+        queue_toplevel_callback(close_session, wgs);
+        return;
+    }
     char *title = dupprintf("%s Fatal Error", appname);
     /* Retry only a lost established session, never failed authentication
      * or a rejected host key. Normal shell exits do not reach this hook. */
@@ -2536,6 +2554,10 @@ static void exit_callback(void *vctx)
 
     if (!wgs->session_closed &&
         (exitcode = backend_exitcode(wgs->backend)) >= 0) {
+        if (wgs->kr_key_reconnecting) {
+            close_session(wgs);
+            return;
+        }
         close_on_exit = conf_get_int(wgs->conf, CONF_close_on_exit);
         /* Abnormal exits will already have set session_closed and taken
          * appropriate action. */
@@ -2685,6 +2707,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         if (wParam == KR_TRANSFER_PWD_TIMER) {
             kr_transfer_cancel_query(hwnd, !conf_get_bool(wgs->conf, CONF_kr_transfer_hide));
             if (conf_get_bool(wgs->conf, CONF_kr_transfer_hide)) cleanup_exit(ERROR_TIMEOUT);
+            return 0;
+        }
+        if (wParam == KR_KEY_RECONNECT_TIMER) {
+            if (!wgs->kr_key_reconnecting) return 0;
+            if (!wgs->backend || !backend_sendok(wgs->backend))
+                close_session(wgs);
+            else {
+                KillTimer(hwnd, KR_KEY_RECONNECT_TIMER);
+                wgs->kr_key_reconnecting = false;
+            }
             return 0;
         }
         if (wParam == KR_RECONNECT_TIMER) {
@@ -3907,6 +3939,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSKEYDOWN:
       case WM_KEYUP:
       case WM_SYSKEYUP:
+        if (message == WM_KEYDOWN && !wgs->kr_input_locked) {
+            if (wgs->kr_key_reconnecting) {
+                if (!wgs->backend || !backend_sendok(wgs->backend)) return 0;
+                KillTimer(hwnd, KR_KEY_RECONNECT_TIMER);
+                wgs->kr_key_reconnecting = false;
+            }
+            if (wgs->session_closed) {
+                if (!(lParam & (1UL << 30)) && !wgs->backend &&
+                    SetTimer(hwnd, KR_KEY_RECONNECT_TIMER, 3000, NULL)) {
+                    wgs->kr_key_reconnecting = true;
+                    SendMessage(hwnd, WM_SYSCOMMAND, IDM_RESTART, 0);
+                }
+                return 0;
+            }
+        }
         if ((message == WM_KEYDOWN || message == WM_SYSKEYDOWN) &&
             (wgs->kr_input_locked || conf_get_bool(wgs->conf, CONF_kr_shortcuts)) && kr_shortcut(wgs, wParam, !(lParam & (1UL << 30)))) return 0;
         if (wgs->kr_input_locked) return 0;

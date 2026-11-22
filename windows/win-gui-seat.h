@@ -81,6 +81,7 @@ struct WinGuiSeat {
     bool session_closed;
     bool kr_saved_password_tried;
     bool kr_session_started, kr_retryable;
+    bool kr_key_reconnecting;
     bool kr_commands_started, kr_input_locked, kr_window_saved;
     wchar_t *kr_commands;
     size_t kr_command_index;

@@ -515,7 +515,8 @@ void paneltitle(struct ctlpos *cp, int id)
     r.top = cp->ypos;
     r.right = cp->width;
     r.bottom = TITLEHEIGHT;
-    cp->ypos += r.bottom + GAPBETWEEN;
+    /* Untitled groups extend upwards by half a static text row. */
+    cp->ypos += r.bottom + GAPBETWEEN + STATICHEIGHT / 2;
     doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE | SS_OWNERDRAW,
           0, NULL, id);
 }
@@ -1102,7 +1103,6 @@ int handle_prefslist(struct prefslist *hdl,
                 hdl->dragging = true;
                 dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, true);
                 if (dest > hdl->dummyitem) dest = hdl->dummyitem;
-                p_DrawInsert (hwnd, dlm->hWnd, dest);
                 if (dest >= 0)
                     SetWindowLongPtr(hwnd, DWLP_MSGRESULT, DL_MOVECURSOR);
                 else

@@ -4377,7 +4377,7 @@ static void make_ca_config_box(GtkWidget *spawning_window)
 
     cacfg->window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(cacfg->window),
-                         "PuTTY trusted host certification authorities");
+                         KR_UI("KiTTY-ng trusted host certification authorities"));
     gtk_widget_set_size_request(
         cacfg->window, string_width(
             "ecdsa-sha2-nistp256 256 SHA256:hsO5a8MYGzBoa2gW5"

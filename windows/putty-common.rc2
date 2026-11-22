@@ -16,7 +16,7 @@
 /* Accelerators used: clw */
 IDD_ABOUTBOX DIALOG DISCARDABLE 140, 40, 350, 250
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "About PuTTY"
+CAPTION "About KiTTY-ng"
 FONT 9, "Segoe UI"
 BEGIN
     ICON IDI_MAINICON, IDA_ICON, 12, 10, 32, 32
@@ -33,7 +33,7 @@ END
 /* Accelerators used: aco */
 IDD_MAINBOX DIALOG DISCARDABLE 0, 0, 400, 330
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "PuTTY Configuration"
+CAPTION "KiTTY-ng Configuration"
 FONT 8, "MS Shell Dlg"
 CLASS "PuTTYConfigBox"
 BEGIN
@@ -42,7 +42,7 @@ END
 /* Accelerators used: co */
 IDD_LOGBOX DIALOGEX 100, 20, 420, 220
 STYLE DS_SETFONT | WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_THICKFRAME | WS_MAXIMIZEBOX
-CAPTION "PuTTY Event Log"
+CAPTION "KiTTY-ng Event Log"
 FONT 9, "Segoe UI"
 BEGIN
     DEFPUSHBUTTON "&Close", IDOK, 214, 194, 62, 18
@@ -53,7 +53,7 @@ END
 /* No accelerators used */
 IDD_LICENCEBOX DIALOG DISCARDABLE 50, 50, 326, 239
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "PuTTY Licence"
+CAPTION "KiTTY-ng Licence"
 FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON "OK", IDOK, 148, 219, 44, 14
@@ -64,7 +64,7 @@ END
 /* Accelerators used: achio */
 IDD_HOSTKEY DIALOG DISCARDABLE 50, 50, 390, 240
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "PuTTY Security Alert"
+CAPTION "KiTTY-ng Security Alert"
 FONT 9, "Segoe UI"
 CLASS "PuTTYHostKeyDialog"
 BEGIN
@@ -84,7 +84,7 @@ END
 /* Accelerators used: c */
 IDD_HK_MOREINFO DIALOG DISCARDABLE 140, 40, 400, 300
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "PuTTY: information about the server's host key"
+CAPTION "KiTTY-ng: information about the server's host key"
 FONT 8, "MS Shell Dlg"
 CLASS "PuTTYHostKeyMoreInfo"
 BEGIN
@@ -94,7 +94,7 @@ END
 /* Accelerators used: aco */
 IDD_CA_CONFIG DIALOG DISCARDABLE 0, 0, 350, 260
 STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "PuTTY trusted host certification authorities"
+CAPTION "KiTTY-ng trusted host certification authorities"
 FONT 8, "MS Shell Dlg"
 CLASS "PuTTYConfigBox"
 BEGIN

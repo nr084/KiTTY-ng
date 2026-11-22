@@ -198,9 +198,15 @@ static void tab_paint(TabFrame *f,HDC target)
     for(int i=0;i<f->count;i++){
         RECT r;if(!TabCtrl_GetItemRect(f->strip,i,&r) || r.right<0 || r.left>=bounds.right)continue;
         bool active=i==f->selected;
+        bool moving = f->dragging && f->dragged == f->pages[i];
         RECT card=r;InflateRect(&card,-tab_px(f,2),-tab_px(f,2));
         COLORREF color=kr_theme_dark()?(active?RGB(49,66,90):i==f->hover?RGB(56,58,64):RGB(39,41,46)):(active?RGB(218,234,253):i==f->hover?RGB(226,229,233):RGB(235,237,240));
-        HBRUSH brush=CreateSolidBrush(color);HPEN border=CreatePen(PS_SOLID,1,active?RGB(125,169,223):color);
+        if (moving)
+            color = kr_theme_dark() ? RGB(48, 83, 126) : RGB(189, 219, 255);
+        COLORREF outline = moving ? RGB(65, 132, 217) :
+            active ? RGB(125, 169, 223) : color;
+        HBRUSH brush=CreateSolidBrush(color);
+        HPEN border=CreatePen(PS_SOLID,moving ? tab_px(f,2) : 1,outline);
         HGDIOBJ old_brush=SelectObject(dc,brush),old_pen=SelectObject(dc,border);
         RoundRect(dc,card.left,card.top,card.right,card.bottom,tab_px(f,12),tab_px(f,12));
         SelectObject(dc,old_brush);SelectObject(dc,old_pen);DeleteObject(brush);DeleteObject(border);
@@ -293,7 +299,10 @@ static LRESULT CALLBACK tab_strip_proc(HWND hwnd,UINT message,WPARAM wp,LPARAM l
         }
         if(f->dragged){f->dragged=NULL;f->dragging=false;ReleaseCapture();frame_focus(f);return 0;}
         break;
-      case WM_CAPTURECHANGED:f->pressed_close=NULL;f->dragged=NULL;f->dragging=false;break;
+      case WM_CAPTURECHANGED:
+        f->pressed_close=NULL;f->dragged=NULL;f->dragging=false;
+        InvalidateRect(hwnd,NULL,FALSE);
+        break;
       case WM_NCDESTROY:RemoveWindowSubclass(hwnd,tab_strip_proc,id);break;
     }
     return DefSubclassProc(hwnd,message,wp,lp);
@@ -310,15 +319,15 @@ static void frame_layout(TabFrame *f)
     TabCtrl_SetItemSize(f->strip,tab_px(f,184),tab_px(f,30));
     InvalidateRect(f->strip,NULL,FALSE);
     ShowWindow(f->strip, top ? SW_SHOW : SW_HIDE);
+    if (f->selected >= 0) {
+        HWND page = f->pages[f->selected];
+        SetWindowPos(page, HWND_TOP, 0, top, max(1,r.right), max(1,r.bottom-top),
+                     SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    }
     for (int i=0;i<f->count;i++) {
         if (i == f->selected) continue;
         if (GetWindowLongPtrW(f->pages[i], GWL_STYLE) & WS_VISIBLE)
             ShowWindow(f->pages[i], SW_HIDE);
-    }
-    if (f->selected >= 0) {
-        HWND page = f->pages[f->selected];
-        SetWindowPos(page, NULL, 0, top, max(1,r.right), max(1,r.bottom-top),
-                     SWP_NOACTIVATE | SWP_NOZORDER | SWP_SHOWWINDOW);
     }
     if (f->count && f->selected >= 0) {
         wchar_t title[512]; GetWindowTextW(f->pages[f->selected], title, lenof(title));
@@ -521,13 +530,18 @@ bool kr_tabs_host_entry(HINSTANCE instance, const char *command, int *result)
         OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,CLEARTYPE_QUALITY,DEFAULT_PITCH,L"Segoe UI");
     SendMessageW(f.strip,WM_SETFONT,(WPARAM)f.font,TRUE);
     SetWindowSubclass(f.strip,tab_strip_proc,1,(DWORD_PTR)&f);
-    /* Attach the terminal while the host is hidden. SetWindowPlacement with
-     * SW_SHOWMAXIMIZED can expose an empty host before its first paint. */
+    /* Cover the source window before reparenting it. Hiding the source
+     * first exposes whatever is behind it while the tab host is set up. */
+    DWORD_PTR background;
+    if (SendMessageTimeoutW(source, KR_WM_TAB_BACKGROUND, 0, 0,
+                            SMTO_ABORTIFHUNG, 200, &background))
+        f.background = (COLORREF)background;
     if (fullscreen) frame_fullscreen(&f);
+    ShowWindow(f.frame, maximized && !fullscreen ? SW_SHOWMAXIMIZED : SW_SHOWNOACTIVATE);
+    RedrawWindow(f.frame, NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
     if (!frame_add(&f,source)) {DestroyWindow(f.frame);return true;}
     f.system_menu_items=GetMenuItemCount(GetSystemMenu(f.frame,FALSE));
     frame_update_menu(&f);
-    ShowWindow(f.frame, maximized && !fullscreen ? SW_SHOWMAXIMIZED : SW_SHOW);
     frame_focus(&f);
     SetTimer(f.frame,1,200,NULL);SetTimer(f.frame,2,500,NULL);
     PostMessageW(source,WM_SYSCOMMAND,TAB_DUPLICATE,0);

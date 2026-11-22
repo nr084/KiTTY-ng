@@ -761,7 +761,7 @@ static void setupbigedit2(HWND hwnd, ssh2_userkey *key)
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char mbtitle[] = "KiTTY-ng Key File Warning";
     static const char message[] =
         "You are loading an SSH-2 private key which has an\n"
         "old version of the file format. This means your key\n"

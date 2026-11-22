@@ -170,31 +170,43 @@ static bool draw_menu(HWND hwnd, UINT msg, LPARAM lp)
         DRAWITEMSTRUCT *d=(void *)lp;
         if(d->CtlType!=ODT_MENU)return false;
         ThemeMenuItem *e=menu_entry(hwnd,(HMENU)d->hwndItem,d->itemID,d->itemData);if(!e)return false;
+        /* Compose the entire row before replacing the visible pixels. */
+        int width = d->rcItem.right - d->rcItem.left;
+        int height = d->rcItem.bottom - d->rcItem.top;
+        HDC dc = CreateCompatibleDC(d->hDC);
+        HBITMAP bitmap = dc ? CreateCompatibleBitmap(d->hDC, width, height) : NULL;
+        HGDIOBJ previous = bitmap ? SelectObject(dc, bitmap) : NULL;
+        if (previous)
+            SetViewportOrgEx(dc, -d->rcItem.left, -d->rcItem.top, NULL);
+        HDC paint = previous ? dc : d->hDC;
         HBRUSH brush=CreateSolidBrush((d->itemState&ODS_SELECTED)?RGB(58,78,105):RGB(32,33,36));
-        FillRect(d->hDC,&d->rcItem,brush);DeleteObject(brush);
+        FillRect(paint,&d->rcItem,brush);DeleteObject(brush);
         RECT r=d->rcItem;r.left+=24;r.right-=24;
         if(e->type&MFT_SEPARATOR) {
             RECT line=r;line.top=(r.top+r.bottom)/2;line.bottom=line.top+1;
-            FillRect(d->hDC,&line,(HBRUSH)GetStockObject(GRAY_BRUSH));return true;
+            FillRect(paint,&line,(HBRUSH)GetStockObject(GRAY_BRUSH));
+        } else {
+            HFONT old=SelectObject(paint,GetStockObject(DEFAULT_GUI_FONT));
+            SetBkMode(paint,TRANSPARENT);
+            SetTextColor(paint,(d->itemState&(ODS_GRAYED|ODS_DISABLED))?RGB(140,142,147):RGB(235,235,238));
+            wchar_t *text=dupwcs(e->text),*shortcut=wcschr(text,L'\t');
+            if(shortcut){*shortcut++=0;DrawTextW(paint,shortcut,-1,&r,DT_RIGHT|DT_SINGLELINE|DT_VCENTER);}
+            DrawTextW(paint,text,-1,&r,DT_LEFT|DT_SINGLELINE|DT_VCENTER);sfree(text);
+            if (d->itemState & ODS_CHECKED) {
+                RECT check=d->rcItem;check.right=check.left+22;
+                const wchar_t *mark = (e->type & MFT_RADIOCHECK) ? L"\x2022" : L"\x2713";
+                DrawTextW(paint,mark,1,&check,DT_CENTER|DT_SINGLELINE|DT_VCENTER);
+            }
+            SelectObject(paint,old);
         }
-        HFONT old=SelectObject(d->hDC,GetStockObject(DEFAULT_GUI_FONT));
-        SetBkMode(d->hDC,TRANSPARENT);
-        SetTextColor(d->hDC,(d->itemState&(ODS_GRAYED|ODS_DISABLED))?RGB(140,142,147):RGB(235,235,238));
-        wchar_t *text=dupwcs(e->text),*shortcut=wcschr(text,L'\t');
-        if(shortcut){*shortcut++=0;DrawTextW(d->hDC,shortcut,-1,&r,DT_RIGHT|DT_SINGLELINE|DT_VCENTER);}
-        DrawTextW(d->hDC,text,-1,&r,DT_LEFT|DT_SINGLELINE|DT_VCENTER);sfree(text);
-        MENUITEMINFOW info={sizeof(info)};info.fMask=MIIM_STATE|MIIM_SUBMENU;
-        GetMenuItemInfoW(e->menu,e->position,TRUE,&info);
-        if(info.fState&MFS_CHECKED){RECT check=d->rcItem;check.right=check.left+22;DrawTextW(d->hDC,L"\x2713",1,&check,DT_CENTER|DT_SINGLELINE|DT_VCENTER);}
-        if(info.hSubMenu && e->menu!=GetMenu(hwnd)) {
-            int dpi=GetDeviceCaps(d->hDC,LOGPIXELSX), radius=max(3,MulDiv(3,dpi,96));
-            int x=d->rcItem.right-MulDiv(12,dpi,96), y=(d->rcItem.top+d->rcItem.bottom)/2;
-            HPEN pen=CreatePen(PS_SOLID,max(1,MulDiv(2,dpi,96)),GetTextColor(d->hDC));
-            HPEN previous=SelectObject(d->hDC,pen);
-            POINT points[3]={{x-radius/2,y-radius},{x+radius/2,y},{x-radius/2,y+radius}};
-            Polyline(d->hDC,points,3);SelectObject(d->hDC,previous);DeleteObject(pen);
+        if (previous) {
+            BitBlt(d->hDC, d->rcItem.left, d->rcItem.top, width, height,
+                   dc, d->rcItem.left, d->rcItem.top, SRCCOPY);
+            SelectObject(dc, previous);
         }
-        SelectObject(d->hDC,old);return true;
+        if (bitmap) DeleteObject(bitmap);
+        if (dc) DeleteDC(dc);
+        return true;
     }
     return false;
 }
@@ -331,16 +343,37 @@ static bool paint_button(HWND hwnd)
         RECT backing = r;
         backing.left -= inset / 2;
         backing.right = min(r.right, r.left + caption.cx + inset / 2);
-        FillRect(dc, &backing, dark_surface);
+        if (n)
+            FillRect(dc, &backing, dark_surface);
     } else if (type == BS_CHECKBOX || type == BS_AUTOCHECKBOX ||
                type == BS_3STATE || type == BS_AUTO3STATE ||
                type == BS_RADIOBUTTON || type == BS_AUTORADIOBUTTON) {
         int side = min(r.bottom-r.top, GetSystemMetrics(SM_CXMENUCHECK));
         RECT glyph = {r.left, (r.bottom-side)/2, r.left+side, (r.bottom+side)/2};
         UINT kind = (type == BS_RADIOBUTTON || type == BS_AUTORADIOBUTTON) ? DFCS_BUTTONRADIO : DFCS_BUTTONCHECK;
-        if (SendMessageW(hwnd, BM_GETCHECK, 0, 0)) kind |= DFCS_CHECKED;
+        LRESULT checked = SendMessageW(hwnd, BM_GETCHECK, 0, 0);
+        if (kind == DFCS_BUTTONRADIO && checked == BST_CHECKED)
+            kind |= DFCS_CHECKED;
         if (!enabled) kind |= DFCS_INACTIVE;
         DrawFrameControl(dc, &glyph, DFC_BUTTON, kind);
+        if ((kind & ~DFCS_INACTIVE) == DFCS_BUTTONCHECK && checked) {
+            RECT mark_bounds = glyph;
+            int inset = max(2, side / 6);
+            InflateRect(&mark_bounds, -inset, -inset);
+            HFONT symbol = CreateFontW(-max(1, side - 2 * inset), 0, 0, 0, FW_BOLD,
+                FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+                CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH,
+                L"Segoe UI Symbol");
+            HFONT previous = symbol ? SelectObject(dc, symbol) : NULL;
+            COLORREF color = SetTextColor(dc,
+                enabled ? RGB(20,20,20) : RGB(100,100,100));
+            const wchar_t *mark = checked == BST_INDETERMINATE ? L"\x2212" : L"\x2713";
+            DrawTextW(dc, mark, 1, &mark_bounds,
+                      DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+            SetTextColor(dc, color);
+            if (previous) SelectObject(dc, previous);
+            if (symbol) DeleteObject(symbol);
+        }
         r.left += side + 6;
     } else {
         POINT mouse; GetCursorPos(&mouse); ScreenToClient(hwnd, &mouse);
@@ -446,6 +479,16 @@ static LRESULT CALLBACK themed_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp,
             if(msg==WM_SETFOCUS || msg==WM_KILLFOCUS || msg==CB_SETCURSEL || msg==WM_ENABLE)InvalidateRect(hwnd,NULL,FALSE);
         }
         if (!_wcsicmp(cls,L"Button")) {
+            LONG_PTR type = GetWindowLongPtrW(hwnd, GWL_STYLE) & BS_TYPEMASK;
+            bool choice = type == BS_CHECKBOX || type == BS_AUTOCHECKBOX ||
+                          type == BS_3STATE || type == BS_AUTO3STATE ||
+                          type == BS_RADIOBUTTON || type == BS_AUTORADIOBUTTON;
+            /* Our choice controls have no hover appearance. Avoid native
+             * hover painting, but keep mouse tracking during a press. */
+            if (choice && GetCapture() != hwnd &&
+                (msg == WM_MOUSEMOVE || msg == WM_MOUSEHOVER ||
+                 msg == WM_MOUSELEAVE))
+                return 0;
             /* Native buttons paint synchronously on state/text changes, outside
              * WM_PAINT. Finish that operation, then replace the entire control
              * with our themed painting, including shortened translated labels. */

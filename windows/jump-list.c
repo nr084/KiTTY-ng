@@ -20,6 +20,7 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "kittyng.h"
 #include "kittyng-portable.h"
 #include "kittyng-companions.h"
 #include "storage.h"
@@ -435,7 +436,14 @@ static IShellLink *make_shell_link(const char *appname,
     sfree(param_string);
 
     if (sessionname) {
-        desc_string = dupcat("Connect to PuTTY session '", sessionname, "'");
+        const char *format = "Connect to KiTTY-ng session '%s'";
+        const char *translated = kr_translate(format);
+        wchar_t *wide = dup_mb_to_wc(
+            translated == format ? CP_ACP : CP_UTF8, translated);
+        char *local_format = dup_wc_to_mb(CP_ACP, wide, NULL);
+        desc_string = dupprintf(local_format, sessionname);
+        sfree(local_format);
+        sfree(wide);
     } else {
         assert(appname);
         desc_string = dupprintf("Run %.*s",

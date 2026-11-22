@@ -825,8 +825,18 @@ static INT_PTR GenericMainDlgProc(HWND hwnd, UINT msg, WPARAM wParam,
              * rows while the parent has drawing suspended. Refresh that
              * surface as well, without erasing the whole dialog. */
             InvalidateRect(tree, NULL, FALSE);
+            /* Group boxes paint only their outline and caption. Clear the
+             * previous page before painting the replacement controls. */
+            HDC dc = GetDC(hwnd);
+            if (dc) {
+                IntersectClipRect(dc, panel.left, panel.top,
+                                  panel.right, panel.bottom);
+                SendMessage(hwnd, WM_ERASEBKGND, (WPARAM)dc, 0);
+                ReleaseDC(hwnd, dc);
+            }
             RedrawWindow(hwnd, &panel, NULL,
-                         RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+                         RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN |
+                         RDW_UPDATENOW);
         }
         return 0;
 
@@ -1487,6 +1497,7 @@ static INT_PTR CAConfigProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
       case WM_INITDIALOG:
 
         kr_localize_dialog(hwnd);pds_initdialog_start(pds, hwnd);
+        SetWindowText(hwnd, "KiTTY-ng trusted host certification authorities");
 
         SendMessage(hwnd, WM_SETICON, (WPARAM) ICON_BIG,
                     (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(IDI_CFGICON)));
