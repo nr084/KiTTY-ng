@@ -33,7 +33,7 @@ typedef struct MacSession {
     Conf *conf; Terminal *term; Backend *backend; Ldisc *ldisc; LogContext *logctx;
     struct unicode_data ucs; rgb palette[OSC4_NCOLOURS];
     bool painting, closed, password_tried, started, authenticated, raw_mouse, input_locked, commands_started, manual_abort, specials_ready;
-    char *commands;size_t command_index;uint64_t command_due,reconnect_due;
+    char *commands;size_t command_index;uint64_t command_due,reconnect_due,key_restart_deadline;
 } MacSession;
 static NSMutableArray<MacTerminal *> *windows;
 static bool pumping, initialized;
@@ -203,23 +203,40 @@ static const TermWinVtable term_vt={.setup_draw_ctx=draw_setup,.draw_text=draw_t
 static size_t output(Seat *seat,SeatOutputType type,const void *data,size_t len){MacSession *s=SEAT(seat);if(s->term){[s->view observeOutput:[NSData dataWithBytes:data length:len]];term_data(s->term,data,len);[s->view setNeedsDisplay:YES];}return 0;}
 static size_t banner(Seat *seat,const void *data,size_t len){return output(seat,SEAT_OUTPUT_STDERR,data,len);}
 static bool eof(Seat *seat){return true;}
-static void started(Seat *seat){SEAT(seat)->started=true;SEAT(seat)->authenticated=true;}
+static void started(Seat *seat){SEAT(seat)->started=true;SEAT(seat)->authenticated=true;SEAT(seat)->key_restart_deadline=0;}
 static uint64_t now(void){return NSProcessInfo.processInfo.systemUptime*1000;}
 static void cancel_commands(MacSession *s){if(s->commands){smemclr(s->commands,strlen(s->commands));sfree(s->commands);s->commands=NULL;}s->command_index=0;}
-static void exited(Seat *seat){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);[s->view updateSessionTitle:[s->view.sessionTitle stringByAppendingString:T(@" — closed",@" — закрыто")]];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.host closePage:owner];});}}
-static void fatal(Seat *seat,const char *error){MacSession *s=SEAT(seat);s->started=false;s->closed=true;cancel_commands(s);int delay=conf_get_int(s->conf,CONF_kr_reconnect_delay);
+static void exited(Seat *seat){MacSession *s=SEAT(seat);if(s->key_restart_deadline)return;s->started=false;s->closed=true;cancel_commands(s);[s->view updateSessionTitle:[s->view.sessionTitle stringByAppendingString:T(@" — closed",@" — закрыто")]];int policy=conf_get_int(s->conf,CONF_close_on_exit),code=s->backend?backend_exitcode(s->backend):-1;if(policy==FORCE_ON||(policy==AUTO&&code==0)){__weak MacTerminal *view=s->view;dispatch_async(dispatch_get_main_queue(),^{MacTerminal *owner=view;if(owner.session&&owner.session->closed)[owner.host closePage:owner];});}}
+static void fatal(Seat *seat,const char *error){MacSession *s=SEAT(seat);if(s->key_restart_deadline){[s->view.events addObject:S(error)];return;}s->started=false;s->closed=true;cancel_commands(s);int delay=conf_get_int(s->conf,CONF_kr_reconnect_delay);
     if(delay>0&&!s->manual_abort){s->reconnect_due=now()+(uint64_t)delay*1000;[s->view.events addObject:S(error)];[s->view updateSessionTitle:T(@"KiTTY-ng — reconnecting…",@"KiTTY-ng — переподключение…")];}else message(error);
 }
 static void nonfatal_seat(Seat *seat,const char *error){message(error);}
 static NSString *dialog_text(SeatDialogText *text){NSMutableString *s=[NSMutableString new];for(size_t i=0;i<text->nitems;i++)if(text->items[i].type!=SDT_BATCH_ABORT)[s appendFormat:@"%@\n\n",S(text->items[i].text)];return s;}
+static NSModalResponse runConnectionAlert(MacSession *s, NSAlert *alert)
+{
+    NSTimer *timer = nil;
+    if (s->key_restart_deadline) {
+        double remaining = ((double)s->key_restart_deadline - now()) / 1000;
+        if (remaining <= 0) return NSModalResponseAbort;
+        timer = [NSTimer timerWithTimeInterval:remaining repeats:NO block:^(NSTimer *unused) {
+            if (NSApp.modalWindow == alert.window) [NSApp abortModal];
+        }];
+        [NSRunLoop.mainRunLoop addTimer:timer forMode:NSModalPanelRunLoopMode];
+    }
+    NSModalResponse response = [alert runModal];
+    [timer invalidate];
+    return response;
+}
 static SeatPromptResult host_key(Seat *seat,const char *host,int port,const char *type,char *key,SeatDialogText *text,HelpCtx help,void(*callback)(void*,SeatPromptResult),void *context){
     NSAlert *alert=[NSAlert new];alert.messageText=T(@"SSH server identity",@"Подлинность SSH-сервера");alert.informativeText=dialog_text(text);
-    [alert addButtonWithTitle:T(@"Cancel",@"Отмена")];[alert addButtonWithTitle:T(@"Accept and save",@"Принять и сохранить")];[alert addButtonWithTitle:T(@"Connect once",@"Подключиться один раз")];NSInteger choice=[alert runModal];
+    [alert addButtonWithTitle:T(@"Cancel",@"Отмена")];[alert addButtonWithTitle:T(@"Accept and save",@"Принять и сохранить")];[alert addButtonWithTitle:T(@"Connect once",@"Подключиться один раз")];NSInteger choice=runConnectionAlert(SEAT(seat),alert);
+    if(choice==NSModalResponseAbort)return SPR_USER_ABORT;
     if(choice==NSAlertFirstButtonReturn)SEAT(seat)->manual_abort=true;
     if(choice==NSAlertSecondButtonReturn)store_host_key(seat,host,port,type,key);return choice==NSAlertFirstButtonReturn?SPR_USER_ABORT:SPR_OK;
 }
-static SeatPromptResult weak_crypto(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *context){NSAlert *a=[NSAlert new];a.messageText=T(@"SSH security warning",@"Предупреждение безопасности SSH");a.informativeText=dialog_text(text);[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a addButtonWithTitle:T(@"Continue",@"Продолжить")];BOOL accepted=[a runModal]==NSAlertSecondButtonReturn;if(!accepted)SEAT(seat)->manual_abort=true;return accepted?SPR_OK:SPR_USER_ABORT;}
+static SeatPromptResult weak_crypto(Seat *seat,SeatDialogText *text,void(*callback)(void*,SeatPromptResult),void *context){NSAlert *a=[NSAlert new];a.messageText=T(@"SSH security warning",@"Предупреждение безопасности SSH");a.informativeText=dialog_text(text);[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a addButtonWithTitle:T(@"Continue",@"Продолжить")];BOOL accepted=runConnectionAlert(SEAT(seat),a)==NSAlertSecondButtonReturn;if(!accepted)SEAT(seat)->manual_abort=true;return accepted?SPR_OK:SPR_USER_ABORT;}
 static SeatPromptResult prompts(Seat *seat,prompts_t *p){MacSession *s=SEAT(seat);
+    if(s->key_restart_deadline && now()>=s->key_restart_deadline)return SPR_USER_ABORT;
     if(kr_auth_reuse(s->conf,p)){
         /* The runtime cache and saved-profile password share one automatic
          * password attempt. A rejected cache must open the native prompt. */
@@ -227,7 +244,7 @@ static SeatPromptResult prompts(Seat *seat,prompts_t *p){MacSession *s=SEAT(seat
         return SPR_OK;
     }
     if(!s->password_tried&&p->n_prompts==1&&!p->prompts[0]->echo&&p->to_server&&(!p->from_server||strstr(p->prompts[0]->prompt,"assword"))){const char *password=conf_get_str(s->conf,CONF_password);if(*password){prompt_set_result(p->prompts[0],password);s->password_tried=true;kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;}}
-    for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if([a runModal]!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;
+    for(size_t i=0;i<p->n_prompts;i++){NSAlert *a=[NSAlert new];a.messageText=@"KiTTY-ng — SSH";a.informativeText=S(p->from_server?p->prompts[i]->prompt:kr_mac_translate(p->prompts[i]->prompt));NSTextField *field=p->prompts[i]->echo?[[NSTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)]:[[NSSecureTextField alloc]initWithFrame:NSMakeRect(0,0,350,28)];a.accessoryView=field;[a addButtonWithTitle:T(@"Continue",@"Продолжить")];[a addButtonWithTitle:T(@"Cancel",@"Отмена")];[a.window makeFirstResponder:field];if(runConnectionAlert(s,a)!=NSAlertFirstButtonReturn){s->manual_abort=true;return SPR_USER_ABORT;}prompt_set_result(p->prompts[i],field.stringValue.UTF8String);field.stringValue=@"";}kr_auth_capture(s->conf,p,SPR_OK);return SPR_OK;
 }
 static void trust(Seat *seat,bool value){if(SEAT(seat)->term)term_set_trust_status(SEAT(seat)->term,value);}
 static bool pixel_size(Seat *seat,int *w,int *h){NSSize z=SEAT(seat)->view.bounds.size;*w=z.width;*h=z.height;return true;}
@@ -563,6 +580,7 @@ int kr_mac_test_session_navigation_ui(void){
 }
 - (void)restart:(id)sender{
     MacSession *s=self.session;if(!s)return;
+    if(sender) s->key_restart_deadline=0;
     Conf *snapshot=kr_auth_connection(s->conf,s->authenticated);
     conf_free(s->conf);s->conf=snapshot;
     [self connect];
@@ -576,6 +594,19 @@ int kr_mac_test_session_navigation_ui(void){
 }
 - (void)service {
     MacSession *s=self.session;if(!s)return;
+    if (s->key_restart_deadline && now() >= s->key_restart_deadline) {
+        s->key_restart_deadline = 0;
+        s->closed = true;
+        s->started = false;
+        s->specials_ready = false;
+        term_provide_backend(s->term, NULL);
+        if (s->ldisc) { ldisc_free(s->ldisc); s->ldisc = NULL; }
+        if (s->backend) { backend_free(s->backend); s->backend = NULL; }
+        NSString *suffix = kr_mac_localize_string(@" — closed");
+        if (![self.sessionTitle hasSuffix:suffix])
+            [self updateSessionTitle:[self.sessionTitle stringByAppendingString:suffix]];
+        return;
+    }
     if(s->reconnect_due&&now()>=s->reconnect_due){[self connect];return;}
     if(s->closed||!s->started||!s->backend||!backend_sendok(s->backend)||s->input_locked)return;
     if(!s->commands_started){s->commands_started=true;char *failure=NULL;s->commands=kr_mac_startup_commands(s->conf,&failure);s->command_due=now()+conf_get_int(s->conf,CONF_initdelay);if(failure){message(failure);sfree(failure);return;}}
@@ -610,7 +641,16 @@ int kr_mac_test_session_navigation_ui(void){
 - (void)showBrowser:(id)sender{kr_mac_show_windows();}
 - (void)keyDown:(NSEvent *)event{MacSession *s=self.session;if(!s||!s->term)return;if([self shortcut:event])return;
     if((event.modifierFlags&NSEventModifierFlagCommand)&&(event.keyCode==37||[event.charactersIgnoringModifiers.lowercaseString isEqualToString:@"l"])){s->input_locked=!s->input_locked;return;}if(s->input_locked)return;
-    if(s->closed && !(event.modifierFlags&NSEventModifierFlagCommand))return;
+    if (!(event.modifierFlags & NSEventModifierFlagCommand)) {
+        if (s->key_restart_deadline) return;
+        if (s->closed) {
+            if (!event.isARepeat) {
+                s->key_restart_deadline = now() + 3000;
+                [self restart:nil];
+            }
+            return;
+        }
+    }
     if(event.modifierFlags&NSEventModifierFlagCommand){NSString *key=event.charactersIgnoringModifiers.lowercaseString;if(event.keyCode==8||[key isEqualToString:@"c"])[self copy:nil];else if(event.keyCode==9||[key isEqualToString:@"v"])[self paste:nil];return;}
     if(self.hasMarkedText){[self interpretKeyEvents:@[event]];return;}
     NSString *characters=event.charactersIgnoringModifiers;if(!characters.length)return;unichar key=[characters characterAtIndex:0];char buffer[128];int n=0;bool consumed=false,shift=(event.modifierFlags&NSEventModifierFlagShift)!=0,control=(event.modifierFlags&NSEventModifierFlagControl)!=0,alt=(event.modifierFlags&NSEventModifierFlagOption)!=0;

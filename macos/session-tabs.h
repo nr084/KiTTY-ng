@@ -12,6 +12,7 @@ static BOOL macTabsEnabled(void){
 @property(nonatomic,strong) MacTerminal *selected;
 @property(nonatomic,strong) NSScrollView *strip;
 @property BOOL tabsEnabled,closing;
+@property(nonatomic,weak) MacTerminal *draggedPage;
 - (void)addPage:(MacTerminal*)page;
 - (void)selectPage:(MacTerminal*)page;
 - (void)movePage:(MacTerminal*)page to:(NSInteger)index;
@@ -53,8 +54,15 @@ static BOOL macTabsEnabled(void){
         [cross moveToPoint:NSMakePoint(x+2.5,y-2.5)];[cross lineToPoint:NSMakePoint(x-2.5,y+2.5)];[cross stroke];return;
     }
     BOOL active=self.host.selected==self.page;
-    [(active?[NSColor colorWithSRGBRed:0.18 green:0.46 blue:0.72 alpha:1]:NSColor.controlBackgroundColor)setFill];
-    [[NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds,2,3) xRadius:6 yRadius:6]fill];
+    BOOL dragging = self.host.draggedPage == self.page;
+    [(dragging ? [NSColor colorWithSRGBRed:0.10 green:0.35 blue:0.76 alpha:1] : active?[NSColor colorWithSRGBRed:0.18 green:0.46 blue:0.72 alpha:1]:NSColor.controlBackgroundColor)setFill];
+    NSBezierPath *shape = [NSBezierPath bezierPathWithRoundedRect:NSInsetRect(self.bounds,2,3) xRadius:6 yRadius:6];
+    [shape fill];
+    if (dragging) {
+        [[NSColor colorWithSRGBRed:0.56 green:0.81 blue:1 alpha:1] setStroke];
+        shape.lineWidth = 2;
+        [shape stroke];
+    }
     NSMutableParagraphStyle *style=[NSMutableParagraphStyle new];style.lineBreakMode=NSLineBreakByTruncatingTail;
     [self.title drawInRect:NSMakeRect(12,9,self.bounds.size.width-42,18) withAttributes:@{NSFontAttributeName:[NSFont systemFontOfSize:12 weight:active?NSFontWeightSemibold:NSFontWeightRegular],NSForegroundColorAttributeName:active?NSColor.whiteColor:NSColor.labelColor,NSParagraphStyleAttributeName:style}];
 }
@@ -63,14 +71,26 @@ static BOOL macTabsEnabled(void){
     if(self.closeControl){[super mouseDown:event];return;}
     MacTabHost *host=self.host;MacTerminal *page=self.page;NSWindow *window=host.window;
     NSPoint start=event.locationInWindow;[host selectPage:page];
+    NSArray *originalOrder = [host.pages copy];
     while(host.pages.count>1&&[host.pages containsObject:page]){
-        NSEvent *next=[window nextEventMatchingMask:NSEventMaskLeftMouseDragged|NSEventMaskLeftMouseUp];
+        NSEvent *next=[window nextEventMatchingMask:NSEventMaskLeftMouseDragged|NSEventMaskLeftMouseUp|NSEventMaskKeyDown];
         if(!next||next.type==NSEventTypeLeftMouseUp)break;
-        if(fabs(next.locationInWindow.x-start.x)<4)continue;
+        if (next.type == NSEventTypeKeyDown) {
+            if (next.keyCode == 53) {
+                if (host.draggedPage) [host.pages setArray:originalOrder];
+                break;
+            }
+            continue;
+        }
+        if (!host.draggedPage && fabs(next.locationInWindow.x-start.x)<4) continue;
+        host.draggedPage = page;
+        [host.strip.documentView setNeedsDisplay:YES];
         NSPoint p=[host.strip.documentView convertPoint:next.locationInWindow fromView:nil];
         NSInteger index=MAX(0,MIN((NSInteger)host.pages.count-1,(NSInteger)floor(p.x/macTabWidth)));
         [host movePage:page to:index];
     }
+    host.draggedPage = nil;
+    [host refresh];
     [window makeFirstResponder:host.selected];
 }
 - (NSMenu*)menuForEvent:(NSEvent*)event{
