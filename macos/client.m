@@ -673,7 +673,32 @@ int kr_mac_test_session_navigation_ui(void){
     [self interpretKeyEvents:@[event]];
 }
 - (void)copy:(id)sender{int clip=CLIP_CLIPBOARD;if(self.session)term_request_copy(self.session->term,&clip,1);}
-- (void)paste:(id)sender{if(!self.session||self.session->input_locked)return;NSString *text=[NSPasteboard.generalPasteboard stringForType:NSPasteboardTypeString];if(text){NSData *data=[text dataUsingEncoding:NSUTF32LittleEndianStringEncoding];term_do_paste(self.session->term,data.bytes,data.length/sizeof(wchar_t));}}
+- (void)paste:(id)sender
+{
+    MacSession *session = self.session;
+    if (!session || session->input_locked)
+        return;
+
+    NSPasteboard *clipboard = NSPasteboard.generalPasteboard;
+    if (session->started &&
+        conf_get_int(session->conf, CONF_protocol) == PROT_SSH &&
+        session->backend && backend_sendok(session->backend)) {
+        NSArray<NSURL *> *files = [clipboard readObjectsForClasses:@[NSURL.class]
+            options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}];
+        if (files.count) {
+            NSString *directory = conf_get_bool(session->conf, CONF_scp_auto_pwd)
+                ? self.remoteDirectory : nil;
+            kr_mac_upload(session->conf, self.terminalWindow, files, directory);
+            return;
+        }
+    }
+
+    NSString *text = [clipboard stringForType:NSPasteboardTypeString];
+    if (text) {
+        NSData *data = [text dataUsingEncoding:NSUTF32LittleEndianStringEncoding];
+        term_do_paste(session->term, data.bytes, data.length / sizeof(wchar_t));
+    }
+}
 - (BOOL)openLink:(NSEvent *)event {
     MacSession *s=self.session;if(!s||!conf_get_bool(s->conf,CONF_kr_hyperlinks)||!(event.modifierFlags&NSEventModifierFlagControl))return NO;
     NSPoint point=[self convertPoint:event.locationInWindow fromView:nil];int row=point.y/self.cellHeight,col=point.x/self.cellWidth;if(row<0||row>=s->term->rows||col<0||col>=s->term->cols)return NO;
