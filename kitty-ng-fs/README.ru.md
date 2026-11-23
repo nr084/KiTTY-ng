@@ -1,4 +1,4 @@
-# KiTTY-ng FS 1.1.1
+# KiTTY-ng FS 1.2.0
 
 **Автор: nr084**
 **Домашняя страница:** [github.com/nr084/KiTTY-ng](https://github.com/nr084/KiTTY-ng)

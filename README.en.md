@@ -109,11 +109,11 @@ Windows utilities match the client's architecture; all five macOS helpers are Un
 
 [KiTTY-ng FS](kitty-ng-fs/README.en.md) is a separate **Windows x86/x64** WFX plugin. Access SFTP in Total Commander through the embedded PuTTY/KiTTY-ng engine and existing portable SSH sessions: nested groups, transfers, renaming, directories and Unix permissions.
 
-[Download plugin 1.1.1](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/kitty-ng-fs-1.1.1-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.1.1/kitty-ng-fs-1.1.1-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
+[Download plugin 1.2.0](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.2.0/kitty-ng-fs-1.2.0-x86-x64.zip) · [Separate source archive](https://github.com/nr084/KiTTY-ng/releases/download/kitty-ng-fs-v1.2.0/kitty-ng-fs-1.2.0-source.zip) · [Setup and limitations](kitty-ng-fs/README.en.md)
 
 **Name compatibility:** `mail.example.ru` is displayed as `mail·example·ru`, without moving its suffix to the extension column. Original connection names and remote filenames are preserved; old session paths remain supported.
 
-**New in 1.1.1:** pipelined downloads improve throughput on higher-latency connections; the log shows transferred MiB. File connections run inside WFX without external executables. Passwords, keyboard-interactive, PPK keys and server-key confirmation are handled through TC. Client and plugin releases are independent; installed KiTTY-ng is only needed for the optional terminal command.
+**New in 1.2.0:** set the default permissions for new SFTP uploads. Overwriting a file preserves its existing permissions. File connections run inside WFX without external executables. Passwords, keyboard-interactive, PPK keys and server-key confirmation are handled through TC. Client and plugin releases are independent; installed KiTTY-ng is only needed for the optional terminal command.
 
 ## Screenshots
 
